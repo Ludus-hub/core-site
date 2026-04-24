@@ -1,18 +1,4 @@
-Math Master is an open source enterniamnet site. Our services include local games, a music and music streamer, calculator, and file explorer. Our goal is to allow our users acsess to as many things as possible unrestricted.
-
-Setup Details:
-Site works almost fully without any setup. Cannot run fully locally. Will need to setup with Firebase for sign in and cloud capabilities.
-Your Markdown file is ready
-[file-tag: code-generated-file-0-1777011849698275563]
-
-Here is the GitHub README file explaining the site, its limitations, and the necessary Firebase setup. 
-
-
-MathMaster 
-
-Welcome to the **MathMaster Global v2.0** repository! 
-
-MathMaster is a stealthy, feature-rich web game portal cleverly disguised as a math and educational quiz website. It comes packed with features to ensure uninterrupted, stealthy gameplay, including panic keys, tab cloaking, local/cloud save synchronization, and a massive library of classic web games.
+Math Master is an open source enterniamnet site. Our services include local games, a music and music streamer, calculator, and file explorer. Our goal is to allow our users acsess to as many things as possible unrestricted. Site works almost fully without any setup. Cannot run fully locally. Will need to setup with Firebase for sign in and cloud capabilities.
 
 Features
 
