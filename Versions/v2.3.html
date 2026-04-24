@@ -1,0 +1,1452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Math Master</title>
+<link id="favicon" rel="icon" href="Assets/Pictures/Non-edited/Math-n.png">
+<style>
+
+
+/* === Buttons (Unified Glass Theme) === */
+button:not(.dock-btn), .btn:not(.dock-btn) {
+    background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    color: var(--text-primary);
+    border-radius: 99px; 
+    padding: 10px 20px; 
+    font-size: 14px; 
+    font-weight: 500;
+    cursor: pointer; 
+    transition: all 0.25s ease;
+    outline: none;
+}
+button:not(.dock-btn):hover, .btn:not(.dock-btn):hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.45), 0 0 12px rgba(255,255,255,0.06) inset;
+}
+
+
+/* === Viewer === */
+.viewer {
+    display: none; flex-direction: column; margin-top: 20px;
+    background: #000; border-radius: var(--radius-lg); overflow: hidden;
+    height: 80vh; border: 1px solid var(--glass-border); position: relative; z-index: 500;
+    box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+}
+.viewer iframe { border: 0; flex: 1; width: 100%; height: 100%; }
+
+/* NOTE: There used to be a circular icon-style rule here for .viewer-controls button.
+   We will override it later with the pill-style rules (matching index_christmas),
+   but keep the base .viewer-controls container look here. */
+.viewer-controls { 
+    display: flex; justify-content: center; gap: 20px; padding: 20px; 
+    background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Back Home Button */
+#homeBtn { 
+    position: absolute; top: 20px; left: 20px; z-index: 10; 
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); 
+    color: white; border: 1px solid rgba(255,255,255,0.12); 
+    padding: 10px 20px; border-radius: 99px; font-weight: 600;
+    cursor: pointer;
+}
+#homeBtn:hover {
+    background: white; color: black;
+}
+
+
+
+/* -----------------------------
+   OVERRIDE: Pill-style viewer controls (from index_christmas)
+   - Exact pill padding, radius, border, and hover animation
+   - Theme-neutral colors (no green hover, no red border)
+   ----------------------------- */
+
+.viewer-controls {
+    /* keep container rules but slightly reduce gap to match christmas layout */
+    display: flex; justify-content: center; gap: 15px; padding: 20px;
+    background: rgba(20,20,20,0.95); backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.viewer-controls button {
+    width: auto;
+    height: auto;
+    border-radius: 99px;
+    padding: 10px 24px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.16);
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+/* Hover: Theme-neutral white/glassy glow (keeps animation from christmas style) */
+.viewer-controls button:hover {
+    background: rgba(255,255,255,0.14);
+    box-shadow: 0 0 15px rgba(255,255,255,0.18);
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.28);
+}
+
+/* small responsive tweak for pills */
+@media (max-width: 480px) {
+    .viewer-controls button { padding: 8px 14px; font-size: 13px; }
+}
+
+
+/* =========================================
+   LIQUID GLASS THEME (Refined)
+   ========================================= */
+
+:root {
+    /* Core Glass Variables */
+    --glass-bg: rgba(30, 30, 30, 0.4); /* Darker base for contrast */
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-shine: rgba(255, 255, 255, 0.05);
+    
+    /* The Magic Sauce: Saturation & Blur */
+    --glass-backdrop: blur(40px) saturate(180%);
+    
+    --accent-color: #0ea5a4;
+    --ios-green: #34c759;
+    --text-primary: #ffffff;
+    --text-secondary: #d1d1d6;
+    --radius-lg: 28px;
+    --radius-md: 18px;
+    
+    /* Deep, layered shadows for depth */
+    --shadow-soft: 
+        0 20px 40px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(255,255,255,0.1) inset; /* Inner light ring */
+}
+
+* {
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    margin: 0;
+    color: var(--text-primary);
+    background-color: #000;
+    /* Rich, deep gradient background to show off the glass effect */
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(14, 165, 164, 0.25), transparent 40%), 
+        radial-gradient(circle at 85% 30%, rgba(120, 50, 200, 0.15), transparent 40%),
+        linear-gradient(180deg, #050505 0%, #111 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    padding-bottom: 150px; 
+    overflow-x: hidden;
+}
+
+/* === SHARED GLASS CLASS (Used by Cards, Dock, Panels) === */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-backdrop);
+    -webkit-backdrop-filter: var(--glass-backdrop);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Add a "shine" gradient overlay to simulate lighting */
+.glass-panel::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* === BIGGER ICONS (SVG) === */
+.icon {
+    width: 32px; height: 32px;
+    stroke: white; stroke-width: 2;
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    position: relative; z-index: 2;
+}
+
+/* === Header === */
+.header {
+    background: transparent;
+    padding: 60px 20px 40px;
+    text-align: center;
+}
+/* Find this section in your CSS */
+.version-input-bubble {
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 10px;
+    background: #1a2a3a; border: 1px solid var(--christmas-green);
+    border-radius: var(--radius-md); padding: 10px; width: 250px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7); z-index: 1000;
+    display: none; flex-direction: column; gap: 8px;
+    
+    /* ADD THESE LINES TO FIX THE BLUR/TRANSPARENCY */
+    -webkit-text-fill-color: white; /* Resets the transparent text from H1 */
+    text-shadow: none;              /* Removes the glow from H1 */
+    font-size: 16px;                /* Resets font size */
+    letter-spacing: normal;         /* Resets spacing */
+    text-align: left;
+}
+.header h1 {
+    margin: 0; font-size: 56px; font-weight: 700; letter-spacing: -1.5px;
+    background: linear-gradient(180deg, #fff 20%, rgba(255,255,255,0.6) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    text-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.header .version {
+    font-size: 14px; background: rgba(255,255,255,0.1); padding: 4px 12px;
+    border-radius: 99px; color: #fff; -webkit-text-fill-color: initial;
+    vertical-align: middle; margin-left: 12px; 
+    border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+}
+.header p { color: var(--text-secondary); font-size: 17px; margin-top: 12px; font-weight: 400; }
+.header a { color: var(--accent-color); text-decoration: none; transition: 0.2s; font-weight: 500; }
+.header a:hover { color: #fff; text-shadow: 0 0 15px var(--accent-color); }
+
+/* === Layout Containers === */
+.container { max-width: 1280px; margin: 0 auto; padding: 0 30px; }
+
+/* === Game Grid === */
+#gameGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 30px;
+    justify-items: center;
+}
+
+/* === Game Cards (Liquid Style) === */
+.card {
+    /* Inherits glass properties via direct styles, refined here */
+    background: rgba(40, 40, 40, 0.3);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-lg);
+    padding: 15px;
+    text-align: center;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy spring */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-10px) scale(1.03);
+    background: rgba(60, 60, 60, 0.4);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.2) inset;
+}
+
+/* Shine effect on hover */
+.card::before {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
+    opacity: 0; transform: scale(0.5); transition: 0.5s ease-out;
+    pointer-events: none;
+}
+.card:hover::before { opacity: 1; transform: scale(1); }
+
+.card img { 
+    width: 100%; height: 160px; object-fit: cover; 
+    border-radius: var(--radius-md); margin-bottom: 15px; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.card h3 { 
+    font-size: 16px; font-weight: 600; margin: 0 0 10px; color: #fff; 
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+}
+
+
+/* === CARD BUTTON OVERRIDES (Must be placed after base button styles) === */
+.card .btn {
+    width: 100%; margin-top: 5px; 
+    /* The base style provides the glass background */
+    font-weight: 600;
+}
+.card:hover .btn {
+    background: var(--accent-color); /* Primary action on card hover */
+    box-shadow: 0 0 20px var(--accent-color);
+    transform: none; /* Override general hover transform */
+}
+
+/* === PRIMARY ACCENT BUTTONS (Modals/Login - keep accent color, improve hover) === */
+#versionInputBubble button, 
+#tourWelcomeModal button:first-of-type,
+#loginGate button {
+    background: var(--accent-color) !important;
+    border: 1px solid var(--accent-color) !important;
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(14, 165, 164, 0.5) !important;
+    transform: none; 
+}
+#versionInputBubble button:hover, 
+#tourWelcomeModal button:first-of-type:hover,
+#loginGate button:hover {
+    background: #007978 !important;
+    box-shadow: 0 0 20px var(--accent-color) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+}
+
+/* === UPDATED VIEWER CONTROLS (Pill Style, Neutral White Hover) === */
+.viewer-controls { 
+    display: flex; 
+    justify-content: center; 
+    gap: 15px; 
+    padding: 20px; 
+    background: rgba(20, 20, 20, 0.95); 
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Pill Buttons (taken from index_christmas but theme-neutral) */
+.viewer-controls button {
+    width: auto;
+    height: auto;
+    border-radius: 99px;
+    padding: 10px 24px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+/* Hover: Option B — White glow but soft/glassy */
+.viewer-controls button:hover { 
+    background: rgba(255,255,255,0.15);
+    box-shadow: 0 0 12px rgba(255,255,255,0.25);
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.3);
+}
+
+
+/* === CREDITS PANEL === */
+.collapsible-wrapper { position: absolute; top: 30px; right: 30px; z-index: 50; }
+.collapsible-header {
+    background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px); 
+    padding: 10px 20px; border-radius: 99px; 
+    border: 1px solid rgba(255,255,255,0.1); 
+    cursor: pointer; display: flex; align-items: center; gap: 10px; 
+    color: white; font-size: 14px; font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); /* Changed transition */
+}
+.collapsible-header:hover { 
+    background: rgba(50,50,50,0.8); 
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 15px rgba(255,255,255,0.1) inset;
+}
+
+.collapsible-content {
+    background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(40px); margin-top: 15px;
+    padding: 25px; border-radius: var(--radius-lg); 
+    border: 1px solid rgba(255,255,255,0.15);
+    display: none; position: absolute; right: 0; width: 320px; max-height: 500px; overflow-y: auto;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+}
+
+/* === APPLE DOCK CONTAINER === */
+.dock-container {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: auto;
+}
+
+/* === FLOATING POPUPS (Search, Canvas, Info, Saves) === */
+.floating-panel {
+    width: 380px;
+    /* Liquid Glass Style */
+    background: rgba(40, 40, 40, 0.65);
+    backdrop-filter: blur(50px) saturate(200%);
+    -webkit-backdrop-filter: blur(50px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-top: 1px solid rgba(255,255,255,0.3); /* Brighter top edge for light catching */
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+    
+    border-radius: 32px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    
+    /* Animation hooks */
+    opacity: 0;
+    transform: translateY(40px) scale(0.9);
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: absolute;
+    bottom: 140px;
+}
+
+.floating-panel.active {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+/* Search Input Styling */
+#searchInput {
+    width: 100%; 
+    background: rgba(0,0,0,0.3); 
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white; padding: 16px 20px; border-radius: 18px;
+    font-size: 18px; outline: none;
+    transition: 0.2s;
+}
+#searchInput:focus {
+    background: rgba(0,0,0,0.5);
+    border-color: var(--accent-color);
+}
+#searchInput::placeholder { color: #888; }
+#suggestions { text-align: center; font-size: 14px; color: var(--accent-color); padding-top: 5px; margin:0; }
+
+/* Canvas Panel specific */
+#canvasPanel {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    width: 300px;
+}
+#canvasPanel span { font-weight: 600; font-size: 17px; color: white; }
+
+/* Toggle Switch */
+.ios-switch { position: relative; width: 56px; height: 34px; }
+.ios-switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255,255,255,0.15);
+    transition: .4s; border-radius: 34px;
+}
+.slider:before {
+    position: absolute; content: ""; height: 28px; width: 28px;
+    left: 3px; bottom: 3px; background-color: white;
+    transition: .4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+input:checked + .slider { background-color: var(--ios-green); }
+input:checked + .slider:before { transform: translateX(22px); }
+
+/* === THE DOCK === */
+.bottom-dock {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* Heavy Glass Dock */
+    background: rgba(20, 20, 20, 0.5);
+    backdrop-filter: blur(60px) saturate(180%);
+    -webkit-backdrop-filter: blur(60px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding: 14px 20px;
+    border-radius: 40px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease;
+}
+
+.dock-btn {
+    width: 68px; height: 68px;
+    border-radius: 22px; 
+    background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.dock-btn:hover {
+    background: rgba(255,255,255,0.2);
+    transform: translateY(-15px) scale(1.15); /* Classic macOS dock magnification */
+    margin: 0 10px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+    z-index: 10;
+}
+
+.dock-btn.active-mode {
+    background: rgba(255,255,255,0.3);
+    box-shadow: 0 0 25px rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.5);
+}
+
+/* Tooltips */
+.dock-btn::after {
+    content: attr(data-tooltip);
+    position: absolute; top: -50px; left: 50%;
+    transform: translateX(-50%) scale(0.8);
+    background: rgba(0,0,0,0.8); color: white;
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 14px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: 0.2s;
+    backdrop-filter: blur(10px);
+}
+.dock-btn:hover::after { opacity: 1; transform: translateX(-50%) scale(1); top: -60px; }
+
+.dock-sep { width: 1px; height: 40px; background: rgba(255,255,255,0.15); margin: 0 5px; }
+
+
+
+/* === Login Gate & Tour === */
+#loginGate, #tourWelcomeModal { 
+    background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') !important; 
+    background-size: cover; background-position: center; 
+}
+#loginGate::before, #tourWelcomeModal::before { 
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(30px); z-index: -1; 
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; border: 2px solid #111; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+/* Tour Highlight */
+.tour-highlight {
+    position: absolute;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
+    border: 2px solid var(--accent-color);
+    border-radius: var(--radius-md);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none; /* Let clicks pass through */
+    z-index: 100000;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .dock-btn { width: 55px; height: 55px; }
+    .icon { width: 26px; height: 26px; }
+    .floating-panel { width: 90vw; bottom: 110px; }
+    .header h1 { font-size: 36px; }
+    #gameGrid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+/* === VERSION NOTE POPUP === */
+.header .version-container {
+    position: relative; /* Key to positioning the bubble relative to the version number */
+    display: inline-block;
+}
+
+.header .version {
+    cursor: pointer; /* Visual cue that it's clickable */
+    user-select: none;
+}
+
+.version-input-bubble {
+    position: absolute;
+    top: 100%; /* Position below the version number */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 10px;
+    
+    background: #111;
+    border: 1px solid var(--accent-color);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    width: 250px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    z-index: 1000;
+
+    display: none; /* Starts hidden */
+    flex-direction: column;
+    gap: 8px;
+}
+/* Creates the small triangle (tail) at the top of the bubble */
+.version-input-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px;
+    border-style: solid;
+    border-color: transparent transparent var(--accent-color) transparent;
+}
+
+.version-input-bubble textarea {
+    width: 100%;
+    height: 80px;
+    padding: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    color: white;
+    resize: none;
+    font-size: 14px;
+    outline: none;
+}
+.version-input-bubble textarea:focus {
+    border-color: var(--accent-color);
+}
+
+/* === PRIMARY ACCENT BUTTONS (Modals/Login - keep accent color, improve hover) === */
+#versionInputBubble button, 
+#tourWelcomeModal button:first-of-type,
+#loginGate button {
+    background: var(--accent-color) !important;
+    border: 1px solid var(--accent-color) !important;
+    color: white !important;
+    box-shadow: 0 4px 10px rgba(14, 165, 164, 0.5) !important;
+    transform: none; 
+}
+#versionInputBubble button:hover, 
+#tourWelcomeModal button:first-of-type:hover,
+#loginGate button:hover {
+    background: #007978 !important;
+    box-shadow: 0 0 20px var(--accent-color) !important;
+    transform: translateY(-2px) scale(1.02) !important;
+}
+
+</style>
+</head>
+<body>
+
+
+
+    <div id="tourOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; z-index: 1000000; display: none;"></div>
+    <div id="tourTooltip" style="position: absolute; padding: 15px; background: #000; border: 1px solid var(--accent-color); border-radius: 12px; width: 280px; text-align: left; opacity: 0; pointer-events: auto; transition: opacity 0.3s, transform 0.3s; z-index: 1000001; color: white; box-shadow: var(--shadow-soft);">
+        <p id="tourText" style="margin-bottom: 10px;"></p>
+        <div style="display: flex; justify-content: space-between;">
+            <button id="tourNextBtn" class="tour-next" style="background: var(--accent-color); color: white; border: none; padding: 6px 15px;">Next →</button>
+            <button id="tourEndBtn" onclick="endTour(true)" style="background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid var(--glass-border); display: none;">Finish</button>
+        </div>
+    </div>
+
+<div class="collapsible-wrapper">
+    <div class="collapsible-header" onclick="toggleCredits()">
+        <svg class="icon" viewBox="0 0 24 24" style="width:20px; height:20px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>Credits</span>
+    </div>
+    <div class="collapsible-content" id="creditsPanel">
+        <h3 style="margin-top:0; color:#fff;">Game Credits</h3>
+        <table style="width:100%; color:#ccc; font-size:13px; border-collapse: collapse;">
+ <tr><th>Name</th><th>Original Creator</th><th>Official Site</th></tr>
+
+    <tr><td>1v1.lol</td><td>JustPlay.lol</td><td><a href="https://1v1.lol" target="_blank">1v1.lol</a></td></tr>
+    <tr><td>12 Mini Battles</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>2048</td><td>Gabriele Cirulli</td><td><a href="https://play2048.co" target="_blank">play2048.co</a></td></tr>
+    <tr><td>Among Us</td><td>Innersloth</td><td><a href="https://www.innersloth.com" target="_blank">innersloth.com</a></td></tr>
+    <tr><td>Backrooms</td><td></td>
+    <tr><td>Bad Ice Cream</td><td>Nitrome</td><td><a href="https://www.nitrome.com" target="_blank">nitrome.com</a></td></tr>
+    <tr><td>Baldi's Basics</td><td>Micah McGonigal (Mystman12)</td><td><a href="https://baldisbasicsgame.github.io/" target="_blank">baldisbasicsgame.github.io</a></td></tr>
+    <tr><td>Basket Random</td><td>RHM Interactive</td><td>N/A</td></tr>
+    <tr><td>Basketball Stars</td><td>MadPuffers</td><td>N/A</td></tr>
+    <tr><td>Bitlife</td><td>Candywriter, LLC</td><td><a href="https://bitlifeapp.com" target="_blank">bitlifeapp.com</a></td></tr>
+    <tr><td>Block Blast</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Boxing Random</td><td>RHM Interactive</td><td><a href="https://play.google.com/store/apps/details?id=com.rhm.boxingrandom" target="_blank">play.google.com</a></td></tr>
+    <tr><td>Breakout</td><td>Atari</td><td><a href="https://www.atari.com" target="_blank">atari.com</a></td></tr>
+    <tr><td>Bridge Race</td><td>Supersonic Studios</td><td>N/A</td></tr>
+    <tr><td>Candy Crush (Saga)</td><td>King</td><td><a href="https://www.king.com/game/candycrush/" target="_blank">king.com</a></td></tr>
+    <tr><td>Chrome Dino</td><td>Google</td><td><a href="https://www.google.com" target="_blank">google.com</a></td></tr>
+    <tr><td>Cluster Rush</td><td>Landfall</td><td><a href="https://landfall.se" target="_blank">landfall.se</a></td></tr>
+    <tr><td>Cookie Clicker</td><td>Orteil and Opti</td><td><a href="https://cookieclicker.com" target="_blank">cookieclicker.com</a></td></tr>
+    <tr><td>Crossy Road</td><td>Hipster Whale</td><td><a href="https://hipsterwhale.com" target="_blank">hipsterwhale.com</a></td></tr>
+    <tr><td>Doodle Jump</td><td>Lima Sky</td><td><a href="https://limasky.com" target="_blank">limasky.com</a></td></tr>
+    <tr><td>Drive Mad</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Duck Life 4</td><td>Wix Games</td><td>N/A</td></tr>
+    <tr><td>Flappy Bird</td><td>Dong Nguyen</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 2</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 3</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 4</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Free Rider Jumps</td><td>Kano / One More Level</td><td><a href="https://www.freeriderhd.com/" target="_blank">freeriderhd.com</a></td></tr>
+    <tr><td>Fruit Ninja</td><td>Halfbrick Studios</td><td><a href="https://www.halfbrick.com" target="_blank">halfbrick.com</a></td></tr>
+    <tr><td>Friday Night Funkin'</td><td>The Funkin' Crew (FunkinCrew)</td><td><a href="https://github.com/FunkinCrew/Funkin" target="_blank">github.com</a></td></tr>
+    <tr><td>Geometry Dash</td><td>RobTop Games</td><td><a href="https://www.robtopgames.com" target="_blank">robtopgames.com</a></td></tr>
+    <tr><td>Gobble</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Granny</td><td>DVloper</td><td>N/A</td></tr>
+    <tr><td>Idle Breakout</td><td>Kodiqi</td><td>N/A</td></tr>
+    <tr><td>Love Meter</td><td>Atlas Study Partners</td><td>N/A</td></tr>
+    <tr><td>Mario (Super Mario Bros)</td><td>Nintendo</td><td><a href="https://www.nintendo.com" target="_blank">nintendo.com</a></td></tr>
+    <tr><td>Minecraft</td><td>Mojang Studios / Markus Persson</td><td><a href="https://www.minecraft.net" target="_blank">minecraft.net</a></td></tr>
+    <tr><td>Moto X3M 2</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M 3</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Pool Party</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Spooky</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Winter</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Ovo</td><td>Dedra Games</td><td><a href="https://dedragames.com" target="_blank">dedragames.com</a></td></tr>
+    <tr><td>Pac-Man</td><td>Namco</td><td><a href="https://www.bandainamcoent.com" target="_blank">bandainamcoent.com</a></td></tr>
+    <tr><td>Paper.io 2</td><td>Voodoo</td><td><a href="https://www.voodoo.io" target="_blank">voodoo.io</a></td></tr>
+    <tr><td>Plants Vs Zombies</td><td>PopCap Games</td><td><a href="https://www.ea.com/games/plants-vs-zombies" target="_blank">ea.com</a></td></tr>
+    <tr><td>Poly Track</td><td>Kodub (PolyTrack)</td><td><a href="https://kodub.itch.io/polytrack" target="_blank">kodub.itch.io</a></td></tr>
+    <tr><td>Red Ball 4</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4 Vol. 2</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4 Vol. 3</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Retro Bowl</td><td>New Star Games</td><td><a href="https://www.newstargames.com" target="_blank">newstargames.com</a></td></tr>
+    <tr><td>Rolly Vortex</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Rooftop Snipers</td><td>Michael Eichler</td><td><a href="https://www.newgrounds.com/portal/view/687203" target="_blank">Newgrounds</a></td></tr>
+    <tr><td>Run</td><td>Joseph Cloutier (player_03)</td><td><a href="https://run.fandom.com/wiki/Run" target="_blank">run.fandom.com</a></td></tr>
+    <tr><td>Run 2</td><td>Joseph Cloutier (player_03)</td><td><a href="https://www.kongregate.com/games/Memphis434/run-2" target="_blank">kongregate.com</a></td></tr>
+    <tr><td>Run 3</td><td>Yoyo Games / Player</td><td>N/A</td></tr>
+    <tr><td>Slope</td><td>Y8 / Rob Kay</td><td><a href="https://y8.com" target="_blank">y8.com</a></td></tr>
+    <tr><td>Slope 2</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Solar Smash</td><td>Jick / Paradyme</td><td>N/A</td></tr>
+    <tr><td>Soundboard</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Soccer Random</td><td>TwoPlayerGames / RHM Interactive</td><td><a href="https://www.crazygames.com/game/soccer-random" target="_blank">crazygames.com</a></td></tr>
+    <tr><td>Space Invaders</td><td>Tomohiro Nishikado (Taito)</td><td><a href="https://www.taito.co.jp" target="_blank">taito.co.jp</a></td></tr>
+    <tr><td>Steal A Brainrot</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Station Saturn</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>State.io</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Stickman Hook</td><td>MadBox (MadBox / MadBox Interactive)</td><td><a href="https://play.google.com/store/apps/details?id=com.mindy.grap1" target="_blank">play.google.com</a></td></tr>
+    <tr><td>Temple Run 2</td><td>Imangi Studios</td><td><a href="https://imangistudios.com/thegames/temple-run-2/" target="_blank">imangistudios.com</a></td></tr>
+    <tr><td>That's Not My Neighbor</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>The Impossible Quiz</td><td>Splapp-me-do</td><td>N/A</td></tr>
+    <tr><td>The Man From The Window</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Tunnel Rush</td><td>Deer Cat (Deer Cat Games)</td><td><a href="https://www.deercatgames.com/" target="_blank">deercatgames.com</a></td></tr>
+    <tr><td>Tomb of the Mask</td><td>Happymagenta (published by Playgendary)</td><td><a href="https://en.wikipedia.org/wiki/Tomb_of_the_Mask" target="_blank">wikipedia.org</a></td></tr>
+    <tr><td>Volleyball / Volley Random</td><td>TwoPlayerGames / RHM Interactive</td><td><a href="https://play.google.com/store/apps/details?id=com.twoplayergames.volleyrandom" target="_blank">play.google.com</a></td></tr>
+    <tr><td>Wordle</td><td>Josh Wardle (original creator) — now hosted by The New York Times</td><td><a href="https://powerlanguage.co.uk/" target="_blank">powerlanguage.co.uk</a></td></tr>
+    <tr><td>The World's Hardest Game</td><td>Stephen Critoph (Snubby / Snubby Land)</td><td><a href="https://en.wikipedia.org/wiki/The_World%27s_Hardest_Game" target="_blank">wikipedia.org</a></td></tr>
+    <tr><td>YoHoHo (yohoho.io)</td><td>Exodragon Games</td><td><a href="https://yohoho.io/" target="_blank">yohoho.io</a></td></tr>
+
+        </table>
+    </div>
+</div>
+
+<header class="header">
+  <h1>Math Master
+    <span class="version-container">
+        <span class="version" onclick="toggleVersionInput(event)">v2.3</span>
+        
+ <div id="versionInputBubble" class="version-input-bubble" style="display:none;">
+        <div id="versionTextDisplay"
+             style="padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.15);
+                    background:rgba(255,255,255,0.05); color:white; font-weight:600;">
+           <div id="versionTextDisplay" style="padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:white; font-size:13px; line-height:1.5;">
+             <b> Version 2.3 Update Details:</b>
+<li style="margin-bottom:4px;">
+            <b>New Games:</b> Added YoHoHo.io, Super Mario Bros, Pac-Man and redesigned Breakout, Chess, and Space Invaders
+        </li>
+        <li style="margin-bottom:4px;">
+            <b>Better Images:</b> Used new images for Backrooms, MotoX3M 2, Soundboard, and Wordle
+        <li style="margin-bottom:4px;">
+            <b>Updated Credits and Name:</b> Updated Credits Panel to incude newest games and removed .org from site name
+
+    </ul>
+</div>
+        </div>
+    </span>
+  </h1>
+  <p><a href="mailto:mathmasterofficialemail@gmail.com">Contact Us</a> | <a href="https://forms.gle/t4dfeHkVvirg8GfKA">Unblock Form</a></p>
+</header>
+
+<main class="container">
+  <div id="gameGrid"></div>
+
+  <div class="viewer" id="viewer">
+    <button id="homeBtn" onclick="goHome()">← Dashboard</button>
+    <iframe id="gameFrame"></iframe>
+    <div class="viewer-controls">
+      <button onclick="reloadGame()">Reload</button>
+      <button onclick="toggleFullscreen()">Fullscreen</button>
+      <button onclick="openInNewTab()">Open New Tab</button>
+    </div>
+  </div>
+</main>
+
+<div class="dock-container">
+    
+    <div id="spotlightSearch" class="floating-panel">
+        <input type="text" id="searchInput" placeholder="Search games..." autocomplete="off">
+        <div id="suggestions"></div>
+    </div>
+
+    <div id="canvasPanel" class="floating-panel">
+        <span>Canvas Mode</span>
+        <label class="ios-switch">
+            <input type="checkbox" id="canvasToggleInput">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div id="infoPanel" class="floating-panel" style="width: 300px; padding: 20px;">
+        <h3 style="margin: 0; color: white; font-weight: 600;">Website Information</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-top: 10px;">This is a customizable floating information panel. Tell me what content or links you'd like to add here!</p>
+    </div>
+    <nav class="bottom-dock">
+        <button id="exportBtn" class="dock-btn" onclick="exportAll()" data-tooltip="Export Save">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </button>
+        <button id="importBtn" class="dock-btn" onclick="importAll()" data-tooltip="Import Save">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        
+        <div class="dock-sep"></div>
+        
+        <button class="dock-btn" id="searchBtn" onclick="toggleSearch()" data-tooltip="Search">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </button>
+        
+        <button class="dock-btn" id="canvasBtn" onclick="toggleCanvasUI()" data-tooltip="Canvas Mode">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+        </button>
+
+
+        <div class="dock-sep"></div>
+        </nav>
+</div>
+
+<script>
+    // === Version Note System ===
+function toggleVersionInput(event) {
+    const bubble = document.getElementById('versionInputBubble');
+    const textarea = document.getElementById('versionTextInput');
+    
+    // Prevent the click from propagating to the document listener
+    event.stopPropagation();
+    
+    // Close other dock popups (Search, Canvas)
+    closePopups(); 
+
+    // Toggle display
+    if (bubble.style.display === 'flex') {
+        bubble.style.display = 'none';
+    } else {
+        bubble.style.display = 'flex';
+        // Load existing note from local storage
+        const savedNote = localStorage.getItem('mathmaster_version_note');
+        textarea.value = savedNote || '';
+        textarea.focus();
+    }
+}
+
+function saveVersionNote() {
+    const textarea = document.getElementById('versionTextInput');
+    const bubble = document.getElementById('versionInputBubble');
+    
+    // Save the note to local storage
+    localStorage.setItem('mathmaster_version_note', textarea.value);
+    alert('Note Saved!');
+    bubble.style.display = 'none';
+}
+/* ================= LOGIC ================= */
+
+// === Save Tools ===
+function exportAll(){
+  const o={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);o[k]=localStorage.getItem(k)}
+  navigator.clipboard.writeText(JSON.stringify(o));alert("Data copied!");
+}
+function importAll(){
+  const i=prompt("Paste exported JSON:");if(!i)return;
+  try{const o=JSON.parse(i);for(const k in o)localStorage.setItem(k,o[k]);alert("Imported! Reload page.");}
+  catch(e){alert("Invalid JSON");}
+}
+
+
+// === Search System ===
+const searchBar = document.getElementById('spotlightSearch');
+const searchBtn = document.getElementById('searchBtn');
+const searchInput = document.getElementById('searchInput');
+const suggestionsEl = document.getElementById('suggestions');
+// Levenshtein Distance (needed for fuzzy scoring)
+function levenshtein(a, b) {
+  const m = [];
+  for (let i = 0; i <= b.length; i++) {
+    m[i] = [i];
+    if (i === 0)
+      for (let j = 1; j <= a.length; j++)
+        m[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      m[i][j] = b[j - 1] === a[i - 1]
+        ? m[i - 1][j - 1]
+        : 1 + Math.min(
+          m[i - 1][j - 1],
+          m[i][j - 1],
+          m[i - 1][j]
+        );
+    }
+  }
+  return m[b.length][a.length];
+}
+
+// Weighted AI scoring
+function scoreMatch(query, name) {
+  const q = query.toLowerCase();
+  const n = name.toLowerCase();
+  if (n.includes(q)) return 0;
+  const dist = levenshtein(q, n);
+  const prefixBonus = n.startsWith(q[0]) ? -1 : 0;
+  return dist + prefixBonus;
+}
+
+// New: Get Info Panel elements (Restored)
+const infoPanel = document.getElementById('infoPanel'); 
+const infoBtn = document.getElementById('infoBtn');     
+
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  const cards = [...document.querySelectorAll('#gameGrid .card')];
+  suggestionsEl.innerHTML = "";
+
+  if (!q) {
+    cards.forEach(c => c.style.display = 'block');
+    return;
+  }
+
+  // Normal filtering
+  let visible = cards.filter(c =>
+    c.querySelector('h3').textContent.toLowerCase().includes(q)
+  );
+
+  // If nothing matches → Extreme AI Guessing
+  if (visible.length === 0) {
+    const guesses = games.map(g => ({
+      name: g.name,
+      score: scoreMatch(q, g.name)
+    }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3); // top 3 suggestions
+
+    suggestionsEl.innerHTML = `
+      Did you mean:<br>
+      ${guesses.map(g => `<b>${g.name}</b>`).join("<br>")}
+    `;
+
+    const bestNames = guesses.map(g => g.name.toLowerCase());
+
+    visible = cards.filter(c =>
+      bestNames.includes(
+        c.querySelector('h3').textContent.toLowerCase()
+      )
+    );
+  }
+
+  // Display results
+  cards.forEach(c => c.style.display = 'none');
+  visible.forEach(c => c.style.display = 'block');
+});
+
+function closePopups() {
+    searchBar.classList.remove("active");
+    searchBtn.classList.remove("active-mode");
+    canvasPanel.classList.remove("active");
+    canvasBtn.classList.remove("active-mode");
+    infoPanel && infoPanel.classList.remove("active"); // Added Info Panel
+    infoBtn && infoBtn.classList.remove("active-mode");   // Added Info Panel
+}
+
+function toggleSearch() {
+    const isActive = searchBar.classList.contains("active");
+    closePopups(); // Close others first
+    
+    if (!isActive) {
+        searchBar.classList.add("active");
+        searchBtn.classList.add("active-mode");
+        searchInput.focus();
+    } else {
+        searchInput.value = "";
+        // Trigger the input event to reset filter and suggestions
+        searchInput.dispatchEvent(new Event('input')); 
+    }
+}
+
+// Info Panel Toggle Function (Restored)
+function toggleInfoUI() {
+    const isActive = infoPanel.classList.contains("active");
+    closePopups(); // Close others first
+    
+    if (!isActive) {
+        infoPanel.classList.add("active");
+        infoBtn.classList.add("active-mode");
+    }
+}
+// END RESTORED
+
+// === Canvas System (UI & Logic) ===
+const canvasToggleInput = document.getElementById("canvasToggleInput");
+let isCanvasMode = localStorage.getItem("mathmaster_canvas_mode") === "true";
+
+// Initialize Toggle State
+canvasToggleInput.checked = isCanvasMode;
+applyCanvasMode();
+
+function toggleCanvasUI() {
+    const isActive = canvasPanel.classList.contains("active");
+    closePopups(); // Close others first
+    
+    if (!isActive) {
+        canvasPanel.classList.add("active");
+        canvasBtn.classList.add("active-mode");
+    }
+}
+
+// Listener for the switch inside the popup
+canvasToggleInput.addEventListener('change', (e) => {
+    isCanvasMode = e.target.checked;
+    localStorage.setItem("mathmaster_canvas_mode", isCanvasMode);
+    applyCanvasMode();
+});
+
+function applyCanvasMode() {
+    if (isCanvasMode) {
+        document.title = "Dashboard"; // Disguise Name
+        changeFavicon("Assets/Pictures/Non-edited/canvas-n.png");
+    } else {
+        document.title = "Math Master"; // Real Name
+        changeFavicon("Assets/Pictures/Non-edited/Math-n.png");
+    }
+}
+
+function changeFavicon(src) {
+    const oldLink = document.getElementById("favicon");
+    if (oldLink) oldLink.remove();
+    
+    const newLink = document.createElement("link");
+    newLink.id = "favicon";
+    newLink.rel = "icon";
+    newLink.href = src;
+    document.head.appendChild(newLink);
+}
+
+document.addEventListener('click', (e) => {
+    const isDock = e.target.closest('.dock-container');
+    const isTour = e.target.closest('#tourWelcomeModal') || e.target.closest('#tourTooltip');
+    const isVersion = e.target.closest('.version-container'); // NEW: check if click is inside version area
+
+    // Close dock popups
+    if (!isDock && !isTour) closePopups();
+
+    // NEW: Close version note bubble if click is outside the version area
+    if (!isVersion) {
+        const bubble = document.getElementById('versionInputBubble');
+        if (bubble && bubble.style.display === 'flex') {
+            bubble.style.display = 'none';
+        }
+    }
+});
+// Real-time Filtering
+searchInput.addEventListener('input', e => filterGames(e.target.value));
+function filterGames(query) {
+  const q = query.toLowerCase().trim();
+  const cards = [...document.querySelectorAll('#gameGrid .card')];
+  suggestionsEl.innerHTML = "";
+
+  if (!q) {
+    cards.forEach(c => c.style.display = 'block');
+    return;
+  }
+
+  let visible = cards.filter(c =>
+    c.querySelector('h3').textContent.toLowerCase().includes(q)
+  );
+
+  // Fuzzy guessing only if no direct matches
+  if (visible.length === 0 && typeof games !== "undefined") {
+
+    const guesses = games.map(g => ({
+      name: g.name,
+      score: scoreMatch(q, g.name)
+    }))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3);
+
+    suggestionsEl.innerHTML =
+      "Did you mean:<br>" +
+      guesses.map(g => `<b>${g.name}</b>`).join("<br>");
+
+    const best = guesses.map(g => g.name.toLowerCase());
+
+    visible = cards.filter(c =>
+      best.includes(c.querySelector('h3').textContent.toLowerCase())
+    );
+  }
+
+  cards.forEach(c => c.style.display = 'none');
+  visible.forEach(c => c.style.display = 'block');
+}
+
+
+
+// === NEW: FIRST-TIME TOUR LOGIC (CORRECTED) ===
+const tourWelcomeModal = document.getElementById('tourWelcomeModal');
+const tourOverlay = document.getElementById('tourOverlay');
+const tourTooltip = document.getElementById('tourTooltip');
+const tourTextEl = document.getElementById('tourText');
+const tourNextBtn = document.getElementById('tourNextBtn');
+const tourEndBtn = document.getElementById('tourEndBtn');
+tourNextBtn.addEventListener("click", nextTourStep);
+
+let currentStep = 0;
+
+const tourSteps = [
+    {
+        element: 'h1 .version', // Targets the version number span
+        text: 'This is the **Version Number (v2.3)**, check here for update information!',
+        position: 'bottom', // Tooltip appears below
+        adjust: {y: 10, x: 0}
+    },
+    {
+        element: '.header p a:nth-child(2)', // Unblock Form link
+        text: 'The **Unblock Form** is a way to request access if the site is blocked.',
+        position: 'bottom',
+        adjust: {y: 10, x: 0}
+    },
+    {
+        element: '.header p a:nth-child(1)', // Contact Us link
+        text: 'The **Contact Us** link is where you can send a message, primarily for **Game Requests**!',
+        position: 'bottom',
+        adjust: {y: 10, x: 0}
+    },
+    {
+        element: '.collapsible-header', // Credits button
+        text: 'This is the **Credits Panel**. Click it to see the original creators of the games.',
+        position: 'left',
+        adjust: {y: 0, x: -10}
+    },
+
+    // --- NEW: Export & Import steps inserted right before the Search step ---
+    {
+        element: '#exportBtn',
+        text: 'This is the **Export Save** button — use it to copy your saved data to the clipboard.',
+        position: 'top',
+        adjust: {y: -10, x: 0}
+    },
+    {
+        element: '#importBtn',
+        text: 'This is the **Import Save** button — paste previously exported JSON here to restore saves.',
+        position: 'top',
+        adjust: {y: -10, x: 0}
+    },
+    // --- end inserted steps ---
+
+    {
+        element: '#searchBtn', // Search button
+        text: 'This is the **Search** button. It opens a quick search bar above the dock.',
+        position: 'top',
+        adjust: {y: -10, x: 0}
+    },
+    {
+        element: '#canvasBtn', // Canvas button
+        text: 'This is **Canvas Mode**. Click it to toggle the site’s secret disguise.',
+        position: 'top',
+        adjust: {y: -10, x: 0}
+    },
+    {
+        element: '#infoBtn', // Info button
+        text: 'This is the **Information** panel. It can be customized with important links or messages. This is the last step!',
+        position: 'top',
+        adjust: {y: -10, x: 0}
+    }
+];
+
+function startTour() {
+    tourWelcomeModal.style.display = 'none';
+    tourOverlay.style.display = 'block';
+    currentStep = 0;
+    showTourStep(currentStep);
+}
+
+function nextTourStep() {
+    if (currentStep < tourSteps.length - 1) {
+        currentStep++;
+        showTourStep(currentStep);
+    } else {
+        // If it was the last step, end the tour.
+        endTour(true);
+    }
+}
+
+function endTour(completed) {
+    // This key ensures the welcome modal never shows again.
+    localStorage.setItem("mathmaster_tour_completed", "true");
+    
+    // Clean up tour elements
+    tourWelcomeModal.style.display = 'none';
+    tourOverlay.style.display = 'none';
+    tourTooltip.style.opacity = '0';
+    
+    // Remove the highlight box
+    const highlight = document.querySelector('.tour-highlight');
+    if (highlight) highlight.remove();
+
+    if (completed) {
+        // Optional: show a quick success message after the tour
+        // alert("Tour complete! Enjoy the new features!");
+    }
+}
+
+function showTourStep(stepIndex) {
+    const step = tourSteps[stepIndex];
+    const targetElement = document.querySelector(step.element);
+
+    if (!targetElement) {
+        console.error(`Tour element not found for step ${stepIndex}: ${step.element}`);
+        nextTourStep(); // Skip missing step
+        return;
+    }
+    
+    // 1. Update Tooltip Content and Buttons
+    tourTextEl.innerHTML = step.text;
+    if (stepIndex === tourSteps.length - 1) {
+        tourNextBtn.style.display = 'none';
+        tourEndBtn.style.display = 'block';
+    } else {
+        tourNextBtn.style.display = 'block';
+        tourEndBtn.style.display = 'none';
+    }
+
+    // 2. Scroll to the element and prepare the highlight
+    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Use a short delay to allow scrolling/transition to finish before measuring
+    setTimeout(() => {
+        const rect = targetElement.getBoundingClientRect();
+        let highlight = document.querySelector('.tour-highlight');
+        if (!highlight) {
+            highlight = document.createElement('div');
+            highlight.className = 'tour-highlight';
+            tourOverlay.appendChild(highlight);
+        }
+
+        // Adjust highlight size/position (fixed to current scroll position)
+        highlight.style.width = `${rect.width + 10}px`;
+        highlight.style.height = `${rect.height + 10}px`;
+        highlight.style.top = `${rect.top + window.scrollY - 5}px`;
+        highlight.style.left = `${rect.left + window.scrollX - 5}px`;
+        
+        // 3. Position Tooltip
+        let tooltipX, tooltipY;
+
+        // Calculate default position relative to the center of the highlight
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        switch (step.position) {
+            case 'top':
+                tooltipX = centerX - tourTooltip.offsetWidth / 2;
+                tooltipY = rect.top - tourTooltip.offsetHeight - 15 + (step.adjust.y || 0); 
+                break;
+            case 'bottom':
+                tooltipX = centerX - tourTooltip.offsetWidth / 2;
+                tooltipY = rect.bottom + 15 + (step.adjust.y || 0); 
+                break;
+            case 'left':
+                tooltipX = rect.left - tourTooltip.offsetWidth - 15 + (step.adjust.x || 0);
+                tooltipY = centerY - tourTooltip.offsetHeight / 2;
+                break;
+            case 'right':
+                tooltipX = rect.right + 15 + (step.adjust.x || 0);
+                tooltipY = centerY - tourTooltip.offsetHeight / 2;
+                break;
+            default: 
+                tooltipX = centerX - tourTooltip.offsetWidth / 2;
+                tooltipY = rect.bottom + 15;
+        }
+        
+        // Simple screen boundary check (left/right)
+        if (tooltipX < 10) tooltipX = 10;
+        if (tooltipX + tourTooltip.offsetWidth > window.innerWidth - 10) {
+            tooltipX = window.innerWidth - tourTooltip.offsetWidth - 10;
+        }
+        
+        // Set final, visible position (relative to document/scroll)
+        tourTooltip.style.left = `${tooltipX + window.scrollX}px`;
+        tourTooltip.style.top = `${tooltipY + window.scrollY}px`;
+        tourTooltip.style.opacity = '1';
+        
+    }, 400); 
+}
+// === END NEW TOUR LOGIC ===
+
+
+// === Game Loading ===
+const frame=document.getElementById("gameFrame");
+const viewer=document.getElementById("viewer");
+const grid=document.getElementById("gameGrid");
+let currentSrc="";
+
+function loadGame(p){
+  currentSrc=p; frame.src=p;
+  grid.style.display="none"; viewer.style.display="flex";
+  document.querySelector('.dock-container').style.transform = "translate(-50%, 200%)"; // Hide dock
+  window.scrollTo({top:viewer.offsetTop-20,behavior:"smooth"});
+}
+function goHome() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    viewer.style.display = "none";
+    grid.style.display = "grid";
+    frame.src = "";
+    document.querySelector('.dock-container').style.transform = "translateX(-50%)"; // Show dock
+}
+function reloadGame(){if(currentSrc)frame.src=currentSrc;}
+function toggleFullscreen(){if(!document.fullscreenElement){viewer.requestFullscreen();}else{document.exitFullscreen();}}
+function openInNewTab(){if(currentSrc)window.open(currentSrc,"_blank");}
+function toggleCredits() {
+    const p = document.getElementById("creditsPanel");
+    p.style.display = (p.style.display === "block") ? "none" : "block";
+}
+
+// === Games List (Omitted for brevity, assumed unchanged) ===
+
+const games = [
+    // ... (Your game list here) ... 
+ 
+  {name:"Love Meter", path:"Assets/Game Data/love_meter (2).html", logo:"Assets/Pictures/Edited/LoveMeter-ed.png"},
+  {name:"12 Mini Battles", path:"Assets/Game Data/12 Mini Battles.html", logo:"Assets/Pictures/Non-edited/12MiniBattles-n.png"},
+  {name:"1v1.lol", path:"Assets/Game Data/1v1lol/index.html", logo:"Assets/Pictures/Non-edited/1v1.lol-n.png"},
+  {name:"2048", path:"Assets/Game Data/2048/index.html", logo:"Assets/Pictures/Non-edited/2048-n.png"},
+  {name:"Among Us", path:"Assets/Game Data/among-us/index.html", logo:"Assets/Pictures/Non-edited/AmongUs-n.png"},
+  {name:"Backrooms", path:"Assets/Game Data/backrooms/index.html", logo:"Assets/Pictures/Non-edited/Backrooms-n.png"},
+  {name:"Bad Ice Cream", path:"Assets/Game Data/bad-ice-cream/index.html", logo:"Assets/Pictures/Non-edited/BadIceCream-n.png"},
+  {name:"Baldis Basics", path:"Assets/Game Data/baldis-basics/index.html", logo:"Assets/Pictures/Non-edited/BaldiBasics-n.png"},
+  {name:"Basketball Stars", path:"Assets/Game Data/basketball-stars/index.html", logo:"Assets/Pictures/Non-edited/BasketballStars-n.png"},
+  {name:'Basket Random', path:'Assets/Game Data/basketrandom/index.html', logo:'Assets/Pictures/Non-edited/BasketRandom-n.jpg'},
+  {name:'Bitlife', path:'Assets/Game Data/bitlife-main/bitlife-main/index.html', logo:'Assets/Pictures/Non-edited/Bitlife-n.jpg'},
+  {name:"Block Blast", path:"Assets/Game Data/Block Blast.html", logo:"Assets/Pictures/Non-edited/BlockBlast-n.png"},
+  {name:"Bridge Race", path:"Assets/Game Data/Bridge Race.html", logo:"Assets/Pictures/Non-edited/BridgeRace-n.png"},
+  {name:'Boxing Random', path:'Assets/Game Data/boxingrandom/index.html', logo:'Assets/Pictures/Non-edited/BoxingRandom-n.jpg'},
+  {name:'Breakout', path:'Assets/Game Data/breakout/index.html', logo:'Assets/Pictures/Non-edited/Breakout-n.png'},
+  {name:"Candy Crush", path: "Assets/Game Data/Candy Crush.html", logo: "Assets/Pictures/Non-edited/CandyCrush-n.png"}, 
+  {name:"Cluster Rush", path:"Assets/Game Data/cluster-rush/index.html", logo:"Assets/Pictures/Non-edited/ClusterTruck-n.png"},
+  {name:"Cookie Clicker", path:"Assets/Game Data/cookieclicker/index.html", logo:"Assets/Pictures/Non-edited/CookieClicker-n.ico", external:true}, 
+  {name:"Crossyroad", path:"Assets/Game Data/crossyroad/index.html", logo:"Assets/Pictures/Non-edited/CrossyRoad-n.png"},
+   {name:'Chess', path:'Assets/Game Data/chess/index.html', logo:'Assets/Pictures/Non-edited/Chess-n.png'},
+  {name:'Chrome Dino', path:'Assets/Game Data/chromedino/index.html', logo:'Assets/Pictures/Non-edited/DinosaurGame-n.png'},
+  {name:"Drive Mad", path:"Assets/Game Data/drive-mad/index.html", logo:"Assets/Pictures/Non-edited/DriveMad-n.jpg"},
+  {name:"Duck Life 4", path:"Assets/Game Data/ducklife4/index.html", logo:"Assets/Pictures/Non-edited/DuckLife4-n.jpg"},
+   {name:'Doodle Jump', path:'Assets/Game Data/doodlejump/index.html', logo:'Assets/Pictures/Non-edited/DoodleJump-n.png'},
+  {name:"Five Nights at Freddys", path:"Assets/Game Data/Five Nights at Freddys.html", logo:"Assets/Pictures/Non-edited/FNAF-n.png"},
+  {name:"Five Nights at Freddys 2", path:"Assets/Game Data/Five Nights at Freddys 2.html", logo:"Assets/Pictures/Non-edited/FNAF2-n.png"},
+  {name:"Five Nights at Freddys 3", path:"Assets/Game Data/Five Nights at Freddys 3.html", logo:"Assets/Pictures/Non-edited/FNAF3-n.png"},
+  {name:"Five Nights at Freddys 4", path:"Assets/Game Data/Five Nights at Freddys 4.html", logo:"Assets/Pictures/Non-edited/FNAF4-n.png"},
+  {name: "Free Rider Jumps", path: "Assets/Game Data/free_rider_jumps/index.html", logo: "Assets/Pictures/Non-edited/Free-n.webp"},
+  {name:"Fruit Ninja", path:"Assets/Game Data/fruitninja/index.html", logo:"Assets/Pictures/Non-edited/FruitNinja-n.jpg"},
+   {name:'Flappy Bird', path:'Assets/Game Data/flappybird/index.html', logo:'Assets/Pictures/Non-edited/FlappyBird-n.webp'},
+  {name: 'Friday Night Funkin (For Jacob)', path: 'Assets/Game Data/Friday Night Funkin.html', logo: 'Assets/Pictures/Non-edited/Friday-n.png'},
+   {name:'Geometry Dash', path:'Assets/Game Data/geometrydash/index.html', logo:'Assets/Pictures/Non-edited/GeometryDash-n.jpg'},
+   {name:"Gobble", path:'Assets/Game Data/Gobble.html', logo:"Assets/Pictures/Non-edited/Gobble-n.png"},
+  {name:"Granny", path:"Assets/Game Data/Granny.html", logo:"Assets/Pictures/Non-edited/Granny-n.png"},
+   {name:'Idle Breakout', path:'Assets/Game Data/idle-breakout-main/idle-breakout-main/game.html', logo:'Assets/Pictures/Non-edited/IdleBreakout-n.png'},
+   {name:'Super Mario Bros', path:'Assets/Game Data/mario/index.html', logo:"Assets/Pictures/Non-edited/Mario-n.png"},
+   {name:'Monkey Mart', path: 'Assets/Game Data/monkeymart/index.html', logo:'Assets/Pictures/Non-edited/monkeymart-n.avif'},
+  {name:"Minecraft", path:"Assets/Game Data/Minecraft 1.8.8.html", logo:"Assets/Pictures/Non-edited/Minecraft-n.png",external:true},
+  {name:"Moto X3M 2", path:"Assets/Game Data/motox3m2/index.html", logo:"Assets/Pictures/Non-edited/Motox3m2-n.png"},
+  {name:"Moto X3M 3", path:"Assets/Game Data/Moto X3M 3.html", logo:"Assets/Pictures/Non-edited/Motox3m3-n.png"},
+  {name:"Moto X3M Pool Party", path:"Assets/Game Data/motox3m-pool/index.html", logo:"Assets/Pictures/Non-edited/Motox3mPool-n.jpg"},
+  {name:"Moto X3M Spooky", path:"Assets/Game Data/motox3m-spooky/index.html", logo:"Assets/Pictures/Non-edited/Motox3mSpooky-n.jpeg"},
+  {name:"Moto X3M Winter", path:"Assets/Game Data/motox3mwinter/index.html", logo:"Assets/Pictures/Non-edited/Motox3mWinter-n.webp"},
+   {name:'Ovo', path:'Assets/Game Data/ovo/index.html', logo:'Assets/Pictures/Non-edited/ovo-n.png'},
+   {name:'Pac-Man', path:'Assets/Game Data/pacman/index.html', logo:'Assets/Pictures/Non-edited/Pacman-n.png'},
+  {name:"Paper io 2", path:"Assets/Game Data/paperio2/index.html", logo:"Assets/Pictures/Non-edited/Paperio2-n.png"},
+  {name:"Plants Vs Zombies", path:"Assets/Game Data/Plants vs Zombies.html", logo:"Assets/Pictures/Non-edited/PlantsVsZombies-n.png"},
+  {name: "Poly Track", path: "Assets/Game Data/poly-track/index.html", logo: "Assets/Pictures/Non-edited/Poly-n.png"},
+  {name:"Red Ball 4", path:"Assets/Game Data/Red Ball 4.html", logo:"Assets/Pictures/Non-edited/RedBall4-n.png"},
+  {name:"Red Ball 4 Vol. 2", path:"Assets/Game Data/Red Ball 4 Vol. 2.html", logo:"Assets/Pictures/Non-edited/RedBall4-2-n.png"},
+  {name:"Red Ball 4 Vol. 3", path:"Assets/Game Data/Red Ball 4 Vol. 3.html", logo:"Assets/Pictures/Non-edited/RedBall4-3-n.png"},
+  {name:"Retro Bowl", path:"Assets/Game Data/bowl/index.html", logo:"Assets/Pictures/Non-edited/Retrobowl-n.png"},
+  {name:"Rooftop Snipers", path:"Assets/Game Data/rooftop-snipers/index.html", logo:"Assets/Pictures/Non-edited/RooftopSnipers-n.png"},
+  {name:"Run", path:"Assets/Game Data/Run 1.html", logo:" Assets/Pictures/Non-edited/Run1-n.png"},
+  {name: "Run 2", path: "Assets/Game Data/Run 2.html", logo: "Assets/Pictures/Non-edited/Run-2-n.png"},
+  {name:"Run 3", path:"Assets/Game Data/Run 3.html", logo:"Assets/Pictures/Non-edited/Run3-n.png"},
+ {name: "Soccer Random", path: "Assets/Game Data/Soccer-Random/index.html", logo: "Assets/Pictures/Non-edited/SoccerRandom-n.jpg"},
+ {name: "Soundboard", path: "Assets/Game Data/soundboard/index.html", logo: "Assets/Pictures/Non-edited/Soundboard-n.jpg"},
+  {name:'Slope', path:'Assets/Game Data/Slope-Game-main/Slope-Game-main/index.html', logo:'Assets/Pictures/Non-edited/Slope-n.png'},
+  {name:"Slope 2", path:"Assets/Game Data/Slope 2.html", logo:"Assets/Pictures/Non-edited/Slope2-n.png"},
+  {name:"Solar Smash", path:"Assets/Game Data/Solar Smash.html", logo:"Assets/Pictures/Non-edited/SolarSmash-n.png"},
+  {name:"Station Saturn", path:"Assets/Game Data/Station Saturn.html", logo:"Assets/Pictures/Non-edited/StationSaturn-n.png"},
+  {name:"Steal A Brainrot", path:"Assets/Game Data/Steal A Brainrot.html", logo:"Assets/Pictures/Non-edited/StealABrainrot-n.png"},
+  {name:"Stickman Hook", path:"Assets/Game Data/stickman-hook/index.html", logo:"Assets/Pictures/Non-edited/Stickman-n.png"},
+  {name:"Temple Run 2", path:"Assets/Game Data/Temple Run 2.html", logo:"Assets/Pictures/Non-edited/TempleRun2-n.png"},
+ {name:"Space Invaders", path:'Assets/Game Data/spaceinvaders/index.html', logo:'Assets/Pictures/Non-edited/SpaceInvaders-n.png'},
+ {name:"Thats Not My Neighbor", path: 'Assets/Game Data/Thats Not My Neighbor.html', logo:"Assets/Pictures/Non-edited/ThatsNotMyNeighbor-n.png",external:true},
+ {name:"Tunnel Rush", path: "Assets/Game Data/tunnelrush/index.html", logo: "Assets/Pictures/Non-edited/TunnelRush-n.jpg"},
+ {name:"The Impossible Quiz", path:"Assets/Game Data/the-impossible-quiz/index.html", logo:"Assets/Pictures/Non-edited/ImpossibleQuiz-n.webp"},
+  {name:"The Man In The Window", path:"Assets/Game Data/The Man In The Window.html", logo:"Assets/Pictures/Non-edited/ManFromWindow-n.png"},
+  {name:"Tomb of the Mask", path:"Assets/Game Data/Tomb Of The Mask.html", logo:"Assets/Pictures/Non-edited/TombOfMask-n.png"},
+  {name:"Volleyball Random", path:"Assets/Game Data/Volley-Random/index.html", logo:"Assets/Pictures/Non-edited/VolleyRandom-n.webp"},
+  {name:"Wordle", path:"Assets/Game Data/wordle/index.html", logo:"Assets/Pictures/Non-edited/Wordle-n.webp"},
+  {name:"Worlds Hardest Game", path:"Assets/Game Data/worlds-hardest-game/index.html", logo:"Assets/Pictures/Non-edited/WorldHardestGame-n.jpeg"},
+  {name:"Yohoho.io", path:"Assets/Game Data/YoHoHo.io-main/index.html", logo: "Assets/Pictures/Non-edited/yohoho-n.jpg"}
+];
+
+const gridEl=document.getElementById("gameGrid");
+gridEl.innerHTML="";
+for(const g of games){
+ const c=document.createElement("div");
+ c.className="card";
+ c.innerHTML=`<img src="${g.logo}"><h3>${g.name}</h3>`;
+ c.innerHTML+= g.external 
+   ? `<button class="btn" onclick="window.open('${g.path}','_blank')">Open</button>`
+   : `<button class="btn" onclick="loadGame('${g.path}')">Play</button>`;
+ gridEl.appendChild(c);
+}
+
+
+
+window.onload = function() {
+    const gate = document.getElementById("loginGate");
+    let deviceId = localStorage.getItem(DEVICE_KEY);
+    let list = JSON.parse(localStorage.getItem(MASTER_LIST_KEY) || "[]");
+    
+    // Check Login Gate first
+    if (deviceId && list.includes(deviceId)) {
+        gate.style.display = "none";
+        
+        // After successful login, check if the tour has been completed
+        if (localStorage.getItem("mathmaster_tour_completed") !== "true") {
+            // Wait a moment for the rest of the page to load/render before showing the modal
+            setTimeout(() => {
+                tourWelcomeModal.style.display = "flex";
+            }, 500); 
+        }
+    }
+};
+
+function checkPassword() {
+    const input = document.getElementById("passwordInput").value;
+    const remember = document.getElementById("rememberToggle").checked;
+    const error = document.getElementById("loginError");
+    const limit = document.getElementById("loginLimit");
+    error.style.display = "none"; limit.style.display = "none";
+
+    if (input !== PASSWORD) { error.style.display = "block"; return; }
+    if (!remember) { document.getElementById("loginGate").style.display = "none"; return; }
+
+    let list = JSON.parse(localStorage.getItem(MASTER_LIST_KEY) || "[]");
+    if (list.length >= MAX_DEVICES) { limit.style.display = "block"; return; }
+    
+    const newId = crypto.randomUUID();
+    list.push(newId);
+    localStorage.setItem(DEVICE_KEY, newId);
+    localStorage.setItem(MASTER_LIST_KEY, JSON.stringify(list));
+    document.getElementById("loginGate").style.display = "none";
+    
+    // After login, show the tour for the first time
+    if (localStorage.getItem("mathmaster_tour_completed") !== "true") {
+        setTimeout(() => {
+            tourWelcomeModal.style.display = "flex";
+        }, 500); 
+    }
+}
+</script>
+</body>
+</html>

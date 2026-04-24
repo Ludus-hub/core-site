@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Simple Music Player</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;display:flex;gap:24px;align-items:flex-start;padding:24px}
+    .player{width:420px;border:1px solid #ddd;padding:16px;border-radius:8px}
+    .playlist{margin-top:12px}
+    .track{padding:8px;border-radius:6px;cursor:pointer}
+    .track.active{background:#f0f0f8}
+    button{padding:8px 12px;margin-right:8px}
+    .progress{height:6px;background:#eee;border-radius:6px;overflow:hidden;margin:10px 0}
+    .fill{height:100%;width:0%;}
+  </style>
+</head>
+<body>
+  <div class="player">
+    <h3 id="title">No track selected</h3>
+    <div>
+      <button id="prev">Prev</button>
+      <button id="play">Play</button>
+      <button id="next">Next</button>
+      <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" style="width:120px">
+    </div>
+
+    <div class="progress"><div id="fill" class="fill" style="background:#4f46e5"></div></div>
+    <div><span id="time">0:00</span> / <span id="duration">0:00</span></div>
+
+    <div class="playlist" id="playlist"></div>
+    <audio id="audio"></audio>
+  </div>
+
+  <script >
+    const tracks = [
+  { title: "Track 1 - Sample", url: "audio/track1.mp3" },
+  { title: "Track 2 - Sample", url: "audio/track2.mp3" }
+];
+
+// UI refs
+const audio = document.getElementById('audio');
+const playBtn = document.getElementById('play');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+const vol = document.getElementById('volume');
+const playlistEl = document.getElementById('playlist');
+const titleEl = document.getElementById('title');
+const fill = document.getElementById('fill');
+const timeEl = document.getElementById('time');
+const durationEl = document.getElementById('duration');
+
+let idx = 0;
+let isPlaying = false;
+
+function format(s){ const m = Math.floor(s/60), r = Math.floor(s%60); return `${m}:${r.toString().padStart(2,'0')}`; }
+
+function loadTrack(i){
+  const t = tracks[i];
+  audio.src = t.url;
+  titleEl.textContent = t.title;
+  document.querySelectorAll('.track').forEach((el, j)=> el.classList.toggle('active', j===i));
+}
+
+function playPause(){
+  if(audio.src === '') return;
+  if(isPlaying){ audio.pause(); } else { audio.play(); }
+}
+
+audio.addEventListener('play', ()=>{ isPlaying=true; playBtn.textContent='Pause'; });
+audio.addEventListener('pause', ()=>{ isPlaying=false; playBtn.textContent='Play'; });
+audio.addEventListener('timeupdate', ()=>{
+  if (!isNaN(audio.duration)) {
+    fill.style.width = (audio.currentTime / audio.duration * 100) + '%';
+    timeEl.textContent = format(audio.currentTime);
+    durationEl.textContent = format(audio.duration);
+  }
+});
+audio.addEventListener('ended', ()=> nextTrack());
+
+playBtn.onclick = playPause;
+prevBtn.onclick = ()=> { idx = (idx-1 + tracks.length) % tracks.length; loadTrack(idx); audio.play(); }
+nextBtn.onclick = ()=> nextTrack();
+vol.oninput = ()=> audio.volume = vol.value;
+
+function nextTrack(){
+  idx = (idx+1) % tracks.length;
+  loadTrack(idx);
+  audio.play();
+}
+
+// build playlist UI
+tracks.forEach((t,i)=>{
+  const div = document.createElement('div');
+  div.className = 'track';
+  div.textContent = t.title;
+  div.onclick = ()=> { idx = i; loadTrack(i); audio.play(); };
+  playlistEl.appendChild(div);
+});
+
+loadTrack(idx);
+audio.volume = vol.value;
+  </script>
+</body>
+</html>

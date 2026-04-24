@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludus Calculator Hub</title>
+    
+    <link rel="stylesheet" type="text/css" href="https://mn.testnav.com/client/public/stylesheets/tn.css"/>
+    <script src="https://mn.testnav.com/client/texasinstruments/js/ELG-min.js"></script>
+    <script id="h84statej" type="application/json" data-url="https://mn.testnav.com/client/texasinstruments/bin/No_AppsCE.h84statej"></script>
+    <script id="ti84faceplate" type="application/json" data-url="https://mn.testnav.com/client/texasinstruments/images/TI84CE_touch.svg"></script>
+
+    <style>
+        /* --- Base Theme --- */
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-tertiary: #111111;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(255, 255, 255, 0.05);
+            --accent: #00C9FF;
+            --accent-alt: #92FE9D;
+            --accent-hist: #FFB75E;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100vh !important;
+            width: 100vw !important;
+            overflow: hidden !important;
+            position: fixed !important; 
+            top: 0 !important; 
+            left: 0 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%) !important;
+        }
+
+        .main-content { 
+            flex: 1; display: flex; flex-direction: column; 
+            height: 100%; width: 100%; position: relative;
+        }
+
+        /* --- Floating Top Navigation --- */
+        .top-bar {
+            position: fixed !important; top: 0 !important; left: 0 !important; width: 100%;
+            padding: 12px 24px; display: flex; justify-content: space-between;
+            align-items: flex-start; background: transparent; border: none;
+            z-index: 999999; pointer-events: none;
+        }
+        .top-bar > * { pointer-events: auto; }
+
+        /* --- Branding --- */
+        .brand-container {
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(0, 0, 0, 0.5); padding: 8px 12px;
+            border-radius: 8px; backdrop-filter: blur(4px);
+        }
+        .brand-icon { color: var(--accent); }
+        .brand-title {
+            font-size: 18px; font-weight: 800;
+            font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* --- Unified Calculator Dropdown Toggle --- */
+        .provider-dropdown { position: relative; }
+        .provider-dropdown-btn {
+            height: 42px; padding: 0 16px;
+            background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(8px);
+            border: 1px solid var(--border); border-radius: 8px; 
+            color: var(--text-primary); font-size: 14px; font-weight: 500;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: all 0.15s;
+        }
+        .provider-dropdown-btn:hover { background: rgba(255,255,255,0.1); }
+        
+        .provider-dropdown-menu {
+            display: none; position: absolute;
+            top: calc(100% + 8px); right: 0;
+            background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 10px; overflow: hidden; min-width: 220px; 
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+        }
+        .provider-dropdown-menu.open { display: block; }
+        .provider-dropdown-item {
+            padding: 14px 16px; font-size: 13px;
+            color: var(--text-secondary); cursor: pointer;
+            transition: background 0.1s; text-align: right;
+        }
+        .provider-dropdown-item:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+        .provider-dropdown-item.active { color: var(--text-primary); background: rgba(255,255,255,0.03); font-weight: 500; }
+
+        /* --- Views Container --- */
+        .view-container {
+            flex: 1; display: none; justify-content: center; align-items: flex-start;
+            overflow: hidden; background: transparent !important;
+            height: 100vh; width: 100vw; padding-top: 70px !important; 
+        }
+        .view-container.active { display: flex; }
+
+        /* --- TI-84 Specific Rules --- */
+        .calculatorDiv {
+            outline: none !important; box-shadow: 0 25px 60px rgba(0,0,0,0.9);
+            border-radius: 12px; position: relative; margin: 0 !important;
+            transform: translateY(-10px); 
+        }
+
+        /* --- Shared Tool Container Styles --- */
+        .tool-container {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: 12px; padding: 32px; width: 100%; max-width: 850px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); max-height: 85vh;
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+
+        .tool-header { margin-bottom: 24px; text-align: center; position: relative; }
+        .tool-header h2 { font-size: 22px; margin-bottom: 4px; }
+        .tool-header p { color: var(--text-secondary); font-size: 14px; }
+
+        .form-input {
+            width: 100%; background-color: #1a1a1a !important; 
+            border: 1px solid #444 !important; color: #ffffff !important; 
+            padding: 10px 14px !important; border-radius: 6px !important;
+            font-size: 14px !important; outline: none !important; transition: border-color 0.2s;
+        }
+        .form-input::placeholder { color: #888 !important; }
+        .form-input:focus { border-color: var(--accent) !important; }
+
+        /* --- Custom Table Dropdowns --- */
+        .table-dropdown { position: relative; width: 100%; z-index: 1; }
+        .table-dropdown-btn {
+            width: 100%; height: 38px; padding: 0 12px;
+            background-color: #1a1a1a !important; border: 1px solid #444 !important;
+            color: #ffffff !important; border-radius: 6px; font-size: 14px;
+            text-align: left; display: flex; justify-content: space-between;
+            align-items: center; cursor: pointer; outline: none; transition: border-color 0.2s;
+        }
+        .table-dropdown-btn:hover, .table-dropdown-btn:focus { border-color: var(--accent) !important; }
+
+        .table-dropdown-menu {
+            display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+            background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 8px; overflow-y: auto; max-height: 180px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.8); z-index: 10; 
+        }
+        .table-dropdown-menu.open { display: block; }
+        .table-dropdown-item {
+            padding: 10px 12px; font-size: 13px; color: var(--text-secondary);
+            cursor: pointer; transition: background 0.1s, color 0.1s;
+        }
+        .table-dropdown-item:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+        .table-dropdown-item.active { color: var(--accent); background: rgba(0, 201, 255, 0.05); font-weight: 500; }
+        
+        .table-dropdown-menu::-webkit-scrollbar { width: 6px; }
+        .table-dropdown-menu::-webkit-scrollbar-track { background: transparent; }
+        .table-dropdown-menu::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+
+        /* --- Layout specific tables & grids --- */
+        .gpa-table-wrapper { flex: 1; overflow-y: auto; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-tertiary); }
+        .gpa-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .gpa-table th { padding: 12px 16px; background: rgba(255,255,255,0.02); font-size: 12px; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 200; }
+        .gpa-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .gpa-btn-remove { background: transparent; border: none; color: #ff4444; cursor: pointer; font-size: 18px; opacity: 0.7; transition: opacity 0.2s; }
+        .gpa-btn-remove:hover { opacity: 1; }
+        .gpa-actions { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid var(--border); }
+        
+        .btn-action { background: var(--glass); border: 1px solid var(--border); color: var(--text-primary); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s; display: flex; align-items: center; gap: 8px;}
+        .btn-action:hover { background: rgba(255,255,255,0.1); }
+        
+        .result-box { background: rgba(0, 201, 255, 0.1); border: 1px solid rgba(0, 201, 255, 0.2); padding: 12px 24px; border-radius: 8px; text-align: right; }
+        .result-label { font-size: 12px; color: var(--accent); text-transform: uppercase; margin-bottom: 4px;}
+        .result-value { font-size: 24px; font-weight: 700; color: #fff;}
+        .result-value.alt { color: var(--accent-alt); }
+
+        /* --- Grade Calc Specifics --- */
+        .grade-section { margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+        .grade-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .grade-section h3 { font-size: 16px; margin-bottom: 16px; color: var(--accent); }
+        
+        .grid-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-end; }
+        .grid-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .grid-col label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; }
+        .fraction-wrap { display: flex; align-items: center; gap: 8px; }
+        .fraction-wrap span { font-size: 18px; color: var(--text-secondary); }
+
+        /* --- History Tab Specifics --- */
+        .history-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        .history-card { 
+            background: var(--bg-tertiary); border: 1px solid var(--border); 
+            border-radius: 8px; padding: 16px; display: flex; flex-direction: column; 
+            gap: 8px; transition: all 0.2s; position: relative; cursor: pointer;
+        }
+        .history-card:hover { border-color: var(--accent-hist); transform: translateY(-2px); background: rgba(255,255,255,0.03); }
+        .history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .history-title { font-weight: 600; color: var(--accent-hist); font-size: 15px;}
+        .history-date { font-size: 11px; color: var(--text-secondary); }
+        .history-result { font-size: 18px; font-weight: 700; color: #fff; margin-top: 4px; }
+        .history-details { font-size: 13px; color: var(--text-secondary); line-height: 1.5; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 4px;}
+        
+        .restore-hint { font-size: 11px; color: var(--accent-hist); opacity: 0; transition: opacity 0.2s; text-align: right; margin-top: 4px; }
+        .history-card:hover .restore-hint { opacity: 0.8; }
+        
+        .history-delete { position: absolute; top: 12px; right: 12px; background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.2); border-radius: 4px; color: #ff4444; font-size: 14px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0.7; transition: all 0.2s; z-index: 2; }
+        .history-delete:hover { opacity: 1; background: rgba(255,68,68,0.2); }
+        .empty-history { text-align: center; color: var(--text-secondary); padding: 40px; font-style: italic; }
+
+        .tool-container::-webkit-scrollbar { width: 8px; }
+        .tool-container::-webkit-scrollbar-track { background: transparent; }
+        .tool-container::-webkit-scrollbar-thumb { background: #333; border-radius: 8px; }
+
+    </style>
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+</script>
+<body>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <div class="brand-container">
+                <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                    <line x1="8" y1="6" x2="16" y2="6"></line>
+                    <line x1="16" y1="14" x2="16.01" y2="14"></line>
+                    <line x1="12" y1="14" x2="12.01" y2="14"></line>
+                    <line x1="8" y1="14" x2="8.01" y2="14"></line>
+                    <line x1="16" y1="18" x2="16.01" y2="18"></line>
+                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                    <line x1="8" y1="18" x2="8.01" y2="18"></line>
+                </svg>
+                <span class="brand-title">Ludus Calculator</span>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-left: auto; margin-right: 16px;">
+                <button class="provider-dropdown-btn" onclick="resizeCalc(-0.05)" title="Zoom Out">➖</button>
+                <button class="provider-dropdown-btn" onclick="resetCalcSize()" title="Reset Size">Reset</button>
+                <button class="provider-dropdown-btn" onclick="resizeCalc(0.05)" title="Zoom In">➕</button>
+            </div>
+
+            <div class="provider-dropdown">
+                <button class="provider-dropdown-btn" id="dropdown-btn">
+                    <span id="current-calc-name">TI-84 Plus CE Edition</span>
+                    <span style="font-size: 10px; opacity: 0.6; margin-left: 4px;">▼</span>
+                </button>
+                <div class="provider-dropdown-menu" id="dropdown-menu">
+                    <div class="provider-dropdown-item active" data-target="ti84">TI-84 Plus CE Edition</div>
+                    <div class="provider-dropdown-item" data-target="gpa">GPA Calculator</div>
+                    <div class="provider-dropdown-item" data-target="grade">Grade Calculator</div>
+                    <div class="provider-dropdown-item" data-target="history" style="border-top: 1px solid rgba(255,255,255,0.1); color: var(--accent-hist);">View Saved History</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="view-container active" id="view-ti84">
+            <div id="calculatorDiv" class="calculatorDiv"></div>
+        </div>
+
+        <div class="view-container" id="view-gpa">
+            <div class="tool-container">
+                <div class="tool-header">
+                    <h2>GPA Calculator</h2>
+                    <p>Enter your classes manually, or import your transcript.</p>
+                </div>
+
+                <div style="background: rgba(0, 201, 255, 0.05); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="color: var(--accent); margin: 0;">Auto-Import from Transcript (Beta)</h4>
+                        <label class="btn-action" style="background: var(--accent); color: #000; border: none; padding: 6px 16px; font-size: 13px; cursor: pointer;">
+                            Upload PDF
+                            <input type="file" id="gpa-pdf-upload" accept="application/pdf" style="display: none;" onchange="handlePDFUpload(event, 'gpa')">
+                        </label>
+                    </div>
+                    <details style="font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+                        <summary style="outline: none;">How to get your Transcript PDF</summary>
+                        <ol style="margin-top: 10px; padding-left: 20px; line-height: 1.6;">
+                            <li>Log in to your school's grade portal on a computer.</li>
+                            <li>Navigate to the <b>Grades</b> or <b>Transcript</b> page.</li>
+                            <li>Right-click anywhere on the page and select <b>Print</b>.</li>
+                            <li>Change the Destination/Printer to <b>"Save as PDF"</b>.</li>
+                            <li>Click Save, then upload that file here!</li>
+                        </ol>
+                    </details>
+                </div>
+
+                <div class="gpa-table-wrapper">
+                    <table class="gpa-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 35%">Class Name</th>
+                                <th style="width: 20%">Grade</th>
+                                <th style="width: 15%">Tier</th>
+                                <th style="width: 12%; text-align: center;">Unscaled</th>
+                                <th style="width: 12%; text-align: center;">Scaled</th>
+                                <th style="width: 6%"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="gpa-tbody"></tbody>
+                    </table>
+                </div>
+
+                <div class="gpa-actions">
+                    <button class="btn-action" onclick="addGpaRow()">+ Add Class</button>
+                    <div style="display: flex; gap: 16px; align-items: stretch;">
+                        <button class="btn-action" style="border-color: var(--accent); color: var(--accent);" onclick="saveToHistory('GPA')">Save to History</button>
+                        <div class="result-box">
+                            <div class="result-label">Unscaled GPA</div>
+                            <div class="result-value" id="res-unweighted">0.000</div>
+                        </div>
+                        <div class="result-box">
+                            <div class="result-label">Scaled GPA</div>
+                            <div class="result-value" id="res-weighted">0.000</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="view-container" id="view-grade">
+            <div class="tool-container">
+                <div class="tool-header">
+                    <h2>Grade Calculators</h2>
+                    <p>Calculate end-of-term averages or predict your detailed category scores.</p>
+                </div>
+                
+                <div class="grade-section">
+                    <h3>Term/Semester Calculator</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Fill in 2 Terms + Exam for a Trimester average, or all 3 Terms + Exam for a Semester average.</p>
+                    <div class="grid-row">
+                        <div class="grid-col"><label>Term 1 (%)</label><input type="number" class="form-input" id="term1" placeholder="e.g. 88" oninput="calcTerm()"></div>
+                        <div class="grid-col"><label>Term 2 (%)</label><input type="number" class="form-input" id="term2" placeholder="e.g. 92" oninput="calcTerm()"></div>
+                        <div class="grid-col"><label>Term 3 (%)</label><input type="number" class="form-input" id="term3" placeholder="If Semester" oninput="calcTerm()"></div>
+                        <div class="grid-col"><label>Final Exam (%)</label><input type="number" class="form-input" id="termExam" placeholder="e.g. 85" oninput="calcTerm()"></div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-left: auto;">
+                            <div class="result-box" style="min-width: 150px; padding: 6px 16px;">
+                                <div class="result-label">Final Avg</div>
+                                <div class="result-value" id="res-term">-</div>
+                            </div>
+                            <button class="btn-action" style="padding: 4px 0; justify-content: center; font-size: 12px; color: var(--accent);" onclick="saveToHistory('Term')">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grade-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3>Grade Calculator</h3>
+                        <div style="width: 250px;">
+                            <div class="table-dropdown">
+                                <button class="table-dropdown-btn" type="button"><span class="dropdown-text">On-Level (50% Tests / 50% Daily)</span><span style="font-size: 10px; opacity: 0.6;">▼</span></button>
+                                <div class="table-dropdown-menu">
+                                    <div class="table-dropdown-item active" data-value="onlevel" onclick="calcDetailed()">On-Level (50% Tests / 50% Daily)</div>
+                                    <div class="table-dropdown-item" data-value="ap" onclick="calcDetailed()">Advanced/AP (60% Tests / 40% Daily)</div>
+                                </div><input type="hidden" id="classLevel" value="onlevel">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-row">
+                        <div class="grid-col"><label>Category A (Tests)</label><div class="fraction-wrap"><input type="number" class="form-input" id="catAEarned" placeholder="Earned Pts" oninput="calcDetailed()"><span>/</span><input type="number" class="form-input" id="catATotal" placeholder="Total Pts" oninput="calcDetailed()"></div></div>
+                        <div class="grid-col"><label>Category B (Daily)</label><div class="fraction-wrap"><input type="number" class="form-input" id="catBEarned" placeholder="Earned Pts" oninput="calcDetailed()"><span>/</span><input type="number" class="form-input" id="catBTotal" placeholder="Total Pts" oninput="calcDetailed()"></div></div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-left: auto;">
+                            <div class="result-box" style="min-width: 150px; padding: 6px 16px;">
+                                <div class="result-label">Current Grade</div>
+                                <div class="result-value" id="res-current-grade">-</div>
+                            </div>
+                            <button class="btn-action" style="padding: 4px 0; justify-content: center; font-size: 12px; color: var(--accent);" onclick="saveToHistory('Detailed')">Save</button>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1); margin-top: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="font-size: 14px; margin: 0; color: var(--text-secondary);">What-If Predictor</h4>
+                            <button class="btn-action" style="padding: 4px 10px; font-size: 11px;" onclick="addPredictionRow()">+ Add Assignment</button>
+                        </div>
+                        <div id="predictions-container"></div>
+                        <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+                            <div class="result-box" style="padding: 6px 16px; background: rgba(146, 254, 157, 0.1); border-color: rgba(146, 254, 157, 0.2);">
+                                <div class="result-label" style="color: var(--accent-alt);">Projected Grade</div>
+                                <div class="result-value alt" id="res-projected-grade">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="view-container" id="view-history">
+            <div class="tool-container">
+                <div class="tool-header" style="display: flex; justify-content: space-between; align-items: center; text-align: left;">
+                    <div>
+                        <h2 style="color: var(--accent-hist);">Saved Calculations</h2>
+                        <p>Click any card to load your previous work.</p>
+                    </div>
+                    <button class="btn-action" style="border-color: #ff4444; color: #ff4444;" onclick="clearHistory()">Clear All</button>
+                </div>
+                
+                <div class="history-grid" id="history-container">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- UI Navigation Logic ---
+        const views = ['ti84', 'gpa', 'grade', 'history'];
+        const viewNames = {
+            'ti84': 'TI-84 Plus CE Edition', 'gpa': 'GPA Calculator',
+            'grade': 'Grade Calculator', 'history': 'Saved History'
+        };
+
+        function switchView(target) {
+            views.forEach(v => document.getElementById(`view-${v}`).classList.remove('active'));
+            document.getElementById(`view-${target}`).classList.add('active');
+            document.getElementById('current-calc-name').innerText = viewNames[target];
+
+            document.querySelectorAll('.provider-dropdown-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.provider-dropdown-item[data-target="${target}"]`).classList.add('active');
+            document.getElementById('dropdown-menu').classList.remove('open');
+
+            if(target === 'history') loadHistory();
+        }
+
+        document.querySelectorAll('.provider-dropdown-item').forEach(item => {
+            if(item.hasAttribute('data-target')){
+                item.addEventListener('click', (e) => switchView(e.currentTarget.getAttribute('data-target')));
+            }
+        });
+
+        document.getElementById('dropdown-btn').addEventListener('click', () => {
+            document.getElementById('dropdown-menu').classList.toggle('open');
+        });
+
+        // --- Custom Table Dropdown Logic ---
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.table-dropdown') && !e.target.closest('.provider-dropdown')) {
+                document.querySelectorAll('.table-dropdown-menu.open').forEach(menu => {
+                    menu.classList.remove('open'); menu.closest('.table-dropdown').style.zIndex = '1';
+                });
+            }
+
+            const btn = e.target.closest('.table-dropdown-btn');
+            if (btn) {
+                const dropdown = btn.closest('.table-dropdown'); const menu = btn.nextElementSibling;
+                document.querySelectorAll('.table-dropdown-menu.open').forEach(m => {
+                    if (m !== menu) { m.classList.remove('open'); m.closest('.table-dropdown').style.zIndex = '1'; }
+                });
+                if (menu.classList.contains('open')) { menu.classList.remove('open'); dropdown.style.zIndex = '1'; } 
+                else { menu.classList.add('open'); dropdown.style.zIndex = '100'; }
+            }
+
+            const item = e.target.closest('.table-dropdown-item');
+            if (item && !item.hasAttribute('data-target')) {
+                const dropdown = item.closest('.table-dropdown');
+                const menu = item.closest('.table-dropdown-menu');
+                const btn = menu.previousElementSibling; const hiddenInput = menu.nextElementSibling;
+                
+                menu.querySelectorAll('.table-dropdown-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                btn.querySelector('.dropdown-text').innerText = item.innerText;
+                hiddenInput.value = item.getAttribute('data-value');
+                
+                menu.classList.remove('open'); dropdown.style.zIndex = '1';
+                if(document.getElementById('view-gpa').classList.contains('active')) calculateGpa();
+                if(document.getElementById('view-grade').classList.contains('active')) calcDetailed();
+            }
+        });
+
+        // --- History Tab Logic & State Restoring ---
+        function loadHistory() {
+            const container = document.getElementById('history-container');
+            const history = JSON.parse(localStorage.getItem('ludus_history') || '[]');
+            
+            if (history.length === 0) {
+                container.innerHTML = `<div class="empty-history">No saved calculations yet. Try saving a GPA or Grade result!</div>`;
+                return;
+            }
+
+            container.innerHTML = history.map((item, index) => `
+                <div class="history-card" onclick="restoreHistory(${index})">
+                    <button class="history-delete" onclick="event.stopPropagation(); deleteHistoryItem(${index})">×</button>
+                    <div class="history-header">
+                        <span class="history-title">${item.title}</span>
+                        <span class="history-date">${item.date}</span>
+                    </div>
+                    <div class="history-result">${item.result}</div>
+                    ${item.details ? `<div class="history-details">${item.details}</div>` : ''}
+                    <div class="restore-hint">Click to restore progress →</div>
+                </div>
+            `).join('');
+        }
+
+        function saveToHistory(type) {
+            let item = { date: new Date().toLocaleString(), type: type, state: {} };
+
+            if (type === 'GPA') {
+                let u = document.getElementById('res-unweighted').innerText;
+                let w = document.getElementById('res-weighted').innerText;
+                if (u === "0.000" && w === "0.000") return alert("Calculate a GPA first!");
+                
+                item.state.classes = [];
+                let classStrings = [];
+                document.querySelectorAll('.gpa-row').forEach(row => {
+                    let name = row.querySelector('input[type="text"]').value;
+                    let g = row.querySelector('.sel-grade').value;
+                    let t = row.querySelector('.sel-tier').value;
+                    item.state.classes.push({name, grade: g, tier: t});
+                    if(g && t) classStrings.push(`${name || "Unnamed"} (${g})`);
+                });
+
+                item.title = 'GPA Calculation'; item.result = `Unweighted: ${u} | Scaled: ${w}`;
+                item.details = classStrings.join(" • ");
+            } 
+            else if (type === 'Term') {
+                let res = document.getElementById('res-term').innerText;
+                if (res === "-") return alert("Calculate a term average first!");
+                
+                item.state.t1 = document.getElementById('term1').value;
+                item.state.t2 = document.getElementById('term2').value;
+                item.state.t3 = document.getElementById('term3').value;
+                item.state.exam = document.getElementById('termExam').value;
+                
+                item.title = 'Term Average Calculation'; item.result = `Final Avg: ${res}`;
+                item.details = `T1: ${item.state.t1 || '-'}% • T2: ${item.state.t2 || '-'}% • Exam: ${item.state.exam || '-'}%`;
+            }
+            else if (type === 'Detailed') {
+                let cur = document.getElementById('res-current-grade').innerText;
+                let proj = document.getElementById('res-projected-grade').innerText;
+                if (cur === "-") return alert("Calculate a category grade first!");
+
+                item.state.level = document.getElementById('classLevel').value;
+                item.state.aE = document.getElementById('catAEarned').value;
+                item.state.aT = document.getElementById('catATotal').value;
+                item.state.bE = document.getElementById('catBEarned').value;
+                item.state.bT = document.getElementById('catBTotal').value;
+                
+                // Save all what-if predictions
+                item.state.predictions = [];
+                document.querySelectorAll('.prediction-row').forEach(row => {
+                    let score = row.querySelector('.pred-score').value;
+                    let weight = row.querySelector('.pred-weight').value;
+                    let cat = row.querySelector('.pred-cat').value;
+                    if(score || weight) item.state.predictions.push({score, weight, cat});
+                });
+
+                item.title = 'Detailed Category Grade';
+                item.result = `Current: ${cur} ${proj !== "-" ? `| Projected: ${proj}` : ''}`;
+                item.details = `${item.state.level === 'ap' ? 'Advanced' : 'On-Level'} mode with ${item.state.predictions.length} What-If assignments.`;
+            }
+
+            // NEW: Added a try-catch block to prevent corrupted local data from breaking the save process
+            let history = [];
+            try {
+                history = JSON.parse(localStorage.getItem('ludus_history') || '[]');
+            } catch (error) {
+                console.warn("Corrupted history found and cleared.");
+                history = [];
+            }
+
+            history.unshift(item); // Add to top
+            localStorage.setItem('ludus_history', JSON.stringify(history));
+            alert(`Saved to History!`);
+
+            // --- NEW: The Missing Cloud Trigger ---
+            if (window.parent && typeof window.parent.saveDataToCloud === 'function') {
+                window.parent.saveDataToCloud(true);
+            }
+        }
+
+        function restoreHistory(index) {
+            let history = JSON.parse(localStorage.getItem('ludus_history') || '[]');
+            let item = history[index];
+            if(!item) return;
+  
+            if (item.type === 'GPA') {
+                document.getElementById('gpa-tbody').innerHTML = '';
+                item.state.classes.forEach(c => {
+                    addGpaRow();
+                    let rows = document.querySelectorAll('.gpa-row');
+                    let last = rows[rows.length-1];
+                    last.querySelector('input[type="text"]').value = c.name || "";
+                    
+                    if(c.grade) {
+                        last.querySelector('.sel-grade').value = c.grade;
+                        last.querySelectorAll('.table-dropdown-menu')[0].parentElement.querySelector('.dropdown-text').innerText = c.grade;
+                    }
+                    if(c.tier) {
+                        last.querySelector('.sel-tier').value = c.tier;
+                        let tTxt = c.tier === 'tier1' ? 'Tier I' : c.tier === 'tier2' ? 'Tier II' : 'Tier III';
+                        last.querySelectorAll('.table-dropdown-menu')[1].parentElement.querySelector('.dropdown-text').innerText = tTxt;
+                    }
+                });
+                calculateGpa();
+                switchView('gpa');
+            } 
+            else if (item.type === 'Term') {
+                document.getElementById('term1').value = item.state.t1 || "";
+                document.getElementById('term2').value = item.state.t2 || "";
+                document.getElementById('term3').value = item.state.t3 || "";
+                document.getElementById('termExam').value = item.state.exam || "";
+                calcTerm();
+                switchView('grade');
+            } 
+            else if (item.type === 'Detailed') {
+                document.getElementById('classLevel').value = item.state.level || "onlevel";
+                let lvlTxt = item.state.level === 'ap' ? "Advanced/AP (60% Tests / 40% Daily)" : "On-Level (50% Tests / 50% Daily)";
+                document.querySelector('#view-grade .table-dropdown-btn .dropdown-text').innerText = lvlTxt;
+
+                document.getElementById('catAEarned').value = item.state.aE || "";
+                document.getElementById('catATotal').value = item.state.aT || "";
+                document.getElementById('catBEarned').value = item.state.bE || "";
+                document.getElementById('catBTotal').value = item.state.bT || "";
+
+                document.getElementById('predictions-container').innerHTML = '';
+                if(item.state.predictions && item.state.predictions.length > 0) {
+                    item.state.predictions.forEach(p => {
+                        addPredictionRow();
+                        let rows = document.querySelectorAll('.prediction-row');
+                        let last = rows[rows.length-1];
+                        last.querySelector('.pred-score').value = p.score || "";
+                        last.querySelector('.pred-weight').value = p.weight || "";
+                        last.querySelector('.pred-cat').value = p.cat || "A";
+                    });
+                } else {
+                    addPredictionRow();
+                }
+                calcDetailed();
+                switchView('grade');
+            }
+            
+            // --- NEW: Trigger Parent Cloud Sync ---
+            if (window.parent && typeof window.parent.saveDataToCloud === 'function') {
+                window.parent.saveDataToCloud(true);
+            }
+        }
+
+        function deleteHistoryItem(index) {
+            let history = JSON.parse(localStorage.getItem('ludus_history') || '[]');
+            history.splice(index, 1);
+            localStorage.setItem('ludus_history', JSON.stringify(history));
+            loadHistory();
+
+            // --- NEW: Trigger Parent Cloud Sync ---
+            if (window.parent && typeof window.parent.saveDataToCloud === 'function') {
+                window.parent.saveDataToCloud(true);
+            }
+        }
+
+        function clearHistory() {
+            if(confirm("Are you sure you want to delete all saved calculations?")) {
+                localStorage.removeItem('ludus_history'); 
+                loadHistory();
+
+                // --- NEW: Trigger Parent Cloud Sync ---
+                if (window.parent && typeof window.parent.saveDataToCloud === 'function') {
+                    window.parent.saveDataToCloud(true);
+                }
+            }
+        }
+
+        // --- GPA Calculator Logic ---
+        const gradeScale = {
+            '98-100': { tier3: 6.000, tier2: 5.000, tier1: 4.000 }, '93-97':  { tier3: 5.666, tier2: 4.666, tier1: 3.666 },
+            '90-92':  { tier3: 5.333, tier2: 4.333, tier1: 3.333 }, '87-89':  { tier3: 5.000, tier2: 4.000, tier1: 3.000 },
+            '83-86':  { tier3: 4.666, tier2: 3.666, tier1: 2.666 }, '80-82':  { tier3: 4.333, tier2: 3.333, tier1: 2.333 },
+            '77-79':  { tier3: 4.000, tier2: 3.000, tier1: 2.000 }, '73-76':  { tier3: 3.666, tier2: 2.666, tier1: 1.666 },
+            '70-72':  { tier3: 3.333, tier2: 2.333, tier1: 1.333 }, '<70':    { tier3: 0.000, tier2: 0.000, tier1: 0.000 }
+        };
+
+        function calculateGpa() {
+            const rows = document.querySelectorAll('.gpa-row');
+            let tU = 0, tS = 0, valid = 0;
+            rows.forEach(row => {
+                const grade = row.querySelector('.sel-grade').value;
+                const tier = row.querySelector('.sel-tier').value;
+                const outU = row.querySelector('.out-unweighted');
+                const outS = row.querySelector('.out-weighted');
+
+                if (grade && tier) {
+                    let uVal = gradeScale[grade]['tier1']; let sVal = gradeScale[grade][tier];
+                    outU.innerText = uVal.toFixed(3); outS.innerText = sVal.toFixed(3);
+                    tU += uVal; tS += sVal; valid++;
+                } else { outU.innerText = '-'; outS.innerText = '-'; }
+            });
+            document.getElementById('res-unweighted').innerText = valid > 0 ? (tU / valid).toFixed(3) : "0.000";
+            document.getElementById('res-weighted').innerText = valid > 0 ? (tS / valid).toFixed(3) : "0.000";
+        }
+
+        function addGpaRow() {
+            const tbody = document.getElementById('gpa-tbody');
+            const tr = document.createElement('tr'); tr.className = 'gpa-row';
+            tr.innerHTML = `
+                <td><input type="text" class="form-input" placeholder="e.g. Algebra II"></td>
+                <td>
+                    <div class="table-dropdown">
+                        <button class="table-dropdown-btn" type="button"><span class="dropdown-text">Select Grade</span><span style="font-size: 10px; opacity: 0.6;">▼</span></button>
+                        <div class="table-dropdown-menu">
+                            <div class="table-dropdown-item" data-value="98-100">98–100</div><div class="table-dropdown-item" data-value="93-97">93–97</div>
+                            <div class="table-dropdown-item" data-value="90-92">90–92</div><div class="table-dropdown-item" data-value="87-89">87–89</div>
+                            <div class="table-dropdown-item" data-value="83-86">83–86</div><div class="table-dropdown-item" data-value="80-82">80–82</div>
+                            <div class="table-dropdown-item" data-value="77-79">77–79</div><div class="table-dropdown-item" data-value="73-76">73–76</div>
+                            <div class="table-dropdown-item" data-value="70-72">70–72</div><div class="table-dropdown-item" data-value="<70">Below 70</div>
+                        </div><input type="hidden" class="sel-grade" value="">
+                    </div>
+                </td>
+                <td>
+                    <div class="table-dropdown">
+                        <button class="table-dropdown-btn" type="button"><span class="dropdown-text">Tier III</span><span style="font-size: 10px; opacity: 0.6;">▼</span></button>
+                        <div class="table-dropdown-menu">
+                            <div class="table-dropdown-item active" data-value="tier3">Tier III</div><div class="table-dropdown-item" data-value="tier2">Tier II</div><div class="table-dropdown-item" data-value="tier1">Tier I</div>
+                        </div><input type="hidden" class="sel-tier" value="tier3">
+                    </div>
+                </td>
+                <td class="out-unweighted" style="text-align:center; font-weight: 500;">-</td>
+                <td class="out-weighted" style="text-align:center; font-weight: 500; color: var(--accent);">-</td>
+                <td style="text-align:center;"><button class="gpa-btn-remove" onclick="this.closest('tr').remove(); calculateGpa();">×</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+        for(let i=0; i<4; i++) { addGpaRow(); }
+
+        // --- Grade Calculator Logic ---
+        function calcTerm() {
+            let t1 = parseFloat(document.getElementById('term1').value); let t2 = parseFloat(document.getElementById('term2').value);
+            let t3 = parseFloat(document.getElementById('term3').value); let exam = parseFloat(document.getElementById('termExam').value);
+            let res = document.getElementById('res-term');
+            let hasT1 = !isNaN(t1), hasT2 = !isNaN(t2), hasT3 = !isNaN(t3), hasExam = !isNaN(exam);
+
+            if(hasT1 && hasT2 && hasT3 && hasExam) { res.innerText = ((t1*2 + t2*2 + t3*2 + exam) / 7).toFixed(1) + "%"; } 
+            else if (hasT1 && hasT2 && hasT3) { res.innerText = ((t1 + t2 + t3) / 3).toFixed(1) + "%"; }
+            else if(hasT1 && hasT2 && hasExam) { res.innerText = ((t1*2 + t2*2 + exam) / 5).toFixed(1) + "%"; }
+            else if(hasT1 && hasT2) { res.innerText = ((t1 + t2) / 2).toFixed(1) + "%"; } 
+            else { res.innerText = "-"; }
+        }
+
+        function calculateFinal(pctA, pctB, weightA, weightB) {
+            if (pctA !== null && pctB !== null) return (pctA * weightA + pctB * weightB) * 100;
+            if (pctA !== null) return pctA * 100;
+            if (pctB !== null) return pctB * 100;
+            return null;
+        }
+
+       function addPredictionRow() {
+            const container = document.getElementById('predictions-container');
+            const row = document.createElement('div');
+            row.className = 'grid-row prediction-row'; row.style.marginBottom = '8px';
+            row.innerHTML = `
+                <div class="grid-col"><input type="number" class="form-input pred-score" placeholder="Score (%)" oninput="calcDetailed()"></div>
+                <div class="grid-col"><input type="number" step="0.1" class="form-input pred-weight" placeholder="Weight (e.g. 0.2)" oninput="calcDetailed()"></div>
+                <div class="grid-col">
+                    <select class="form-input pred-cat" onchange="calcDetailed()" style="padding-right: 8px !important;">
+                        <option value="A">Cat A (Test)</option><option value="B">Cat B (Daily)</option>
+                    </select>
+                </div>
+                <button class="gpa-btn-remove" style="margin-bottom: 6px;" onclick="this.parentElement.remove(); calcDetailed();">×</button>
+            `;
+            container.appendChild(row);
+        }
+
+        function calcDetailed() {
+            let level = document.getElementById('classLevel')?.value || 'onlevel';
+            let weightA = level === 'ap' ? 0.6 : 0.5; let weightB = level === 'ap' ? 0.4 : 0.5;
+
+            let aEarned = parseFloat(document.getElementById('catAEarned').value) || 0; let aTotal = parseFloat(document.getElementById('catATotal').value) || 0;
+            let bEarned = parseFloat(document.getElementById('catBEarned').value) || 0; let bTotal = parseFloat(document.getElementById('catBTotal').value) || 0;
+
+            let curPctA = aTotal > 0 ? (aEarned / aTotal) : null; let curPctB = bTotal > 0 ? (bEarned / bTotal) : null;
+            let curGrade = calculateFinal(curPctA, curPctB, weightA, weightB);
+            document.getElementById('res-current-grade').innerText = curGrade !== null ? curGrade.toFixed(2) + "%" : "-";
+
+            let projAEarned = aEarned, projATotal = aTotal, projBEarned = bEarned, projBTotal = bTotal, hasPredictions = false;
+            document.querySelectorAll('.prediction-row').forEach(row => {
+                let score = parseFloat(row.querySelector('.pred-score').value);
+                let weight = parseFloat(row.querySelector('.pred-weight').value);
+                let cat = row.querySelector('.pred-cat').value;
+                if(!isNaN(score) && !isNaN(weight) && weight > 0) {
+                    hasPredictions = true;
+                    let actualMaxPts = weight * 100; let ptsEarned = (score / 100) * actualMaxPts;
+                    if(cat === 'A') { projAEarned += ptsEarned; projATotal += actualMaxPts; } 
+                    else { projBEarned += ptsEarned; projBTotal += actualMaxPts; }
+                }
+            });
+
+            if(hasPredictions) {
+                let projPctA = projATotal > 0 ? (projAEarned / projATotal) : null;
+                let projPctB = projBTotal > 0 ? (projBEarned / projBTotal) : null;
+                let projGrade = calculateFinal(projPctA, projPctB, weightA, weightB);
+                document.getElementById('res-projected-grade').innerText = projGrade !== null ? projGrade.toFixed(2) + "%" : "-";
+            } else { document.getElementById('res-projected-grade').innerText = "-"; }
+        }
+        
+        // --- Improved PDF Parsing Logic ---
+        async function handlePDFUpload(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                try {
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let fullText = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        fullText += textContent.items.map(item => item.str).join(" ") + " ";
+                    }
+
+                    if (type === 'gpa') parseTranscript(fullText);
+                } catch (error) {
+                    alert("Error reading PDF. Make sure it's a valid text-based PDF.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseTranscript(text) {
+            // 1. Get Official GPA
+            const wGpaMatch = text.match(/Weighted GPA[\s\n]*([\d\.]+)/i);
+            const uGpaMatch = text.match(/Non-weighted GPA[\s\n]*([\d\.]+)/i);
+            let gpaMessage = "";
+            if (wGpaMatch && uGpaMatch) {
+                gpaMessage = `Found Official GPA!\nUnweighted: ${uGpaMatch[1]} \nWeighted: ${wGpaMatch[1]}\n\n`;
+            }
+
+            // 2. Intelligent Block-Based Extraction using Course Codes
+            // Look for patterns like "03100700-1"
+            const codeRegex = /([A-Z0-9]{8}-\d)/g;
+            let codes = [];
+            let match;
+            while((match = codeRegex.exec(text)) !== null) {
+                codes.push({ code: match[1], index: match.index });
+            }
+
+            let matches = [];
+            for(let i=0; i<codes.length; i++) {
+                let start = codes[i].index;
+                let end = (i+1 < codes.length) ? codes[i+1].index : text.length;
+                let chunk = text.substring(start, end);
+                
+                // Chunk splits text belonging to ONE course.
+                let chunkParts = chunk.trim().split(/\s+/);
+                
+                let gradeIndex = -1;
+                let gradeVal = 0;
+                // Find the first logical grade (10 to 100) that follows the course name
+                for(let j=1; j<chunkParts.length; j++) {
+                    let num = parseInt(chunkParts[j].replace(/[^0-9]/g, ''));
+                    if(!isNaN(num) && num >= 10 && num <= 100) { 
+                        gradeIndex = j; gradeVal = num; break;
+                    }
+                }
+
+                if(gradeIndex > 1) {
+                    let name = chunkParts.slice(1, gradeIndex).join(" ").replace(/[^a-zA-Z0-9\s\-]/g, '');
+                    matches.push({ name: name, grade: gradeVal });
+                }
+            }
+
+            if (matches.length > 0) {
+                alert(gpaMessage + `Successfully detected ${matches.length} classes! Importing...`);
+                document.getElementById('gpa-tbody').innerHTML = ''; 
+                
+                matches.forEach(course => {
+                    addGpaRow();
+                    let rows = document.querySelectorAll('.gpa-row');
+                    let lastRow = rows[rows.length - 1];
+                    
+                    lastRow.querySelector('input[type="text"]').value = course.name;
+                    
+                    let bracket = "";
+                    if(course.grade >= 98) bracket = "98-100";
+                    else if(course.grade >= 93) bracket = "93-97";
+                    else if(course.grade >= 90) bracket = "90-92";
+                    else if(course.grade >= 87) bracket = "87-89";
+                    else if(course.grade >= 83) bracket = "83-86";
+                    else if(course.grade >= 80) bracket = "80-82";
+                    else if(course.grade >= 77) bracket = "77-79";
+                    else if(course.grade >= 73) bracket = "73-76";
+                    else if(course.grade >= 70) bracket = "70-72";
+                    
+                    if(bracket) {
+                        lastRow.querySelector('.sel-grade').value = bracket;
+                        lastRow.querySelectorAll('.table-dropdown-menu')[0]
+                            .parentElement.querySelector('.dropdown-text').innerText = bracket;
+                    }
+
+                    // Auto-Detect Tier logic
+                    let tier = "tier3", tierText = "Tier III";
+                    let upperName = course.name.toUpperCase();
+                    if (upperName.includes("AP ") || upperName.startsWith("AP") || upperName.endsWith("W") || upperName.includes("IB ")) {
+                        tier = "tier1"; tierText = "Tier I";
+                    } else if (upperName.includes("HONORS") || upperName.includes("PAP") || upperName.includes("PRE-AP")) {
+                        tier = "tier2"; tierText = "Tier II";
+                    }
+
+                    lastRow.querySelector('.sel-tier').value = tier;
+                    lastRow.querySelectorAll('.table-dropdown-menu')[1]
+                            .parentElement.querySelector('.dropdown-text').innerText = tierText;
+                });
+                calculateGpa();
+            } else {
+                alert(gpaMessage + "Could not detect grades in this PDF format. Please enter manually.");
+            }
+        }
+
+        // --- TI-84 Emulator Setup ---
+        window.addEventListener('DOMContentLoaded', () => { 
+            addPredictionRow();
+            const from_id = (id) => document.getElementById(id);
+            const h84statej = from_id("h84statej"); const ti84faceplate = from_id("ti84faceplate");
+
+            XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
+                apply: function (target, thisArg, args) {
+                    if (typeof args[1] === "string") args[1] = args[1].replace(/#.*$/, "");
+                    Reflect.apply(target, thisArg, args);
+                },
+            });
+
+            let rom_url = (h84statej.innerHTML ? URL.createObjectURL(new Blob([JSON.parse(h84statej.innerHTML)])) : h84statej.getAttribute("data-url")) + "#.h84statej";
+            let faceplate_url = (ti84faceplate.innerHTML ? URL.createObjectURL(new Blob([JSON.parse(ti84faceplate.innerHTML)])) : ti84faceplate.getAttribute("data-url")) + "#.svg";
+            
+            new TI84PCE({ROMLocation: rom_url, FaceplateLocation: faceplate_url});
+        });
+
+        // --- Calculator Resizing Logic ---
+        let currentCalcScale = 1;
+
+        window.resizeCalc = function(change) {
+            currentCalcScale += change;
+            if(currentCalcScale < 0.5) currentCalcScale = 0.5;
+            if(currentCalcScale > 1.8) currentCalcScale = 1.8;
+            
+            const calcDiv = document.getElementById('calculatorDiv');
+            if(calcDiv) {
+                calcDiv.style.transform = `scale(${currentCalcScale}) translateY(-10px)`;
+                calcDiv.style.transformOrigin = 'top center';
+            }
+        };
+
+        window.resetCalcSize = function() {
+            currentCalcScale = 1;
+            const calcDiv = document.getElementById('calculatorDiv');
+            if(calcDiv) {
+                calcDiv.style.transform = `scale(1) translateY(-10px)`;
+            }
+        };
+    </script>
+</body>
+</html>

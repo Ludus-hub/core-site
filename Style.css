@@ -124,7 +124,7 @@ button:not(.dock-btn):not(.viewer-btn-spot):hover, .btn:not(.dock-btn):hover {
     --glass-border: rgba(255, 255, 255, 0.15);
     --glass-shine: rgba(255, 255, 255, 0.05);
     --glass-backdrop: blur(40px) saturate(180%);
-    --accent-color: #0ea5a4;
+    --accent-color: rgb(0, 174, 255);
     --ios-green: #34c759;
     --text-primary: #ffffff;
     --text-secondary: #d1d1d6;
@@ -501,7 +501,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     transform: translateX(-50%);
     margin-top: 10px;
     background: #111;
-    border: 1px solid var(--accent-color);
+    border: 1px solid var(--accent-color );
     border-radius: var(--radius-md);
     padding: 10px;
     width: 250px;
@@ -511,6 +511,8 @@ input:checked + .slider:before { transform: translateX(22px); }
     flex-direction: column;
     gap: 8px;
 }
+
+
 
 .version-input-bubble::before {
     content: '';
@@ -537,4 +539,290 @@ input:checked + .slider:before { transform: translateX(22px); }
 }
 .version-input-bubble textarea:focus {
     border-color: var(--accent-color);
+}
+/* === Secret App Fullscreen Logic === */
+/* This class ensures the apps actually cover the whole screen */
+.secret-fullscreen-app {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999; /* Sits on top of EVERYTHING */
+    background: #000;
+}
+
+/* Force the iframe to fill that container completely */
+.secret-iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Ensure the dock stays visible on top so you can switch back */
+.bottom-dock {
+    z-index: 10000 !important;
+}
+/* This forces the section to ignore the page margins and fill the viewport */
+/* This forces the section to ignore the page margins and fill the viewport */
+.fullscreen-app {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 800; /* Stays above the grid, but BELOW the dock (1000) and countdown (10000) */
+    background: #000; 
+    display: none; /* Controlled by JS */
+}
+
+.fullscreen-app.active-section {
+    display: block;
+}
+
+/* This forces the embed to fill 100% of that fixed section */
+.fullscreen-app .app-frame {
+    width: 100%;
+    height: 100%; 
+    border: none;
+    border-radius: 0; 
+    display: block;
+}
+
+/* Ensure the dock is always on top so you can switch back to Games */
+.bottom-dock {
+    z-index: 1000 !important;
+}
+
+    /* --- Global Top Bar --- */
+    .top-bar {
+        position: fixed; top: 0; left: 0; width: 100%;
+        padding: 15px 24px; display: flex; justify-content: flex-start;
+        align-items: center; z-index: 9999; pointer-events: none;
+    }
+    .top-bar > * { pointer-events: auto; }
+    .brand-container {
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(0, 0, 0, 0.5); padding: 8px 16px;
+        border-radius: 12px; backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+    .brand-icon { color: var(--accent-color, #00C9FF); }
+    .brand-title {
+        font-size: 18px; font-weight: 800;
+        font-family: 'Trebuchet MS', sans-serif; letter-spacing: 1px;
+        background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* --- Homepage Layout --- */
+    .home-layout {
+        padding: 90px 40px 120px 40px; /* Fits between top-bar and dock */
+        display: flex; flex-direction: column; gap: 40px;
+        max-width: 1200px; margin: 0 auto; height: 100%; overflow-y: auto;
+    }
+    .home-header-row {
+        display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+    }
+    .home-widget {
+        background: rgba(20, 20, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px; padding: 24px; backdrop-filter: blur(10px);
+        flex: 1; min-width: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .home-widget h3 { margin-top: 0; color: white; font-size: 18px; margin-bottom: 15px; }
+    
+    .home-section-title { color: white; margin-bottom: 20px; font-size: 22px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+    .home-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;
+    }
+    
+    /* --- Home Cards (Apps & Links) --- */
+    .home-card {
+        background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px; padding: 24px 20px; text-align: center; cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; 
+        align-items: center; justify-content: center; gap: 15px; color: white; text-decoration: none;
+    }
+    .home-card:hover {
+        transform: translateY(-5px); background: rgba(255, 255, 255, 0.08); 
+        border-color: var(--accent-color, #00C9FF); box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    }
+    .home-card svg { width: 36px; height: 36px; color: var(--accent-color, #00C9FF); }
+    .home-card span { font-size: 16px; font-weight: 500; }
+     /* Settings Page Layout Fixes */
+    .settings-group { margin-bottom: 30px; text-align: left; }
+    .settings-group-title { color: #fff; font-size: 18px; margin-bottom: 15px; font-weight: 600; padding-left: 5px; }
+    .settings-card { background: rgba(30, 30, 30, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 0 20px; backdrop-filter: blur(10px); }
+    .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-info { display: flex; flex-direction: column; gap: 6px; max-width: 70%; }
+    .settings-label { color: #fff; font-size: 16px; font-weight: 500; }
+    .settings-desc { color: rgba(255, 255, 255, 0.5); font-size: 13px; line-height: 1.4; }
+    
+    /* Settings Inputs & Buttons */
+    .settings-input { background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 10px 15px; border-radius: 10px; outline: none; transition: 0.3s; }
+    .settings-input:focus { border-color: var(--accent-color, #00aeff); }
+    .settings-btn { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 18px; border-radius: 10px; cursor: pointer; transition: 0.2s; font-weight: 500; }
+    .settings-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    .settings-btn.primary { background: var(--accent-color, #00aeff); border: none; color: #fff; }
+
+    /* iOS Style Toggle Switch Fix */
+    .ios-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+    .ios-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    input:checked + .slider { background-color: var(--accent-color, #00aeff); }
+    input:checked + .slider:before { transform: translateX(22px); }
+/* === Movable & Collapsible Dock === */
+.dock-container.dragged {
+    left: auto;
+    transform: none; /* Removes the centering when dragged freely */
+}
+
+.dock-drag-handle {
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.2s;
+}
+.dock-drag-handle:hover { color: rgba(255, 255, 255, 0.9); }
+.dock-drag-handle:active { cursor: grabbing; }
+
+.dock-toggle-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    outline: none;
+}
+.dock-toggle-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+#dockToggleIcon {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Collapsed State Layout */
+.bottom-dock.collapsed .dock-btn:not(.active-mode) {
+    display: none !important; /* Hides all non-active buttons */
+}
+.bottom-dock.collapsed .dock-sep:not(.collapse-sep) {
+    display: none !important; /* Hides internal separators */
+}
+.bottom-dock.collapsed #dockToggleIcon {
+    transform: rotate(180deg); /* Flips the arrow */
+}
+/* === Authentication Modal === */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-box {
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    padding: 30px;
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.auth-toggle-text {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 5px;
+}
+/* --- CINEMATIC INTRO ANIMATIONS --- */
+.zoom-out-of-bounds {
+    animation: cinematicZoom 2.5s cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards !important;
+}
+
+@keyframes cinematicZoom {
+    0% { transform: translateX(-50%) scale(1); opacity: 1; }
+    70% { transform: translateX(-50%) scale(15); opacity: 0.9; filter: blur(2px); }
+    100% { transform: translateX(-50%) scale(50); opacity: 0; filter: blur(10px); display: none; }
+}
+
+/* Pre-reveal state for new UI elements */
+.ui-hidden {
+    opacity: 0 !important;
+    transform: translateY(40px) !important;
+    pointer-events: none;
+}
+
+/* The sleek slide-up reveal */
+.ui-reveal {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    transition: all 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    pointer-events: auto;
+}
+/* Position for the 5th Viewer Control Button (Favorites) */
+.spot-4 { top: 20px; right: 20px; } 
+
+.spot-4:hover { transform: translateY(-2px); }
+.spot-4:active { transform: translateY(1px) scale(0.96); }
+
+/* Styling the dropdown options to match the dark theme */
+select.settings-input option {
+    background: #1a1a1a;
+    color: white;
+    padding: 10px;
+
+}
+/* Inline Glass Dropdowns */
+.glass-select {
+    background: transparent;
+    color: var(--accent-color, #00C9FF);
+    border: none;
+    outline: none;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 0 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: 0.2s;
+}
+
+.glass-select option {
+    background: rgba(20, 20, 20, 0.95);
+    color: white;
+    font-weight: 500;
+    text-transform: none;
+}
+
+.glass-select:hover {
+    color: white;
+    text-shadow: 0 0 10px var(--accent-color);
 }

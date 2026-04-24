@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+
+<!-- Mirrored from 0vhlizcv889j.id.wasmer.app/ by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 01 Apr 2026 23:48:59 GMT -->
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Math Master</title>
+<link id="favicon" rel="icon" href="Assets/Pictures/Non-edited/Math-n.png">
+<link rel="stylesheet" href="Style.css">
+</head>
+<body>
+<input type="file" id="saveFileInput" accept=".json" style="display:none" onchange="importSave(event)" />
+
+
+    <div id="tourOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: auto; z-index: 1000000; display: none;"></div>
+    <div id="tourTooltip" style="position: absolute; padding: 15px; background: #000; border: 1px solid var(--accent-color); border-radius: 12px; width: 280px; text-align: left; opacity: 0; pointer-events: auto; transition: opacity 0.3s, transform 0.3s; z-index: 1000001; color: white; box-shadow: var(--shadow-soft);">
+        <p id="tourText" style="margin-bottom: 10px;"></p>
+        <div style="display: flex; justify-content: space-between;">
+            <button id="tourNextBtn" class="tour-next" style="background: var(--accent-color); color: white; border: none; padding: 6px 15px;">Next →</button>
+            <button id="tourEndBtn" onclick="endTour(true)" style="background: rgba(255,255,255,0.1); color: var(--text-secondary); border: 1px solid var(--glass-border); display: none;">Finish</button>
+        </div>
+    </div>
+
+<div class="collapsible-wrapper">
+    <div class="collapsible-header" onclick="toggleCredits()">
+        <svg class="icon" viewBox="0 0 24 24" style="width:20px; height:20px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>Credits</span>
+    </div>
+    <div class="collapsible-content" id="creditsPanel">
+        <h3 style="margin-top:0; color:#fff;">Game Credits</h3>
+        <table style="width:100%; color:#ccc; font-size:13px; border-collapse: collapse;">
+ <tr><th>Name</th><th>Original Creator</th><th>Official Site</th></tr>
+
+    <tr><td>1v1.lol</td><td>JustPlay.lol</td><td><a href="https://1v1.lol/" target="_blank">1v1.lol</a></td></tr>
+    <tr><td>12 Mini Battles</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>2048</td><td>Gabriele Cirulli</td><td><a href="https://play2048.co/" target="_blank">play2048.co</a></td></tr>
+    <tr><td>Among Us</td><td>Innersloth</td><td><a href="https://www.innersloth.com/" target="_blank">innersloth.com</a></td></tr>
+    <tr><td>Backrooms</td><td></td>
+    <tr><td>Bad Ice Cream</td><td>Nitrome</td><td><a href="https://www.nitrome.com/" target="_blank">nitrome.com</a></td></tr>
+    <tr><td>Baldi's Basics</td><td>Micah McGonigal (Mystman12)</td><td><a href="https://baldisbasicsgame.github.io/" target="_blank">baldisbasicsgame.github.io</a></td></tr>
+    <tr><td>Basket Random</td><td>RHM Interactive</td><td>N/A</td></tr>
+    <tr><td>Basketball Stars</td><td>MadPuffers</td><td>N/A</td></tr>
+    <tr><td>Bitlife</td><td>Candywriter, LLC</td><td><a href="https://bitlifeapp.com/" target="_blank">bitlifeapp.com</a></td></tr>
+    <tr><td>Block Blast</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Boxing Random</td><td>RHM Interactive</td><td><a href="https://play.google.com/store/apps/details?id=com.rhm.boxingrandom" target="_blank">play.google.com</a></td></tr>
+    <tr><td>Breakout</td><td>Atari</td><td><a href="https://www.atari.com/" target="_blank">atari.com</a></td></tr>
+    <tr><td>Bridge Race</td><td>Supersonic Studios</td><td>N/A</td></tr>
+    <tr><td>Candy Crush (Saga)</td><td>King</td><td><a href="https://www.king.com/game/candycrush/" target="_blank">king.com</a></td></tr>
+    <tr><td>Chrome Dino</td><td>Google</td><td><a href="https://www.google.com/" target="_blank">google.com</a></td></tr>
+    <tr><td>Cluster Rush</td><td>Landfall</td><td><a href="https://landfall.se/" target="_blank">landfall.se</a></td></tr>
+    <tr><td>Cookie Clicker</td><td>Orteil and Opti</td><td><a href="https://cookieclicker.com/" target="_blank">cookieclicker.com</a></td></tr>
+    <tr><td>Crossy Road</td><td>Hipster Whale</td><td><a href="https://hipsterwhale.com/" target="_blank">hipsterwhale.com</a></td></tr>
+    <tr><td>Doodle Jump</td><td>Lima Sky</td><td><a href="https://limasky.com/" target="_blank">limasky.com</a></td></tr>
+    <tr><td>Drive Mad</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Duck Life 4</td><td>Wix Games</td><td>N/A</td></tr>
+    <tr><td>Flappy Bird</td><td>Dong Nguyen</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 2</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 3</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 4</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Free Rider Jumps</td><td>Kano / One More Level</td><td><a href="https://www.freeriderhd.com/" target="_blank">freeriderhd.com</a></td></tr>
+    <tr><td>Fruit Ninja</td><td>Halfbrick Studios</td><td><a href="https://www.halfbrick.com/" target="_blank">halfbrick.com</a></td></tr>
+    <tr><td>Friday Night Funkin'</td><td>The Funkin' Crew (FunkinCrew)</td><td><a href="https://github.com/FunkinCrew/Funkin" target="_blank">github.com</a></td></tr>
+    <tr><td>Geometry Dash</td><td>RobTop Games</td><td><a href="https://www.robtopgames.com/" target="_blank">robtopgames.com</a></td></tr>
+    <tr><td>Gobble</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Granny</td><td>DVloper</td><td>N/A</td></tr>
+    <tr><td>Idle Breakout</td><td>Kodiqi</td><td>N/A</td></tr>
+    <tr><td>Love Meter</td><td>Atlas Study Partners</td><td>N/A</td></tr>
+    <tr><td>Mario (Super Mario Bros)</td><td>Nintendo</td><td><a href="https://www.nintendo.com/" target="_blank">nintendo.com</a></td></tr>
+    <tr><td>Minecraft</td><td>Mojang Studios / Markus Persson</td><td><a href="https://www.minecraft.net/" target="_blank">minecraft.net</a></td></tr>
+    <tr><td>Moto X3M 2</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M 3</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Pool Party</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Spooky</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Winter</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Ovo</td><td>Dedra Games</td><td><a href="https://dedragames.com/" target="_blank">dedragames.com</a></td></tr>
+    <tr><td>Pac-Man</td><td>Namco</td><td><a href="https://www.bandainamcoent.com/" target="_blank">bandainamcoent.com</a></td></tr>
+    <tr><td>Paper.io 2</td><td>Voodoo</td><td><a href="https://www.voodoo.io/" target="_blank">voodoo.io</a></td></tr>
+    <tr><td>Plants Vs Zombies</td><td>PopCap Games</td><td><a href="https://www.ea.com/games/plants-vs-zombies" target="_blank">ea.com</a></td></tr>
+    <tr><td>Poly Track</td><td>Kodub (PolyTrack)</td><td><a href="https://kodub.itch.io/polytrack" target="_blank">kodub.itch.io</a></td></tr>
+    <tr><td>Red Ball 4</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4 Vol. 2</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4 Vol. 3</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Retro Bowl</td><td>New Star Games</td><td><a href="https://www.newstargames.com/" target="_blank">newstargames.com</a></td></tr>
+    <tr><td>Rolly Vortex</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Rooftop Snipers</td><td>Michael Eichler</td><td><a href="https://www.newgrounds.com/portal/view/687203" target="_blank">Newgrounds</a></td></tr>
+    <tr><td>Run</td><td>Joseph Cloutier (player_03)</td><td><a href="https://run.fandom.com/wiki/Run" target="_blank">run.fandom.com</a></td></tr>
+    <tr><td>Run 2</td><td>Joseph Cloutier (player_03)</td><td><a href="https://www.kongregate.com/games/Memphis434/run-2" target="_blank">kongregate.com</a></td></tr>
+    <tr><td>Run 3</td><td>Yoyo Games / Player</td><td>N/A</td></tr>
+    <tr><td>Slope</td><td>Y8 / Rob Kay</td><td><a href="https://y8.com/" target="_blank">y8.com</a></td></tr>
+    <tr><td>Slope 2</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Solar Smash</td><td>Jick / Paradyme</td><td>N/A</td></tr>
+    <tr><td>Soundboard</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Soccer Random</td><td>TwoPlayerGames / RHM Interactive</td><td><a href="https://www.crazygames.com/game/soccer-random" target="_blank">crazygames.com</a></td></tr>
+    <tr><td>Space Invaders</td><td>Tomohiro Nishikado (Taito)</td><td><a href="https://www.taito.co.jp/" target="_blank">taito.co.jp</a></td></tr>
+    <tr><td>Steal A Brainrot</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Station Saturn</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>State.io</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Stickman Hook</td><td>MadBox (MadBox / MadBox Interactive)</td><td><a href="https://play.google.com/store/apps/details?id=com.mindy.grap1" target="_blank">play.google.com</a></td></tr>
+    <tr><td>Temple Run 2</td><td>Imangi Studios</td><td><a href="https://imangistudios.com/thegames/temple-run-2/" target="_blank">imangistudios.com</a></td></tr>
+    <tr><td>That's Not My Neighbor</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>The Impossible Quiz</td><td>Splapp-me-do</td><td>N/A</td></tr>
+    <tr><td>The Man From The Window</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Tunnel Rush</td><td>Deer Cat (Deer Cat Games)</td><td><a href="https://www.deercatgames.com/" target="_blank">deercatgames.com</a></td></tr>
+    <tr><td>Tomb of the Mask</td><td>Happymagenta (published by Playgendary)</td><td><a href="https://en.wikipedia.org/wiki/Tomb_of_the_Mask" target="_blank">wikipedia.org</a></td></tr>
+    <tr><td>Volleyball / Volley Random</td><td>TwoPlayerGames / RHM Interactive</td><td><a href="https://play.google.com/store/apps/details?id=com.twoplayergames.volleyrandom" target="_blank">play.google.com</a></td></tr>
+    <tr><td>Wordle</td><td>Josh Wardle (original creator) — now hosted by The New York Times</td><td><a href="https://powerlanguage.co.uk/" target="_blank">powerlanguage.co.uk</a></td></tr>
+    <tr><td>The World's Hardest Game</td><td>Stephen Critoph (Snubby / Snubby Land)</td><td><a href="https://en.wikipedia.org/wiki/The_World%27s_Hardest_Game" target="_blank">wikipedia.org</a></td></tr>
+    <tr><td>YoHoHo (yohoho.io)</td><td>Exodragon Games</td><td><a href="https://yohoho.io/" target="_blank">yohoho.io</a></td></tr>
+
+        </table>
+    </div>
+</div>
+
+<header class="header">
+  <h1>Math Master
+    <span class="version-container">
+        <span class="version" onclick="toggleVersionInput(event)">v2.6</span>
+        
+ <div id="versionInputBubble" class="version-input-bubble" style="display:none;">
+        <div id="versionTextDisplay"
+             style="padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.15);
+                    background:rgba(255,255,255,0.05); color:white; font-weight:600;">
+           <div id="versionTextDisplay" style="padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:white; font-size:13px; line-height:1.5;">
+             <b> Version 2.6 Update Details:</b>
+
+        <li style="margin-bottom:4px;">
+            <b>Settings Changes</b> Moved import export buttons to settings.
+                    <li style="margin-bottom:4px;">
+            <b>Bug Fixes For Games:</b> Removed ads from Arthur's Nightmare, FNAF games, Hill Climb Racing Lite, Idle Lumber Inc, Line Rider, OvO 2, Rolly Vortex, Slender, and Slowroads
+            <li style="margin-bottom:4px;">
+            <b>Change to Canvas Mode:</b> Changed favicon and title to disguise better for the region the site is hosted in.
+            
+
+           
+
+    </ul>
+</div>
+        </div>
+    </span>
+  </h1>
+  <p><a href="https://forms.gle/KbUee5uxmhmhtwC67">Game Request</a> | <a href="mailto:mathmasterofficialemail@gmail.com">Contact Us</a> | <a href="https://forms.gle/t4dfeHkVvirg8GfKA">Unblock Form</a> | <a href="https://github.com/itsamess67-ctrl/Atlas-Study-Partners.git">Github</a></p>
+</header>
+
+<main class="container">
+    <div id="gameGrid"></div>
+
+    <div class="viewer" id="viewer">
+        <div id="viewerControlsContainer"></div>
+        <iframe id="gameFrame"></iframe>
+    </div>
+</main>
+
+<div class="dock-container">
+
+
+    <div id="spotlightSearch" class="floating-panel">
+        <input type="text" id="searchInput" placeholder="Search games..." autocomplete="off">
+        <div id="suggestions"></div>
+    </div>
+
+    <div id="canvasPanel" class="floating-panel">
+        <span>Canvas Mode</span>
+        <label class="ios-switch">
+            <input type="checkbox" id="canvasToggleInput">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+
+<div id="settingsPanel" class="floating-panel" style="width: 440px; max-height: 75vh; overflow-y: auto;">
+    <h2 style="margin: 0 0 15px 0; color: white; font-weight: 600;">Site Settings</h2>
+    
+    <h4 style="color: var(--accent-color); margin: 0 0 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Data & Saves</h4>
+    <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+        <button onclick="exportSave()" style="flex: 1; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--glass-border); cursor: pointer; transition: 0.2s;">Export Save</button>
+        <button onclick="document.getElementById('saveFileInput').click()" style="flex: 1; padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--glass-border); cursor: pointer; transition: 0.2s;">Import Save</button>
+    </div>
+
+    <h4 style="color: var(--accent-color); margin: 0 0 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Disguise & Security</h4>
+    
+    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+        <span style="color: white; font-weight: 500; font-size: 15px;">Canvas Mode Disguise</span>
+        <label class="ios-switch">
+            <input type="checkbox" id="settingsCanvasToggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+        <span style="color: white; font-weight: 500; font-size: 15px;">Global Panic Key</span>
+        <input type="text" id="settingsPanicKey" maxlength="1" style="width: 40px; text-align: center; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px; border-radius: 8px; font-weight: bold;">
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+        <span style="color: white; font-weight: 500; font-size: 15px;">Global Panic URL</span>
+        <input type="text" id="settingsPanicURL" placeholder="https://google.com" style="width: 160px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 10px; border-radius: 8px; outline: none;">
+    </div>
+
+
+        
+
+    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+        <span style="color: white; font-weight: 500; font-size: 15px;">Tab Title</span>
+        <input type="text" id="settingsTabTitle" placeholder="Math Master" style="width: 160px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 10px; border-radius: 8px; outline: none;">
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.3); padding: 12px 15px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 25px;">
+        <span style="color: white; font-weight: 500; font-size: 15px;">Tab Icon (Upload)</span>
+        <input type="file" id="settingsTabIcon" accept="image/*" style="width: 170px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 4px; border-radius: 8px; outline: none; font-size: 12px;">
+    </div>
+
+    <button onclick="openAboutBlank()" style="width: 100%; padding: 12px; margin-bottom: 25px; border-radius: 12px; background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); color: white; font-weight: bold; border: 1px solid var(--glass-border); cursor: pointer; transition: 0.2s;">Launch in About:Blank</button>
+
+    <h4 style="color: var(--accent-color); margin: 0 0 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">Viewer Controls</h4>
+    <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 15px 0;">Reorder or hide buttons shown while playing games.</p>
+    <div id="controlsList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px;"></div>
+    
+    <div style="display: flex; gap: 10px;">
+        <button onclick="saveAndRenderControls(); toggleSettingsUI();" style="flex: 2; padding: 12px; border-radius: 12px; background: var(--accent-color); color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.2s;">Save & Close</button>
+        <button onclick="resetSettings()" style="flex: 1; padding: 12px; border-radius: 12px; background: rgba(255, 69, 58, 0.2); color: #ff453a; font-weight: bold; border: 1px solid rgba(255, 69, 58, 0.4); cursor: pointer; transition: 0.2s;">Reset</button>
+    </div>
+</div>
+
+<nav class="bottom-dock">
+    <button class="dock-btn" id="searchBtn" onclick="toggleSearch()" data-tooltip="Search">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    </button>
+    
+    <div class="dock-sep"></div>
+
+    <button class="dock-btn" id="settingsBtn" onclick="toggleSettingsUI()" data-tooltip="Settings">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+</nav>
+
+
+<script src="script.js"></script>
+</body>
+
+<!-- Mirrored from 0vhlizcv889j.id.wasmer.app/ by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 01 Apr 2026 23:49:00 GMT -->
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Atlas Study Partners — Replica</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--muted:#6b7280;--accent:#0ea5a4}
+body{font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;background:var(--bg);margin:0;padding:0;color:#111}
+.header{background:linear-gradient(90deg,#0ea5a4,#06b6d4);color:#fff;padding:28px 20px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+.header h1{margin:0;font-size:28px;letter-spacing:-.5px}
+.container{max-width:1100px;margin:28px auto;padding:0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+.card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(12,15,25,.06)}
+.card img{width:100%;height:160px;object-fit:cover;border-radius:8px}
+.card h3{margin:10px 0 6px;font-size:16px}
+.controls{display:flex;gap:8px;align-items:center}
+.btn{background:var(--accent);color:#fff;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+.viewer{margin-top:26px;background:#000;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;height:640px}
+.viewer iframe{border:0;flex:1;width:100%;height:100%;background:#000}
+.viewer .bar{display:flex;justify-content:space-between;gap:8px;padding:8px;background:rgba(255,255,255,.03);align-items:center}
+.info{color:var(--muted);font-size:14px}
+.footer{text-align:center;color:var(--muted);padding:26px 0}
+@media(max-width:700px){.viewer{height:420px}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="container">
+    <h1>Atlas Study Partners — Replica</h1>
+    <p style="margin:6px 0 0;opacity:.95">Automatically generated replica. Games and assets from your uploaded ZIP are embedded below.</p>
+  </div>
+</header>
+
+<main class="container">
+  <section>
+    <h2 style="margin:6px 0 12px">Games</h2>
+    <div class="grid">
+      <!-- Example cards — add or remove as needed -->
+      <div class="card">
+        <h3>Bitlife</h3>
+        <div class="info">Path: Assets/Game Data/bitlife-main/bitlife-main/index.html</div>
+        <div class="controls" style="margin-top:10px;">
+          <button class="btn" onclick="loadGame('Assets/Game Data/bitlife-main/bitlife-main/index.html')">Load</button>
+          <button class="btn" onclick="loadAndFullscreen('Assets/Game Data/bitlife-main/bitlife-main/index.html')">Load + Fullscreen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Slope</h3>
+        <div class="info">Path: Assets/Game Data/Slope-Game-main/Slope-Game-main/index.html</div>
+        <div class="controls" style="margin-top:10px;">
+          <button class="btn" onclick="loadGame('Assets/Game Data/Slope-Game-main/Slope-Game-main/index.html')">Load</button>
+          <button class="btn" onclick="loadAndFullscreen('Assets/Game Data/Slope-Game-main/Slope-Game-main/index.html')">Load + Fullscreen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Flappy Bird</h3>
+        <div class="info">Path: Assets/Game Data/flappybird/index.html</div>
+        <div class="controls" style="margin-top:10px;">
+          <button class="btn" onclick="loadGame('Assets/Game Data/flappybird/index.html')">Load</button>
+          <button class="btn" onclick="loadAndFullscreen('Assets/Game Data/flappybird/index.html')">Load + Fullscreen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Idle Breakout</h3>
+        <div class="info">Path: Assets/Game Data/idle-breakout-main/idle-breakout-main/game.html</div>
+        <div class="controls" style="margin-top:10px;">
+          <button class="btn" onclick="loadGame('Assets/Game Data/idle-breakout-main/idle-breakout-main/game.html')">Load</button>
+          <button class="btn" onclick="loadAndFullscreen('Assets/Game Data/idle-breakout-main/idle-breakout-main/game.html')">Load + Fullscreen</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-top:28px;">
+    <h2 style="margin:6px 0 12px">Game Viewer</h2>
+    <div class="viewer card" id="viewer">
+      <div class="bar">
+        <div class="info" id="viewerTitle">No game loaded</div>
+        <div>
+          <button class="btn" id="fsBtn" onclick="toggleFullscreen()">Toggle Fullscreen</button>
+          <button class="btn" onclick="openInNewTab()">Open in New Tab</button>
+        </div>
+      </div>
+      <iframe id="gameFrame" src="about:blank" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>
+    </div>
+  </section>
+
+  <div class="footer">
+    <small>Replica generated automatically. If something is missing, tell me what to change and I'll update the replica.</small>
+  </div>
+</main>
+
+<script>
+const frame = document.getElementById('gameFrame');
+const viewerTitle = document.getElementById('viewerTitle');
+let currentSrc = '';
+
+function isAboutBlank(u){ 
+    return u === 'about:blank' || u === '' || u === undefined; 
+}
+
+// Encode paths so spaces and special characters don't break URLs
+function encodePath(path){
+    return path.split('/').map(encodeURIComponent).join('/');
+}
+
+function loadGame(path){
+    currentSrc = path;
+    if(isAboutBlank(path)){
+        frame.src = 'about:blank';
+        viewerTitle.textContent = 'No game loaded';
+    } else {
+        const encodedPath = encodePath(path);
+        frame.src = encodedPath;
+        viewerTitle.textContent = path;
+    }
+}
+
+async function loadAndFullscreen(path){
+    loadGame(path);
+    setTimeout(async ()=>{
+        try{ await requestIframeFullscreen(); }
+        catch(e){ alert('Fullscreen failed: '+e.message); }
+    },500);
+}
+
+async function requestIframeFullscreen(){
+    const el = document.getElementById('gameFrame');
+    if(el.requestFullscreen) await el.requestFullscreen();
+    else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+    else if(el.mozRequestFullScreen) await el.mozRequestFullScreen();
+}
+
+function toggleFullscreen(){
+    const el = document.getElementById('gameFrame');
+    if(!document.fullscreenElement && !document.webkitFullscreenElement){
+        requestIframeFullscreen().catch(()=>{});
+    } else {
+        if(document.exitFullscreen) document.exitFullscreen();
+        else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+}
+
+function openInNewTab(){
+    if(isAboutBlank(currentSrc)) return;
+    const encodedPath = encodePath(currentSrc);
+    window.open(encodedPath,'_blank');
+}
+</script>
+</body>
+</html>

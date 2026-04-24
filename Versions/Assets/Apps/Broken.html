@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coming Soon</title>
+    <style>
+        /* Manually injecting your site's theme variables */
+        :root {
+            --accent-color: #3b82f6;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-backdrop: blur(12px);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --shadow-soft: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #090909; /* Deep black background like your site */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-primary);
+        }
+
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-backdrop);
+            -webkit-backdrop-filter: var(--glass-backdrop);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 85%;
+            box-shadow: var(--shadow-soft);
+            animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .emoji {
+            font-size: 54px;
+            display: block;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3));
+            animation: float 3s infinite ease-in-out;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin: 0;
+            font-weight: 800; /* Bolded */
+            letter-spacing: -1px;
+            background: linear-gradient(to bottom, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 15px 0 0 0;
+            color: var(--text-secondary);
+            font-weight: 400; /* Unbolded */
+            opacity: 0.8;
+        }
+
+        .accent-line {
+            width: 40px;
+            height: 4px;
+            background: var(--accent-color);
+            margin: 30px auto 0;
+            border-radius: 10px;
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        
+        <h1><b>Returning Soon!</b></h1>
+        <p>We have identified a critical bug with this app, and are working on fixing it.</p>
+        <div class="accent-line"></div>
+    </div>
+
+</body>
+</html>

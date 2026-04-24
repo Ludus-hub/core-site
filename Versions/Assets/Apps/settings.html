@@ -1,0 +1,94 @@
+<div class="settings-page-content" style="max-width: 800px; margin: 0 auto; padding: 100px 20px 150px 20px;">
+
+    <div class="settings-header" style="margin-bottom: 30px; text-align: center;">
+        <h2 style="margin: 0; color: white; font-weight: 600; font-size: 32px;">Site Settings</h2>
+        <p style="color: var(--text-secondary); margin-top: 8px; font-size: 15px;">Manage your preferences, local data, and stealth features.</p>
+    </div>
+          
+    <div class="settings-group">
+        <h3 class="settings-group-title">Data & Saves</h3>
+        <div class="settings-card">
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">Backup & Restore</span>
+                    <span class="settings-desc">Export or import your saved games, settings, and local data.</span>
+                </div>
+                <div class="settings-actions" style="display: flex; gap: 10px;">
+                    <button class="settings-btn" onclick="exportSave()">Export</button>
+                    <button class="settings-btn" onclick="document.getElementById('saveFileInput').click()">Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-group">
+        <h3 class="settings-group-title">Disguise & Security</h3>
+        <div class="settings-card">
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">Canvas Mode Disguise</span>
+                    <span class="settings-desc">Disguise the site as a learning platform.</span>
+                </div>
+                <label class="ios-switch">
+                    <input type="checkbox" id="settingsCanvasToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">Global Panic Key</span>
+                    <span class="settings-desc">Instantly redirect to your panic URL.</span>
+                </div>
+                <input type="text" id="settingsPanicKey" class="settings-input" maxlength="1" style="width: 45px; text-align: center; font-weight: bold;">
+            </div>
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">Global Panic URL</span>
+                    <span class="settings-desc">Where the panic key takes you.</span>
+                </div>
+                <input type="text" id="settingsPanicURL" class="settings-input" placeholder="https://google.com" style="width: 180px;">
+            </div>
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">Tab Title</span>
+                    <span class="settings-desc">Change the name displayed on the browser tab.</span>
+                </div>
+                <input type="text" id="settingsTabTitle" class="settings-input" placeholder="Math Master" style="width: 180px;">
+            </div>
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">Tab Icon (Upload)</span>
+                    <span class="settings-desc">Upload a custom image for the tab favicon.</span>
+                </div>
+                <input type="file" id="settingsTabIcon" class="settings-input" accept="image/*" style="width: 200px; padding: 5px;">
+            </div>
+            <div class="settings-row">
+                <div class="settings-info">
+                    <span class="settings-label">About:Blank Cloaking</span>
+                    <span class="settings-desc">Launch the site in a hidden tab to bypass history tracking.</span>
+                </div>
+                <button class="settings-btn primary" onclick="openAboutBlank()">Launch</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-group">
+        <h3 class="settings-group-title">Viewer Controls</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 10px 10px;">Reorder, hide, or assign keyboard shortcuts to buttons shown while playing games.</p>
+        <div class="settings-card" id="controlsList" style="display: flex; flex-direction: column;">
+            </div>
+    </div>
+    
+    <div style="display: flex; gap: 12px; margin-top: 40px; justify-content: flex-end;">
+        <button onclick="resetSettings()" style="padding: 12px 24px; border-radius: 12px; background: rgba(255, 69, 58, 0.1); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.3); cursor: pointer; font-weight: 600; transition: 0.2s;">Reset to Defaults</button>
+        <button onclick="saveAndRenderControls();" style="padding: 12px 30px; border-radius: 12px; background: var(--accent-color); color: white; border: none; cursor: pointer; font-weight: 600; transition: 0.2s;">Save</button>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+<link rel="stylesheet" href="Style.css">
+<script>
+    // Renders the viewer controls list immediately when the settings page loads
+    renderSettingsList();
+</script>

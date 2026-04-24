@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludus Drive</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --text-tertiary: #606060;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --sidebar-width: 240px;
+            --accent-color: #00C9FF;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Branding */
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .brand-icon {
+            color: var(--accent-color);
+            flex-shrink: 0;
+        }
+
+        .gradient-title {
+            font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+            background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        /* Sidebar UI */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btn {
+            width: 100%;
+            margin-bottom: 8px;
+            padding: 10px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--accent-color); color: var(--accent-color); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); color: #ff6b6b; }
+        input[type="file"] { display: none; }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+        .top-bar {
+            height: 64px; padding: 0 24px; display: flex; align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .breadcrumb { font-size: 14px; color: var(--text-secondary); display: flex; align-items: center; }
+        .breadcrumb span[onclick] { cursor: pointer; transition: 0.2s; }
+        .breadcrumb span[onclick]:hover { color: var(--accent-color) !important; text-decoration: underline; }
+
+        .file-grid {
+            flex: 1; padding: 24px; display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px; overflow-y: auto; align-content: flex-start;
+        }
+
+        /* File Cards */
+        .file-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 16px;
+            cursor: pointer; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px;
+            position: relative;
+        }
+
+        .file-card:hover { transform: translateY(-2px); border-color: var(--accent-color); background: rgba(255, 255, 255, 0.08); }
+
+        .file-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+        .file-icon svg { width: 100%; height: 100%; }
+        .file-card.folder .file-icon { color: var(--accent-color); }
+        .file-thumb { width: 100%; height: 70px; object-fit: cover; border-radius: 6px; }
+
+        .file-info { width: 100%; }
+        .file-name { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+        .file-size { font-size: 11px; color: var(--text-tertiary); }
+
+        /* Preview Modal */
+        .preview-modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            z-index: 2000; align-items: center; justify-content: center;
+        }
+        .preview-modal.active { display: flex; }
+        .preview-container { width: 90%; max-width: 1000px; height: 85vh; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; }
+        .preview-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .preview-close { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; border-radius: 6px; padding: 6px 12px; transition: all 0.15s; }
+        .preview-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
+        .preview-content-area { flex: 1; padding: 24px; display: flex; align-items: center; justify-content: center; overflow: auto; background: #0a0a0a; }
+
+        /* Specific Viewer Styles */
+        .viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+        .viewer-video, .viewer-audio { max-width: 100%; border-radius: 8px; outline: none; }
+        .viewer-iframe { width: 100%; height: 100%; border: none; background: white; border-radius: 8px; }
+        .viewer-code { width: 100%; height: 100%; background: rgba(255,255,255,0.03); color: #e5e5e5; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 14px; overflow-x: auto; white-space: pre; }
+        .viewer-unsupported { color: var(--text-secondary); font-size: 14px; text-align: center; }
+
+        .empty-state { grid-column: 1 / -1; text-align: center; color: var(--text-tertiary); margin-top: 100px; }
+        
+        /* Loading Overlay */
+        .loading-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; color: white; font-size: 14px; }
+        .loading-overlay.active { display: flex; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand-container">
+                <svg class="brand-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <div class="app-title gradient-title" style="margin-bottom: 0;">Ludus Drive</div>
+            </div>
+            
+            <label class="btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload Files/ZIP
+                <input type="file" id="file-input" multiple accept="*/*">
+            </label>
+
+            <label class="btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Upload Folder
+                <input type="file" id="folder-input" webkitdirectory directory multiple>
+            </label>
+
+            <button class="btn btn-danger" id="clear-data-btn" style="margin-top: 24px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                Clear All Data
+            </button>
+            <label class="btn" style="border-color: var(--accent-color); color: var(--accent-color); margin-top: 10px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect>
+                    <line x1="6" y1="12" x2="10" y2="12"></line>
+                    <line x1="8" y1="10" x2="8" y2="14"></line>
+                    <line x1="15" y1="13" x2="15.01" y2="13"></line>
+                    <line x1="18" y1="11" x2="18.01" y2="11"></line>
+                </svg>
+                Upload Game (Folder)
+                <input type="file" id="game-input" webkitdirectory directory multiple>
+            </label>
+
+            <div id="dev-controls" style="display:none; margin-top: 24px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <div style="color: var(--accent-color); font-size: 12px; text-transform: uppercase; margin-bottom: 10px; font-weight: bold;">Dev Controls</div>
+                <button class="btn" onclick="fetchSiteFiles()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Mount Core Site Files
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="breadcrumb" id="breadcrumb-container">
+                </div>
+        </div>
+        <div class="file-grid" id="file-grid"></div>
+        <div class="loading-overlay" id="loading">Processing Files...</div>
+    </main>
+
+    <div class="preview-modal" id="preview-modal">
+        <div class="preview-container">
+            <div class="preview-header">
+                <div class="app-title" id="preview-title" style="font-size: 14px; font-weight: bold;">Filename.ext</div>
+                <button class="preview-close" id="close-preview">Close</button>
+            </div>
+            <div class="preview-content-area" id="preview-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('file-input');
+        const folderInput = document.getElementById('folder-input');
+        const clearBtn = document.getElementById('clear-data-btn');
+        const fileGrid = document.getElementById('file-grid');
+        const loadingOverlay = document.getElementById('loading');
+        const previewModal = document.getElementById('preview-modal');
+        const previewTitle = document.getElementById('preview-title');
+        const previewContent = document.getElementById('preview-content');
+        const closePreviewBtn = document.getElementById('close-preview');
+
+        let uploadedFiles = []; 
+        let currentPath = ""; // Hierarchical Navigation State
+
+        // --- Database Setup (IndexedDB) ---
+        const DB_NAME = "GlassExplorerDB";
+        const STORE_NAME = "files";
+        let db;
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onerror = (e) => reject("Database error: " + e.target.errorCode);
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+                    }
+                };
+            });
+        };
+
+        const saveFileToDB = (fileObj) => {
+            const transaction = db.transaction([STORE_NAME], "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            store.put(fileObj);
+        };
+
+        const loadFilesFromDB = () => {
+            const transaction = db.transaction([STORE_NAME], "readonly");
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+            request.onsuccess = () => {
+                uploadedFiles = request.result;
+                uploadedFiles.forEach(f => f.url = URL.createObjectURL(f.fileData));
+                renderFiles();
+            };
+        };
+
+        const clearAllDB = () => {
+            const transaction = db.transaction([STORE_NAME], "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            store.clear();
+            transaction.oncomplete = () => {
+                uploadedFiles = [];
+                currentPath = "";
+                renderFiles();
+            };
+        };
+
+        // --- Core Application Logic ---
+        const icons = {
+            folder: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
+            image: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+            video: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>`,
+            audio: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+            pdf: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+            code: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+            default: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`
+        };
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getFileType(filename, type) {
+            if (type.startsWith('image/')) return 'image';
+            if (type.startsWith('video/')) return 'video';
+            if (type.startsWith('audio/')) return 'audio';
+            if (type === 'application/pdf' || filename.endsWith('.pdf')) return 'pdf';
+            const codeExts = ['js', 'css', 'html', 'json', 'py', 'txt', 'md', 'csv', 'java'];
+            const ext = filename.split('.').pop().toLowerCase();
+            if (type.startsWith('text/') || codeExts.includes(ext)) return 'code';
+            return 'default';
+        }
+
+        async function processNewFile(file, overridePath = "") {
+            const id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+            let relativePath = overridePath || file.webkitRelativePath || file.name;
+            
+            // Normalize path string 
+            relativePath = relativePath.replace(/^\/+/, ''); 
+
+            const fileObj = {
+                id: id,
+                fileData: file,
+                name: file.name,
+                path: relativePath,
+                size: formatBytes(file.size),
+                category: getFileType(file.name, file.type)
+            };
+
+            saveFileToDB(fileObj);
+            
+            fileObj.url = URL.createObjectURL(file);
+            uploadedFiles.push(fileObj);
+        }
+
+        async function handleZipExtraction(zipFile) {
+            const zip = new JSZip();
+            try {
+                const contents = await zip.loadAsync(zipFile);
+                const filePromises = [];
+                
+                for (const filename of Object.keys(contents.files)) {
+                    const zipEntry = contents.files[filename];
+                    if (!zipEntry.dir) {
+                        filePromises.push(
+                            zipEntry.async("blob").then(blob => {
+                                const extracted = new File([blob], zipEntry.name.split('/').pop(), { type: blob.type });
+                                return processNewFile(extracted, zipEntry.name);
+                            })
+                        );
+                    }
+                }
+                await Promise.all(filePromises);
+            } catch (err) {
+                console.error("Failed to read ZIP", err);
+                alert("Could not extract ZIP file.");
+            }
+        }
+
+        // --- Event Listeners ---
+        const handleUploads = async (files) => {
+            loadingOverlay.classList.add('active');
+            
+            for (const file of files) {
+                if (file.type === "application/zip" || file.name.endsWith('.zip')) {
+                    await handleZipExtraction(file);
+                } else {
+                    await processNewFile(file);
+                }
+            }
+            
+            renderFiles();
+            loadingOverlay.classList.remove('active');
+        };
+
+        fileInput.addEventListener('change', (e) => handleUploads(Array.from(e.target.files)));
+        folderInput.addEventListener('change', (e) => handleUploads(Array.from(e.target.files)));
+        // Add this alongside your other Event Listeners in file.html
+
+
+        const gameInput = document.getElementById('game-input');
+
+        gameInput.addEventListener('change', async (e) => {
+            loadingOverlay.classList.add('active');
+            const files = Array.from(e.target.files);
+            
+            for (const file of files) {
+                // file.webkitRelativePath preserves the folder structure!
+                let relativePath = file.webkitRelativePath || file.name;
+                await processNewFile(file, "Games/" + relativePath);
+            }
+            
+            renderFiles();
+            loadingOverlay.classList.remove('active');
+            
+            // Auto-reload the main parent window to update the Games grid instantly
+            if (window.parent) {
+                window.parent.location.reload();
+            }
+        });
+        clearBtn.addEventListener('click', () => {
+            if(confirm("Are you sure you want to delete all files from local storage?")) {
+                clearAllDB();
+            }
+        });
+
+        // --- Directory Navigation & Rendering ---
+        function updateBreadcrumbs() {
+            const breadcrumbContainer = document.getElementById('breadcrumb-container');
+            if (currentPath === "") {
+                breadcrumbContainer.innerHTML = `<span onclick="navigateTo('')" style="color: var(--text-primary);">Ludus Drive</span>`;
+            } else {
+                let html = `<span onclick="navigateTo('')">Ludus Drive</span>`;
+                let accum = "";
+                const parts = currentPath.split('/');
+                
+                parts.forEach((part, index) => {
+                    if (part) {
+                        accum += (accum === "" ? "" : "/") + part;
+                        const isLast = index === parts.length - 1;
+                        html += ` <span style="margin: 0 6px;">/</span> <span style="color: ${isLast ? 'var(--text-primary)' : 'var(--text-secondary)'};" onclick="${isLast ? '' : `MapsTo('${accum}')`}">${part}</span>`;
+                    }
+                });
+                breadcrumbContainer.innerHTML = html;
+            }
+        }
+
+        function navigateTo(path) {
+            currentPath = path;
+            renderFiles();
+        }
+
+        function renderFiles() {
+            updateBreadcrumbs();
+
+            if (uploadedFiles.length === 0) {
+                fileGrid.innerHTML = '<div class="empty-state">No files uploaded. Files will persist across browser sessions.</div>';
+                return;
+            }
+            fileGrid.innerHTML = '';
+
+            const itemsInDir = new Map();
+            const searchPrefix = currentPath === "" ? "" : currentPath + "/";
+
+            uploadedFiles.forEach(fileObj => {
+                const path = fileObj.path;
+                
+                if (path.startsWith(searchPrefix)) {
+                    const remaining = path.substring(searchPrefix.length);
+                    const parts = remaining.split('/');
+                    
+                    if (parts.length > 1) {
+                        // It's a folder
+                        const folderName = parts[0];
+                        const folderPath = searchPrefix + folderName;
+                        if (!itemsInDir.has('folder_' + folderPath)) {
+                            itemsInDir.set('folder_' + folderPath, { type: 'folder', name: folderName, path: folderPath });
+                        }
+                    } else if (remaining === fileObj.name) {
+                        // It's a file strictly in this directory layer
+                        itemsInDir.set('file_' + fileObj.id, { type: 'file', obj: fileObj });
+                    }
+                }
+            });
+
+            // Sort: Folders first, then alphabetically
+            const sortedItems = Array.from(itemsInDir.values()).sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                if (a.type === 'folder') return a.name.localeCompare(b.name);
+                return a.obj.name.localeCompare(b.obj.name);
+            });
+
+            if (sortedItems.length === 0) {
+                fileGrid.innerHTML = '<div class="empty-state">This folder is empty.</div>';
+                return;
+            }
+
+            sortedItems.forEach(item => {
+                const card = document.createElement('div');
+                
+                if (item.type === 'folder') {
+                    card.className = 'file-card folder';
+                    card.onclick = () => navigateTo(item.path);
+                    card.innerHTML = `
+                        <div class="file-icon">${icons.folder}</div>
+                        <div class="file-info">
+                            <div class="file-name" title="${item.name}">${item.name}</div>
+                            <div class="file-size">Folder</div>
+                        </div>
+                    `;
+                } else {
+                    const fileObj = item.obj;
+                    card.className = 'file-card file';
+                    card.onclick = () => openPreview(fileObj);
+                    
+                    const visual = fileObj.category === 'image' 
+                        ? `<img src="${fileObj.url}" class="file-thumb" alt="${fileObj.name}">`
+                        : `<div class="file-icon">${icons[fileObj.category]}</div>`;
+
+                    card.innerHTML = `
+                        ${visual}
+                        <div class="file-info">
+                            <div class="file-name" title="${fileObj.name}">${fileObj.name}</div>
+                            <div class="file-size">${fileObj.size}</div>
+                        </div>
+                    `;
+                }
+                fileGrid.appendChild(card);
+            });
+        }
+
+        // --- Viewer ---
+        function openPreview(fileObj) {
+            previewTitle.textContent = fileObj.name;
+            previewContent.innerHTML = ''; 
+
+            switch(fileObj.category) {
+                case 'image':
+                    previewContent.innerHTML = `<img src="${fileObj.url}" class="viewer-img">`; break;
+                case 'video':
+                    previewContent.innerHTML = `<video src="${fileObj.url}" class="viewer-video" controls autoplay></video>`; break;
+                case 'audio':
+                    previewContent.innerHTML = `<audio src="${fileObj.url}" class="viewer-audio" controls autoplay></audio>`; break;
+                case 'pdf':
+                    previewContent.innerHTML = `<iframe src="${fileObj.url}" class="viewer-iframe"></iframe>`; break;
+                case 'code':
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const text = e.target.result;
+                        previewContent.innerHTML = `
+                            <div style="width: 100%; height: 100%; display: flex; flex-direction: column; gap: 15px;">
+                                <textarea id="code-editor" style="flex: 1; width: 100%; background: rgba(255,255,255,0.03); color: #e5e5e5; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 14px; border: 1px solid var(--border); outline: none; resize: none;">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                                <button class="btn" style="align-self: flex-end; width: auto; background: var(--accent-color); color: #000; font-weight: bold;" onclick="saveEditedFile('${fileObj.id}')">Save Changes</button>
+                            </div>`;
+                    };
+                    reader.readAsText(fileObj.fileData);
+                    break;
+                default:
+                    previewContent.innerHTML = `<div class="viewer-unsupported"><div style="margin-bottom: 12px;">${icons.default}</div>No preview available.<br>${fileObj.name}</div>`;
+            }
+            previewModal.classList.add('active');
+        }
+
+        closePreviewBtn.addEventListener('click', () => { previewModal.classList.remove('active'); previewContent.innerHTML = ''; });
+        previewModal.addEventListener('click', (e) => { if(e.target === previewModal) { previewModal.classList.remove('active'); previewContent.innerHTML = ''; } });
+
+        // --- File Editing & Dev Mode Initialization ---
+        window.saveEditedFile = async (id) => {
+            const newContent = document.getElementById('code-editor').value;
+            const fileObj = uploadedFiles.find(f => f.id === id);
+            if (!fileObj) return;
+
+            // Create a new File blob with the edited content
+            const newFile = new File([newContent], fileObj.name, { type: fileObj.fileData.type || 'text/plain' });
+            fileObj.fileData = newFile;
+            fileObj.size = formatBytes(newFile.size);
+            
+            // Revoke old URL to prevent memory leaks, generate new one
+            if(fileObj.url) URL.revokeObjectURL(fileObj.url);
+            fileObj.url = URL.createObjectURL(newFile);
+            
+            // Overwrite in IndexedDB
+            saveFileToDB(fileObj);
+            alert("File saved successfully!");
+            renderFiles();
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Reveal Dev UI if session flag is present
+            if (sessionStorage.getItem("mathmaster_dev_unlocked") === "true") {
+                document.getElementById('dev-controls').style.display = "block";
+            }
+            await initDB();
+            loadFilesFromDB();
+        });
+
+// Mount Core Site Files
+window.fetchSiteFiles = async () => {
+    // Client-side JS can't crawl directories, so we explicitly map the ecosystem here
+    const filesToFetch = [
+        { url: '../../index.html', name: 'index.html', dest: 'index.html' },
+        { url: '../../Style.css', name: 'Style.css', dest: 'Style.css' },
+        { url: '../../script.js', name: 'script.js', dest: 'script.js' },
+        { url: '../../auth.js', name: 'auth.js', dest: 'auth.js' },
+        { url: '../../collection.json', name: 'collection.json', dest: 'collection.json' },
+        { url: 'calc.html', name: 'calc.html', dest: 'Versions/Assets/Apps/calc.html' }, 
+        { url: 'file.html', name: 'file.html', dest: 'Versions/Assets/Apps/file.html' },
+        { url: 'movie.html', name: 'movie.html', dest: 'Versions/Assets/Apps/movie.html' },
+        { url: '../../proxies/p.html', name: 'p.html', dest: 'proxies/p.html' }
+    ];
+    
+    loadingOverlay.classList.add('active');
+    let imported = 0;
+
+    for (let f of filesToFetch) {
+        try {
+            let res = await fetch(f.url);
+            if (!res.ok) {
+                res = await fetch('/' + f.dest); // Fallback path attempt
+            }
+            if(res.ok) {
+                let blob = await res.blob();
+                let file = new File([blob], f.name, { type: blob.type || 'text/plain' });
+                
+                const targetPath = "SiteFiles_Dev/" + f.dest;
+                
+                // FIX: Prevent Duplicates. If file exists, delete it from DB and array first.
+                const existingIdx = uploadedFiles.findIndex(uf => uf.path === targetPath);
+                if (existingIdx !== -1) {
+                    const oldId = uploadedFiles[existingIdx].id;
+                    const tx = db.transaction([STORE_NAME], "readwrite");
+                    tx.objectStore(STORE_NAME).delete(oldId);
+                    uploadedFiles.splice(existingIdx, 1);
+                }
+
+                await processNewFile(file, targetPath);
+                imported++;
+            }
+        } catch(e) { 
+            console.warn("Could not fetch", f.name); 
+        }
+    }
+    
+    renderFiles();
+    loadingOverlay.classList.remove('active');
+    alert(`Successfully mounted ${imported} core files to /SiteFiles_Dev/ folder! You can now edit them.`);
+};
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

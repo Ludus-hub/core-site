@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Atlas Study Partners</title>
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="Assets/Pictures/Non-edited/Atlas-n.png">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --card: #111;
+  --text: #fff;
+  --muted: #9ca3af;
+  --accent: #0ea5a4;
+}
+body {
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: var(--bg);
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+}
+.header {
+  background: linear-gradient(90deg, #0ea5a4, #06b6d4);
+  color: #fff;
+  padding: 28px 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+.header img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+.container {
+  max-width: 1100px;
+  margin: 28px auto;
+  padding: 0 20px;
+}
+h2 { color: var(--text); }
+.game-scroll {
+  display: flex;
+  overflow-x: auto;
+  gap: 18px;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+}
+.game-scroll::-webkit-scrollbar { height: 8px; }
+.game-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+}
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 10px;
+  flex: 0 0 180px;
+  box-shadow: 0 6px 18px rgba(255,255,255,.06);
+  text-align: center;
+}
+.card img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 12px;
+  transition: transform .2s, box-shadow .2s;
+}
+.card img:hover { 
+  transform: scale(1.05); 
+  box-shadow: 0 0 10px rgba(14,165,164,0.5);
+}
+.card h3 { 
+  margin: 10px 0 6px; 
+  font-size: 16px; 
+  color: var(--text);
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  background: var(--accent);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background .2s;
+}
+.btn:hover { background: #08979c; }
+.viewer {
+  margin-top: 26px;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 640px;
+  box-shadow: 0 6px 18px rgba(255,255,255,.05);
+}
+.viewer iframe {
+  border: 0;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+.viewer .bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,.05);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.info { color: var(--muted); font-size: 14px; }
+.credits {
+  margin-top: 40px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text);
+}
+.credits table {
+  margin: 20px auto;
+  border-collapse: collapse;
+  width: 90%;
+  max-width: 900px;
+  color: var(--text);
+}
+.credits th, .credits td {
+  border-bottom: 1px solid #333;
+  padding: 8px 10px;
+}
+.credits th { background: #1f2937; }
+.credits a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.credits a:hover { text-decoration: underline; }
+@media(max-width:700px){
+  .viewer { height: 420px; }
+  .credits table { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <img src="Assets/Pictures/Non-edited/Atlas-n.png" alt="Atlas Logo">
+  <h1>Atlas Study Partners</h1>
+</header>
+
+<main class="container">
+  <section>
+    <h2 style="margin:6px 0 12px">Games & Chatbot</h2>
+    <div class="game-scroll" id="gameScroll"></div>
+  </section>
+
+  <section style="margin-top:28px;">
+    <h2 style="margin:6px 0 12px">Game Viewer</h2>
+    <div class="viewer card" id="viewer">
+      <div class="bar">
+        <div class="info" id="viewerTitle">No game loaded</div>
+        <div>
+          <button class="btn" onclick="reloadGame()">Reload Game</button>
+          <button class="btn" onclick="toggleFullscreen()">Toggle Fullscreen</button>
+          <button class="btn" onclick="openInNewTab()">Open in New Tab</button>
+        </div>
+      </div>
+      <iframe id="gameFrame" src="about:blank" allowfullscreen webkitallowfullscreen mozallowfullscreen></iframe>
+    </div>
+  </section>
+
+  <section class="credits">
+    <p>All games have been pulled from GitHub.<br>
+    This site is open source — all data is available here: 
+    <a href="https://github.com/itsamess67-ctrl/Atlas-Study-Partners" target="_blank">Atlas Study Partners GitHub</a></p>
+
+    <p><strong>Official links for the games are here:</strong></p>
+
+    <table>
+      <tr><th>Name</th><th>Original Creator</th><th>Their Link</th></tr>
+      <tr><td>Cookie Clicker</td><td>Orteil and Opti</td><td><a href="https://cookieclicker.com" target="_blank">cookieclicker.com</a></td></tr>
+      <tr><td>Retrobowl</td><td>New Star Games</td><td>N/A</td></tr>
+      <tr><td>Slope</td><td>Rob Kay</td><td><a href="https://slopegame.com" target="_blank">slopegame.com</a></td></tr>
+      <tr><td>Bitlife</td><td>Candywriter</td><td>N/A</td></tr>
+      <tr><td>OvO</td><td>Dedra Games</td><td><a href="https://coolmathgames.com/0-ovo" target="_blank">coolmathgames.com/0-ovo</a></td></tr>
+      <tr><td>Geometry Dash</td><td>RobTop Topala</td><td><a href="https://robtopgames.com" target="_blank">robtopgames.com</a></td></tr>
+      <tr><td>Tunnel Rush</td><td>Deer Cat Games</td><td><a href="https://poki.com/en/g/tunnel-rush" target="_blank">poki.com/en/g/tunnel-rush</a></td></tr>
+      <tr><td>Basketball Stars</td><td>MadPuffers or Miniclip</td><td>N/A</td></tr>
+      <tr><td>Basketball Random</td><td>RHM Interactive</td><td><a href="https://basketballrandom.com" target="_blank">basketballrandom.com</a></td></tr>
+      <tr><td>Boxing Random</td><td>RHM Interactive</td><td>N/A</td></tr>
+      <tr><td>Idle Breakout</td><td>Kodiqi</td><td><a href="https://kodiqi.itch.io/idle-breakout" target="_blank">kodiqi.itch.io/idle-breakout</a></td></tr>
+      <tr><td>1v1.lol</td><td>JustPlay.lol</td><td><a href="https://1v1.lol" target="_blank">1v1.lol</a></td></tr>
+      <tr><td>Chess</td><td>Maurizio Lighezzolo</td><td>N/A</td></tr>
+      <tr><td>Doodle Jump</td><td>Lima Sky</td><td><a href="https://doodlejump.limasky.com" target="_blank">doodlejump.limasky.com</a></td></tr>
+      <tr><td>Flappy Bird</td><td>Dong Nguyen</td><td>N/A</td></tr>
+    </table>
+  </section>
+</main>
+
+<script>
+const frame = document.getElementById('gameFrame');
+const viewerTitle = document.getElementById('viewerTitle');
+let currentSrc = '';
+
+function encodePath(path){ return path.split('/').map(encodeURIComponent).join('/'); }
+function loadGame(path){ currentSrc = path; frame.src = encodePath(path); viewerTitle.textContent = path; }
+function openInNewTab(){ if(!currentSrc) return; window.open(encodePath(currentSrc),'_blank'); }
+function reloadGame(){ if(!currentSrc) return; frame.src = frame.src; }
+function toggleFullscreen(){ const el=document.getElementById('gameFrame'); if(!document.fullscreenElement){ el.requestFullscreen().catch(()=>{});} else { document.exitFullscreen(); } }
+
+const games = [
+  {name:'Chatbot', path:'https://atlasstudypartners-chatbot.zapier.app/', logo:'Assets/Pictures/Non-edited/Chatbot-n.png', external:true},
+  {name:'Love Meter', path:'Assets/Game Data/love_meter (2).html', logo:'Assets/Pictures/Edited/LoveMeter-ed.png'},
+  {name:'Basket Random', path:'Assets/Game Data/basketrandom/index.html', logo:'Assets/Pictures/Non-edited/BasketRandom-n.jpg'},
+  {name:'Bitlife', path:'Assets/Game Data/bitlife-main/bitlife-main/index.html', logo:'Assets/Pictures/Non-edited/Bitlife-n.jpg'},
+  {name:'Retro Bowl', path:'Assets/Game Data/bowl/index.html', logo:'Assets/Pictures/Non-edited/Retrobowl-n.png'},
+  {name:'Boxing Random', path:'Assets/Game Data/boxingrandom/index.html', logo:'Assets/Pictures/Non-edited/BoxingRandom-n.jpg'},
+  {name:'Breakout', path:'Assets/Game Data/breakout/index.html', logo:'Assets/Pictures/Non-edited/Breakout-n.jpg'},
+  {name:'Chess', path:'Assets/Game Data/chess/index.html', logo:'Assets/Pictures/Non-edited/Chess-n.png'},
+  {name:'Chrome Dino', path:'Assets/Game Data/chromedino/index.html', logo:'Assets/Pictures/Non-edited/DinosaurGame-n.png'},
+  {name:'Cookie Clicker', path:'Assets/Game Data/cookieclicker-gh-pages (2)/cookieclicker-gh-pages/index.html', logo:'Assets/Pictures/Non-edited/CookieClicker-n.ico'},
+  {name:'Doodle Jump', path:'Assets/Game Data/doodlejump/index.html', logo:'Assets/Pictures/Non-edited/DoodleJump-n.png'},
+  {name:'Flappy Bird', path:'Assets/Game Data/flappybird/index.html', logo:'Assets/Pictures/Non-edited/FlappyBird-n.webp'},
+  {name:'Geometry Dash', path:'Assets/Game Data/geometrydash/index.html', logo:'Assets/Pictures/Non-edited/GeometryDash-n.jpg'},
+  {name:'Idle Breakout', path:'Assets/Game Data/idle-breakout-main/idle-breakout-main/game.html', logo:'Assets/Pictures/Non-edited/IdleBreakout-n.png'},
+  {name:'Ovo', path:'Assets/Game Data/ovo/index.html', logo:'Assets/Pictures/Non-edited/ovo-n.png'},
+  {name:'Slope', path:'Assets/Game Data/Slope-Game-main/Slope-Game-main/index.html', logo:'Assets/Pictures/Non-edited/Slope-n.png'},
+  {name:'Space Invaders', path:'Assets/Game Data/spaceinvaders/index.html', logo:'Assets/Pictures/Non-edited/SpaceInvaders-n.png'},
+  {name:'Tunnel Rush', path:'Assets/Game Data/tunnelrush/index.html', logo:'Assets/Pictures/Non-edited/TunnelRush-n.jpg'}
+];
+
+const scrollContainer=document.getElementById('gameScroll');
+games.forEach(game=>{
+  const card=document.createElement('div');
+  card.className='card';
+  if(game.external){
+    card.innerHTML=`
+      <img src="${encodePath(game.logo)}" alt="${game.name}">
+      <h3>${game.name}</h3>
+      <div class="controls">
+        <button class="btn" onclick="window.open('${game.path}','_blank')">Open</button>
+      </div>`;
+  } else {
+    card.innerHTML=`
+      <img src="${encodePath(game.logo)}" alt="${game.name}">
+      <h3>${game.name}</h3>
+      <div class="controls">
+        <button class="btn" onclick="loadGame('${game.path}')">Load</button>
+        <button class="btn" onclick="toggleFullscreen()">Fullscreen</button>
+      </div>`;
+  }
+  scrollContainer.appendChild(card);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Atlas Study Partners v2.0</title>
+<link rel="icon" href="Assets/Pictures/Non-edited/Atlas-n.png">
+<style>
+body {
+  font-family: Inter, system-ui;
+  background: #0a0a0a;
+  color: #fff;
+  margin: 0;
+  overflow-x: hidden;
+}
+.header {
+  background: linear-gradient(90deg, #0ea5a4, #06b6d4);
+  padding: 20px;
+  text-align: center;
+}
+.header h1 {margin: 0;font-size: 28px}
+.header .version {font-size: 14px}
+.container {max-width: 1100px;margin: 20px auto;padding: 0 20px}
+
+/* Grid */
+#gameGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+  justify-items: center;
+}
+.card {
+  background: #111;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+  width: 180px;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.card:hover {transform: scale(1.05)}
+.card img {width: 100%;height: 160px;object-fit: cover;border-radius: 12px}
+.btn {
+  background: #0ea5a4;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+/* Viewer */
+.viewer {
+  display: none;
+  flex-direction: column;
+  margin-top: 26px;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 640px;
+  position: relative;
+}
+.viewer iframe {border: 0;flex: 1;width: 100%;height: 100%}
+.viewer-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  background: #111;
+}
+.viewer-controls button {
+  background: #0ea5a4;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+#homeBtn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #0ea5a4;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 12px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Save Tools */
+#savePanel {
+  position: fixed;
+  top: 100px;
+  left: 20px;
+  background: #111;
+  padding: 12px;
+  border-radius: 10px;
+  width: 220px;
+}
+#savePanel button {
+  width: 100%;
+  background: #0ea5a4;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 6px 0;
+  cursor: pointer;
+}
+
+/* Credits Sidebar */
+#creditsPanel {
+  position: fixed;
+  top: 100px;
+  right: -420px;
+  width: 400px;
+  height: 80%;
+  background: #111;
+  color: #fff;
+  border-radius: 10px 0 0 10px;
+  overflow-y: auto;
+  transition: right 0.4s ease;
+  padding: 15px;
+  z-index: 20;
+}
+#creditsPanel.active {right: 0;}
+#creditsToggle {
+  position: fixed;
+  top: 110px;
+  right: 20px;
+  background: #0ea5a4;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  z-index: 25;
+}
+#creditsPanel table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+#creditsPanel th, #creditsPanel td {
+  padding: 6px;
+  border-bottom: 1px solid #333;
+}
+#creditsPanel th {
+  text-align: left;
+  color: #0ea5a4;
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>Atlas Study Partners <span class="version">v2.0</span></h1>
+  <p>Email <a href="mailto:atlasstudypartnersofficial@gmail.com" style="color:#fff;">atlasstudypartnersofficial@gmail.com</a> for game requests</p>
+</header>
+
+<div id="savePanel">
+  <h3>Save Tools</h3>
+  <button onclick="exportAll()">Export All</button>
+  <button onclick="importAll()">Import</button>
+</div>
+
+<button id="creditsToggle" onclick="toggleCredits()">Show Credits</button>
+
+<div id="creditsPanel">
+  <h2>Game Credits</h2>
+
+  <table>
+    <tr><th>Name</th><th>Original Creator</th><th>Official Site</th></tr>
+
+    <!-- Alphabetical, full table: old + new -->
+    <tr><td>1v1.lol</td><td>JustPlay.lol</td><td><a href="https://1v1.lol" target="_blank">1v1.lol</a></td></tr>
+    <tr><td>12 Mini Battles</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>2048</td><td>Gabriele Cirulli</td><td><a href="https://play2048.co" target="_blank">play2048.co</a></td></tr>
+    <tr><td>Adventure Capitalist</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Amaze</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Aquapark.io</td><td>Voodoo</td><td><a href="https://www.voodoo.io" target="_blank">voodoo.io</a></td></tr>
+    <tr><td>Angry Birds</td><td>Rovio Entertainment</td><td><a href="https://www.rovio.com" target="_blank">rovio.com</a></td></tr>
+    <tr><td>Among Us</td><td>Innersloth</td><td><a href="https://www.innersloth.com" target="_blank">innersloth.com</a></td></tr>
+    <tr><td>Bad Ice Cream</td><td>Nitrome</td><td><a href="https://www.nitrome.com" target="_blank">nitrome.com</a></td></tr>
+    <tr><td>Baldi's Basics</td><td>Micah McGonigal (Mystman12)</td><td><a href="https://baldisbasicsgame.github.io/" target="_blank">baldisbasicsgame.github.io</a></td></tr>
+    <tr><td>Basket Random</td><td>RHM Interactive</td><td>N/A</td></tr>
+    <tr><td>Basketball Stars</td><td>MadPuffers</td><td>N/A</td></tr>
+    <tr><td>Bitlife</td><td>Candywriter, LLC</td><td><a href="https://bitlifeapp.com" target="_blank">bitlifeapp.com</a></td></tr>
+    <tr><td>Block Blast</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Breakout</td><td>Atari</td><td><a href="https://www.atari.com" target="_blank">atari.com</a></td></tr>
+    <tr><td>Bridge Race</td><td>Supersonic Studios</td><td>N/A</td></tr>
+    <tr><td>Chrome Dino</td><td>Google</td><td><a href="https://www.google.com" target="_blank">google.com</a></td></tr>
+    <tr><td>Cluster Rush</td><td>Landfall</td><td><a href="https://landfall.se" target="_blank">landfall.se</a></td></tr>
+    <tr><td>Cookie Clicker</td><td>Orteil and Opti</td><td><a href="https://cookieclicker.com" target="_blank">cookieclicker.com</a></td></tr>
+    <tr><td>Crossy Road</td><td>Hipster Whale</td><td><a href="https://hipsterwhale.com" target="_blank">hipsterwhale.com</a></td></tr>
+    <tr><td>Doodle Jump</td><td>Lima Sky</td><td><a href="https://limasky.com" target="_blank">limasky.com</a></td></tr>
+    <tr><td>Drive Mad</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Duck Life 4</td><td>Wix Games</td><td>N/A</td></tr>
+    <tr><td>Flappy Bird</td><td>Dong Nguyen</td><td>N/A</td></tr>
+    <tr><td>Flappy Dunk</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 2</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 3</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Five Nights at Freddy's 4</td><td>Scott Cawthon</td><td>N/A</td></tr>
+    <tr><td>Flappy Dunk</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Fork n Sausage</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Fruit Ninja</td><td>Halfbrick Studios</td><td><a href="https://www.halfbrick.com" target="_blank">halfbrick.com</a></td></tr>
+    <tr><td>Geometry Dash</td><td>RobTop Games</td><td><a href="https://www.robtopgames.com" target="_blank">robtopgames.com</a></td></tr>
+    <tr><td>Going Balls</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Gobble</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Granny</td><td>DVloper</td><td>N/A</td></tr>
+    <tr><td>Idle Breakout</td><td>Kodiqi</td><td>N/A</td></tr>
+    <tr><td>Love Meter</td><td>Atlas Study Partners</td><td>N/A</td></tr>
+    <tr><td>Mario (Super Mario Bros)</td><td>Nintendo</td><td><a href="https://www.nintendo.com" target="_blank">nintendo.com</a></td></tr>
+    <tr><td>Minecraft</td><td>Mojang Studios / Markus Persson</td><td><a href="https://www.minecraft.net" target="_blank">minecraft.net</a></td></tr>
+    <tr><td>Moto X3M 2</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M 3</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Pool Party</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Spooky</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Moto X3M Winter</td><td>Madpuffers</td><td>N/A</td></tr>
+    <tr><td>Ovo</td><td>Dedra Games</td><td><a href="https://dedragames.com" target="_blank">dedragames.com</a></td></tr>
+    <tr><td>Pac-Man</td><td>Namco</td><td><a href="https://www.bandainamcoent.com" target="_blank">bandainamcoent.com</a></td></tr>
+    <tr><td>Paper.io 2</td><td>Voodoo</td><td><a href="https://www.voodoo.io" target="_blank">voodoo.io</a></td></tr>
+    <tr><td>Plants Vs Zombies</td><td>PopCap Games</td><td><a href="https://www.ea.com/games/plants-vs-zombies" target="_blank">ea.com</a></td></tr>
+    <tr><td>Popper</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4 Vol. 2</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Red Ball 4 Vol. 3</td><td>FDG Entertainment</td><td>N/A</td></tr>
+    <tr><td>Retro Bowl</td><td>New Star Games</td><td><a href="https://www.newstargames.com" target="_blank">newstargames.com</a></td></tr>
+    <tr><td>Retro Bowl College</td><td>New Star Games</td><td><a href="https://www.newstargames.com" target="_blank">newstargames.com</a></td></tr>
+    <tr><td>Rolly Vortex</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Rooftop Snipers</td><td>Michael Eichler</td><td><a href="https://www.newgrounds.com/portal/view/687203" target="_blank">Newgrounds</a></td></tr>
+    <tr><td>Run 3</td><td>Yoyo Games / Player</td><td>N/A</td></tr>
+    <tr><td>Slither.io</td><td>Steve Howse</td><td><a href="http://slither.io" target="_blank">slither.io</a></td></tr>
+    <tr><td>Slope</td><td>Y8 / Rob Kay</td><td><a href="https://y8.com" target="_blank">y8.com</a></td></tr>
+    <tr><td>Slope 2</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Snowbattle.io</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Solar Smash</td><td>Jick / Paradyme</td><td>N/A</td></tr>
+    <tr><td>Soundboard</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Space Invaders</td><td>Tomohiro Nishikado (Taito)</td><td><a href="https://www.taito.co.jp" target="_blank">taito.co.jp</a></td></tr>
+    <tr><td>Stacky Dash</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Steal A Brainrot</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Station Saturn</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>State.io</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>That's Not My Neighbor</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>The Impossible Quiz</td><td>Splapp-me-do</td><td>N/A</td></tr>
+    <tr><td>The Man From The Window</td><td>N/A</td><td>N/A</td></tr>
+    <tr><td>Temple Run 2</td><td>Imangi Studios</td><td><a href="https://www.imangistudios.com" target="_blank">imangistudios.com</a></td></tr>
+    <tr><td>Tomb of the Mask</td><td>Play365 / Next Games</td><td>N/A</td></tr>
+    <tr><td>Tunnel Rush</td><td>Devmid Games</td><td><a href="https://devmid.com" target="_blank">devmid.com</a></td></tr>
+    <tr><td>World Box</td><td>Maxim Karpenko</td><td><a href="https://www.superworldbox.com/" target="_blank">superworldbox.com</a></td></tr>
+    <tr><td>World's Hardest Game</td><td>Stephen Critoph</td><td>N/A</td></tr>
+    <tr><td>Wordle</td><td>Josh Wardle / The New York Times</td><td><a href="https://www.nytimes.com/games/wordle/index.html" target="_blank">nytimes.com/games/wordle</a></td></tr>
+
+  </table>
+    </table>
+</div> <!-- end of creditsPanel -->
+<main class="container">
+
+<main class="container">
+  <h2>Games</h2>
+  <div id="gameGrid"></div>
+
+  <div class="viewer" id="viewer">
+    <button id="homeBtn" onclick="goHome()">Home</button>
+    <iframe id="gameFrame"></iframe>
+    <div class="viewer-controls">
+      <button onclick="reloadGame()">Reload Game</button>
+      <button onclick="toggleFullscreen()">Toggle Fullscreen</button>
+      <button onclick="openInNewTab()">Open in New Tab</button>
+    </div>
+  </div>
+</main>
+
+<script>
+function exportAll(){
+  const o={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);o[k]=localStorage.getItem(k)}
+  navigator.clipboard.writeText(JSON.stringify(o));alert("Data copied!");
+}
+function importAll(){
+  const i=prompt("Paste exported JSON:");if(!i)return;
+  try{const o=JSON.parse(i);for(const k in o)localStorage.setItem(k,o[k]);alert("Imported! Reload page.");}
+  catch(e){alert("Invalid JSON");}
+}
+
+const frame=document.getElementById("gameFrame");
+const viewer=document.getElementById("viewer");
+const grid=document.getElementById("gameGrid");
+let currentSrc="";
+
+function loadGame(p){
+  currentSrc=p;
+  frame.src=p;
+  grid.style.display="none";
+  viewer.style.display="flex";
+  window.scrollTo({top:viewer.offsetTop-20,behavior:"smooth"});
+}
+function goHome(){
+  viewer.style.display="none";
+  grid.style.display="grid";
+  frame.src="";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function reloadGame(){if(currentSrc)frame.src=currentSrc;}
+function toggleFullscreen(){if(!document.fullscreenElement){viewer.requestFullscreen();}else{document.exitFullscreen();}}
+function openInNewTab(){if(currentSrc)window.open(currentSrc,"_blank");}
+
+/* === CREDITS TOGGLE === */
+function toggleCredits(){
+  document.getElementById("creditsPanel").classList.toggle("active");
+  const t=document.getElementById("creditsToggle");
+  if(document.getElementById("creditsPanel").classList.contains("active")){t.textContent="Hide Credits";}else{t.textContent="Show Credits";}
+}
+
+/* === GAME LIST === */
+const games = [
+  {name:"Chatbot", path:"https://atlasstudypartners-chatbot.zapier.app/", logo:"Assets/Pictures/Non-edited/Chatbot-n.png", external:true},
+  {name:"Love Meter", path:"Assets/Game Data/love_meter (2).html", logo:"Assets/Pictures/Edited/LoveMeter-ed.png"},
+
+  {name:"12 Mini Battles", path:"Assets/Game Data/12 Mini Battles.html", logo:"Assets/Pictures/Non-edited/12MiniBattles-n.png"},
+  {name:"1v1.lol", path:"Assets/Game Data/1v1lol/index.html", logo:"Assets/Pictures/Non-edited/1v1.lol-n.png"},
+  {name:"2048", path:"Assets/Game Data/2048/index.html", logo:"Assets/Pictures/Non-edited/2048-n.png"},
+  {name:"Adventure Capitalist", path:"Assets/Game Data/Adventure Capitalist.html", logo:"Assets/Pictures/Non-edited/AdCap-n.png"},
+  {name:"Amaze", path:"Assets/Game Data/Amaze.html", logo:"Assets/Pictures/Non-edited/Amaze-n.png"},
+  {name:"Among Us", path:"Assets/Game Data/among-us/index.html", logo:"Assets/Pictures/Non-edited/AmongUs-n.png"},
+  {name:"Angry Birds", path:"Assets/Game Data/angry-birds/index.html", logo:"Assets/Pictures/Non-edited/AngryBirds-n.png"},
+  {name:"Aquapark.io", path:"Assets/Game Data/Aquapark.io.html", logo:"Assets/Pictures/Non-edited/Aquapark-n.png"},
+  {name:"Backrooms", path:"Assets/Game Data/backrooms/index.html", logo:"Assets/Pictures/Non-edited/Backrooms-n.jfif"},
+  {name:"Bad Ice Cream", path:"Assets/Game Data/bad-ice-cream/index.html", logo:"Assets/Pictures/Non-edited/BadIceCream-n.png"},
+  {name:"Baldis Basics", path:"Assets/Game Data/baldis-basics/index.html", logo:"Assets/Pictures/Non-edited/BaldiBasics-n.png"},
+  {name:"Basketball Stars", path:"Assets/Game Data/basketball-stars/index.html", logo:"Assets/Pictures/Non-edited/BasketballStars-n.png"},
+  {name:"Block Blast", path:"Assets/Game Data/Block Blast.html", logo:"Assets/Pictures/Non-edited/BlockBlast-n.png"},
+  {name:"Bridge Race", path:"Assets/Game Data/Bridge Race.html", logo:"Assets/Pictures/Non-edited/BridgeRace-n.png"},
+  {name:"Cluster Rush", path:"Assets/Game Data/cluster-rush/index.html", logo:"Assets/Pictures/Non-edited/ClusterTruck-n.png"},
+  {name:"Cookie Clicker", path:"Assets/Game Data/cookieclicker/index.html", logo:"Assets/Pictures/Non-edited/CookieClicker-n.ico"},
+  {name:"Crossyroad", path:"Assets/Game Data/crossyroad/index.html", logo:"Assets/Pictures/Non-edited/CrossyRoad-n.png"},
+  {name:"Drive Mad", path:"Assets/Game Data/drive-mad/index.html", logo:"Assets/Pictures/Non-edited/DriveMad-n.jpg"},
+  {name:"Drift Boss", path:"Assets/Game Data/Drift Boss.html", logo:"Assets/Pictures/Non-edited/DriftBoss-n.png"},
+  {name:"Duck Life 4", path:"Assets/Game Data/ducklife4/index.html", logo:"Assets/Pictures/Non-edited/DuckLife4-n.jpg"},
+  {name:"Five Nights at Freddys", path:"Assets/Game Data/Five Nights At Freddy's.html", logo:"Assets/Pictures/Non-edited/FNAF-n.png"},
+  {name:"Five Nights at Freddys 2", path:"Assets/Game Data/Five Nights At Freddy's 2.html", logo:"Assets/Pictures/Non-edited/FNAF2-n.png"},
+  {name:"Five Nights at Freddys 3", path:"Assets/Game Data/Five Nights At Freddy's 3.html", logo:"Assets/Pictures/Non-edited/FNAF3-n.png"},
+  {name:"Five Nights at Freddys 4", path:"Assets/Game Data/Five Nights At Freddy's 4.html", logo:"Assets/Pictures/Non-edited/FNAF4-n.png"},
+  {name:"Flappy Dunk", path:"Assets/Game Data/Flappy Dunk.html", logo:"Assets/Pictures/Non-edited/FlappyDunk-n.png"},
+  {name:"Fruit Ninja", path:"Assets/Game Data/fruitninja/index.html", logo:"Assets/Pictures/Non-edited/FruitNinja-n.jpg"},
+  {name:"Going Balls", path:"Assets/Game Data/Going Balls.html", logo:"Assets/Pictures/Non-edited/GoingBalls-n.png"},
+  {name:"Granny", path:"Assets/Game Data/Granny.html", logo:"Assets/Pictures/Non-edited/Granny-n.png"},
+  {name:"Minecraft", path:"Assets/Game Data/Minecraft 1.8.8.html", logo:"Assets/Pictures/Non-edited/Minecraft-n.png"},
+  {name:"Moto X3M 2", path:"Assets/Game Data/motox3m2/index.html", logo:"Assets/Pictures/Non-edited/Motox3m2-n.webp"},
+  {name:"Moto X3M 3", path:"Assets/Game Data/Moto X3M 3.html", logo:"Assets/Pictures/Non-edited/Motox3m3-n.png"},
+  {name:"Moto X3M Pool Party", path:"Assets/Game Data/motox3m-pool/index.html", logo:"Assets/Pictures/Non-edited/Motox3mPool-n.jpg"},
+  {name:"Moto X3M Spooky", path:"Assets/Game Data/motox3m-spooky/index.html", logo:"Assets/Pictures/Non-edited/Motox3mSpooky-n.jpeg"},
+  {name:"Moto X3M Winter", path:"Assets/Game Data/motox3mwinter/index.html", logo:"Assets/Pictures/Non-edited/Motox3mWinter-n.webp"},
+  {name:"Paper io 2", path:"Assets/Game Data/paperio2/index.html", logo:"Assets/Pictures/Non-edited/Paperio2-n.png"},
+  {name:"Plants Vs Zombies", path:"Assets/Game Data/Plants vs Zombies.html", logo:"Assets/Pictures/Non-edited/PlantsVsZombies-n.png"},
+  {name:"Red Ball 4", path:"Assets/Game Data/Red Ball 4.html", logo:"Assets/Pictures/Non-edited/RedBall4-n.png"},
+  {name:"Red Ball 4 Vol. 2", path:"Assets/Game Data/Red Ball 4 Vol. 2.html", logo:"Assets/Pictures/Non-edited/RedBall4-2-n.png"},
+  {name:"Red Ball 4 Vol. 3", path:"Assets/Game Data/Red Ball 4 Vol. 3.html", logo:"Assets/Pictures/Non-edited/RedBall4-3-n.png"},
+  {name:"Retro Bowl", path:"Assets/Game Data/bowl/index.html", logo:"Assets/Pictures/Non-edited/Retrobowl-n.png"},
+  {name:"Retro Bowl College", path:"Assets/Game Data/Retro bowl College.html", logo:"Assets/Pictures/Non-edited/RetroBowlCollege-n.png", external:true},
+  {name:"Rooftop Snipers", path:"Assets/Game Data/rooftop-snipers/index.html", logo:"Assets/Pictures/Non-edited/RooftopSnipers-n.png"},
+  {name:"Run 3", path:"Assets/Game Data/Run 3.html", logo:"Assets/Pictures/Non-edited/Run3-n.png"},
+  {name:"Slither.io", path:"Assets/Game Data/Slither.io.html", logo:"Assets/Pictures/Non-edited/Slitherio-n.png"},
+  {name:"Slope 2", path:"Assets/Game Data/Slope 2.html", logo:"Assets/Pictures/Non-edited/Slope2-n.png"},
+  {name:"Snowbattle.io", path:"Assets/Game Data/Snowbattle.io.html", logo:"Assets/Pictures/Non-edited/Snowbattleio-n.png"},
+  {name:"Solar Smash", path:"Assets/Game Data/Solar Smash.html", logo:"Assets/Pictures/Non-edited/SolarSmash-n.png"},
+  {name:"Stacky Dash", path:"Assets/Game Data/Stacky Dash.html", logo:"Assets/Pictures/Non-edited/StackyDash-n.png"},
+  {name:"State.io", path:"Assets/Game Data/State.io.html", logo:"Assets/Pictures/Non-edited/Stateio-n.png"},
+  {name:"Station Saturn", path:"Assets/Game Data/Station Saturn.html", logo:"Assets/Pictures/Non-edited/StationSaturn-n.png"},
+  {name:"Steal A Brainrot", path:"Assets/Game Data/Steal A Brainrot.html", logo:"Assets/Pictures/Non-edited/StealABrainrot-n.png"},
+  {name:"Temple Run 2", path:"Assets/Game Data/Temple Run 2.html", logo:"Assets/Pictures/Non-edited/TempleRun2-n.png"},
+
+  {name:"The Impossible Quiz", path:"Assets/Game Data/the-impossible-quiz/index.html", logo:"Assets/Pictures/Non-edited/ImpossibleQuiz-n.webp"},
+  {name:"The Man In The Window", path:"Assets/Game Data/The Man In The Window.html", logo:"Assets/Pictures/Non-edited/ManFromWindow-n.png"},
+  {name:"Tomb of the Mask", path:"Assets/Game Data/Tomb Of The Mask.html", logo:"Assets/Pictures/Non-edited/TombOfMask-n.png"},
+  {name:"Wordle", path:"Assets/Game Data/wordle/index.html", logo:"Assets/Pictures/Non-edited/Wordle-n.png"},
+  {name:"World Box", path:"Assets/Game Data/World Box.html", logo:"Assets/Pictures/Non-edited/WorldBox-n.png"},
+  {name:"Worlds Hardest Game", path:"Assets/Game Data/worlds-hardest-game/index.html", logo:"Assets/Pictures/Non-edited/WorldHardestGame-n.jpeg"}
+];
+const gridEl=document.getElementById("gameGrid");
+gridEl.innerHTML="";
+for(const g of games){
+ const c=document.createElement("div");
+ c.className="card";
+ c.innerHTML=`<img src="${g.logo}"><h3>${g.name}</h3>`;
+ if(g.external){
+   c.innerHTML+=`<button class="btn" onclick="window.open('${g.path}','_blank')">Open</button>`;
+ } else {
+   c.innerHTML+=`<button class="btn" onclick="loadGame('${g.path}')">Load</button>`;
+ }
+ gridEl.appendChild(c);
+}
+</script>
+</body>
+</html>

