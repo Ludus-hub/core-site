@@ -7,8 +7,8 @@ Your Markdown file is ready
 
 Here is the GitHub README file explaining the site, its limitations, and the necessary Firebase setup. 
 
-```markdown
-# MathMaster Global v2.0 🎮🏫
+
+MathMaster 
 
 Welcome to the **MathMaster Global v2.0** repository! 
 
@@ -38,8 +38,10 @@ Setup & Installation
 To host your own instance of MathMaster, you will need to set up a basic web server and link it to your own Google Firebase project for the cloud save features.
 
 Step 1: Clone the Repository
+```markdown
 git clone [https://github.com/MathMaster-global/MathMaster-Global-v2.0.git](https://github.com/MathMaster-global/MathMaster-Global-v2.0.git)
 cd MathMaster-Global-v2.0
+```
 Step 2: Set up Firebase
 Step 2: Firebase Setup (Required for Cloud Saves)
 To enable user accounts and cloud syncing, you must configure Firebase:
@@ -59,7 +61,7 @@ Go to Build > Firestore Database and click Create database.
 Start in Production Mode.
 
 Update your Firestore Security Rules to ensure users can only read/write their own data. Go to the Rules tab and paste this:
-
+```markdown
 JavaScript
 rules_version = '2';
 service cloud.firestore {
@@ -70,6 +72,7 @@ service cloud.firestore {
     }
   }
 }
+```
 Get Your Config Keys:
 
 Go to Project Overview > Project Settings (the gear icon).
@@ -86,7 +89,7 @@ Open the auth.js file in your cloned repository.
 Locate the // 2. Your exact Firebase configuration section (around line 6).
 
 Replace the placeholder firebaseConfig object with the one you copied from your Firebase console:
-
+```markdown
 JavaScript
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
@@ -96,5 +99,6 @@ const firebaseConfig = {
   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
   appId: "YOUR_APP_ID"
 };
+```
 Step 4: Run the Site
 Because the site uses ES6 Modules (import/export in auth.js) and fetches local JSON files, it cannot be run simply by double-clicking index.html. It must be served over HTTP/HTTPS.
