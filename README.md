@@ -90,3 +90,82 @@ const firebaseConfig = {
 ```
 Step 4: Run the Site
 Because the site uses ES6 Modules (import/export in auth.js) and fetches local JSON files, it cannot be run simply by double-clicking index.html. It must be served over HTTP/HTTPS.
+// Change this:
+    pipeLogToParent('error', source, message);
+
+    // To this:
+    if (window.parent && window.parent.pipeLogToParent) {
+        window.parent.pipeLogToParent('error', source, message);
+    }
+    ```
+
+### **3. The `collection.json` Syntax Error**
+*   **The Logs:** `script.js:2063 Failed to load collection.json: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
+*   **The Issue:** Your `fetch` call on line 2063 of `script.js` is trying to parse JSON, but the server is returning an HTML document (likely your server's default 404 page, which starts with `<!DOCTYPE html>`). Check the path to `collection.json` to ensure the file actually exists at that route. 
+
+### **4. IndexedDB Schema Mismatch**
+*   **The Logs:** `[file.html] [ERROR] Unhandled Promise: NotFoundError: Failed to execute 'transaction' on 'IDBDatabase': One of the specified object stores was not found.`
+*   **The Issue:** Your local file manager script is attempting a read/write transaction on a database table ("object store") that does not exist. If you recently added a new storage requirement to `file.html`, you need to bump the IndexedDB version number and explicitly create the store inside the `onupgradThe new custom console script is working exactly as intended. It is successfully intercepting the native 404 network events, the unhandled IndexedDB promises, and the JSON syntax errors that were previously vanishing before they could reach your master output. 
+
+Now that the blind spots are gone, here is a breakdown of the specific bugs your master console has exposed and how to patch them.
+
+### **1. The Parenthesis Pathing Bug**
+*   **The Logs:** `[http://127.0.0.1:5500/Versions/Assets/Pictures(Non-edited(Placeholder.png](http://127.0.0.1:5500/Versions/Assets/Pictures(Non-edited(Placeholder.png)`
+*   **The Issue:** Notice the parentheses `(` in the URL instead of forward slashes `/`. You have a string manipulation function, a regex replacement, or a typo somewhere in your asset-loading logic that is replacing directory separators with open parentheses. This is why `Placeholder.png` is failing to load.
+
+### **2. The Lingering `pipeLogToParent` Error**
+*   **The Logs:** `[index-m.html] [ERROR] Uncaught ReferenceError: pipeLogToParent is not defined`
+*   **The Issue:** The parent `script.js` has the function, but `index-m.html` is executing within its own isolated window context. It cannot see the parent's `window` object by default.
+*   **The Fix:** Inside `index-m.html` (and any other child apps sending logs), you must explicitly target the parent window when calling the function:
+    ```javascript
+    // Change this:
+    pipeLogToParent('error', source, message);
+
+    // To this:
+    if (window.parent && window.parent.pipeLogToParent) {
+        window.parent.pipeLogToParent('error', source, message);
+    }
+    ```
+
+### **3. The `collection.json` Syntax Error**
+*   **The Logs:** `script.js:2063 Failed to load collection.json: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
+*   **The Issue:** Your `fetch` call on line 2063 of `script.js` is trying to parse JSON, but the server is returning an HTML document (likely your server's default 404 page, which starts with `<!DOCTYPE html>`). Check the path to `collection.json` to ensure the file actually exists at that route. 
+
+### **4. IndexedDB Schema Mismatch**
+*   **The Logs:** `[file.html] [ERROR] Unhandled Promise: NotFoundError: Failed to execute 'transaction' on 'IDBDatabase': One of the specified object stores was not found.`
+*   **The Issue:** Your local file manager script is attempting a read/write transaction on a database table ("object store") that does not exist. If you recently added a new storage requirement to `file.html`, you need to bump the IndexedDB version number and explicitly create the store inside the `onupgradeneeded` event listener.
+
+### **5. Missing Butterchurn Presets**
+*   **The Logs:** `[index-m.html] [ERROR] ERR_ABORTED 404: [http://127.0.0.1:5500/lib/butterchurnPresets.minThe](http://127.0.0.1:5500/lib/butterchurnPresets.minThe) new custom console script is working exactly as intended. It is successfully intercepting the native 404 network events, the unhandled IndexedDB promises, and the JSON syntax errors that were previously vanishing before they could reach your master output. 
+
+Now that the blind spots are gone, here is a breakdown of the specific bugs your master console has exposed and how to patch them.
+
+### **1. The Parenthesis Pathing Bug**
+*   **The Logs:** `[http://127.0.0.1:5500/Versions/Assets/Pictures(Non-edited(Placeholder.png](http://127.0.0.1:5500/Versions/Assets/Pictures(Non-edited(Placeholder.png)`
+*   **The Issue:** Notice the parentheses `(` in the URL instead of forward slashes `/`. You have a string manipulation function, a regex replacement, or a typo somewhere in your asset-loading logic that is replacing directory separators with open parentheses. This is why `Placeholder.png` is failing to load.
+
+### **2. The Lingering `pipeLogToParent` Error**
+*   **The Logs:** `[index-m.html] [ERROR] Uncaught ReferenceError: pipeLogToParent is not defined`
+*   **The Issue:** The parent `script.js` has the function, but `index-m.html` is executing within its own isolated window context. It cannot see the parent's `window` object by default.
+*   **The Fix:** Inside `index-m.html` (and any other child apps sending logs), you must explicitly target the parent window when calling the function:
+    ```javascript
+    // Change this:
+    pipeLogToParent('error', source, message);
+
+    // To this:
+    if (window.parent && window.parent.pipeLogToParent) {
+        window.parent.pipeLogToParent('error', source, message);
+    }
+    ```
+
+### **3. The `collection.json` Syntax Error**
+*   **The Logs:** `script.js:2063 Failed to load collection.json: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
+*   **The Issue:** Your `fetch` call on line 2063 of `script.js` is trying to parse JSON, but the server is returning an HTML document (likely your server's default 404 page, which starts with `<!DOCTYPE html>`). Check the path to `collection.json` to ensure the file actually exists at that route. 
+
+### **4. IndexedDB Schema Mismatch**
+*   **The Logs:** `[file.html] [ERROR] Unhandled Promise: NotFoundError: Failed to execute 'transaction' on 'IDBDatabase': One of the specified object stores was not found.`
+*   **The Issue:** Your local file manager script is attempting a read/write transaction on a database table ("object store") that does not exist. If you recently added a new storage requirement to `file.html`, you need to bump the IndexedDB version number and explicitly create the store inside the `onupgradeneeded` event listener.
+
+### **5. Missing Butterchurn Presets**
+*   **The Logs:** `[index-m.html] [ERROR] ERR_ABORTED 404: [http://127.0.0.1:5500/lib/butterchurnPresets.min.js](http://127.0.0.1:5500/lib/butterchurnPresets.min.js)`
+*   **The Issue:** The music app is looking for the Winamp visualizer library at the absolute root directory (`/lib/`) instead of inside your `Versions/Assets/Apps/music/` folder. Adjust the script `src` tag in `index-m.html` to use a relative path.
