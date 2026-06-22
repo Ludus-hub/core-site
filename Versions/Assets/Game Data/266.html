@@ -1,120 +1,230 @@
-<!DOCTYPE html>
+
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-L7856P3VNT');
+</script><!DOCTYPE html>
+
 <html lang="en-us">
-<head>
+  <head>
+    <script>
+  // Block all fullscreen requests from Unity or any script
+  const noop = () => Promise.resolve();
+  document.documentElement.requestFullscreen = noop;
+  document.documentElement.webkitRequestFullscreen = noop;
+  Element.prototype.requestFullscreen = noop;
+  Element.prototype.webkitRequestFullscreen = noop;
+  Element.prototype.mozRequestFullScreen = noop;
+  Element.prototype.msRequestFullscreen = noop;
+
+(function() {
+    let masterGainNodes = [];
+    let currentVolume = 1.0;
+    const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (OriginalAudioContext) {
+        window.AudioContext = function(...args) {
+            const ctx = new OriginalAudioContext(...args);
+            const gainNode = ctx.createGain();
+            gainNode.gain.value = currentVolume;
+            const originalDestination = ctx.destination;
+            gainNode.connect(originalDestination);
+            masterGainNodes.push(gainNode);
+            Object.defineProperty(ctx, 'destination', { get: () => gainNode });
+            return ctx;
+        };
+        window.webkitAudioContext = window.AudioContext;
+    }
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.action === 'setGameVolume') {
+            currentVolume = Math.max(0, Math.min(1, event.data.volume));
+            document.querySelectorAll('audio, video').forEach(m => m.volume = currentVolume);
+            masterGainNodes.forEach(g => g.gain.value = currentVolume);
+        }
+    });
+})();
+// === GLOBAL LOCALSTORAGE OVERRIDE ===
+// Place this at the VERY TOP of your <script> tags, before any other logic.
+(function forceLocalData() {
+    console.warn("Storage Override Active: Forcing session data to localStorage and disabling cloud overwrites.");
+
+    // 1. Redirect sessionStorage to localStorage
+    try {
+        const originalSessionStorage = window.sessionStorage;
+        
+        // We create a proxy to catch all gets/sets/removes intended for the session
+        const sessionToLocalProxy = {
+            getItem: function(key) { return window.localStorage.getItem(`session_proxy_${key}`); },
+            setItem: function(key, value) { window.localStorage.setItem(`session_proxy_${key}`, value); },
+            removeItem: function(key) { window.localStorage.removeItem(`session_proxy_${key}`); },
+            clear: function() {
+                // Only clear the proxied session items, not the whole localStorage
+                Object.keys(window.localStorage).forEach(key => {
+                    if (key.startsWith('session_proxy_')) window.localStorage.removeItem(key);
+                });
+            },
+            get length() {
+                return Object.keys(window.localStorage).filter(k => k.startsWith('session_proxy_')).length;
+            }
+        };
+
+        // Attempt to hijack the global sessionStorage object
+        Object.defineProperty(window, 'sessionStorage', {
+            value: sessionToLocalProxy,
+            configurable: true,
+            enumerable: true,
+            writable: false
+        });
+    } catch (e) {
+        console.error("Could not override sessionStorage. The browser may have locked it.", e);
+    }
+
+    // 2. Lock down Cloud Overwrite logic
+    // This forces your existing mathmaster_cloud_overwrite variable to always be false locally
+    window.localStorage.setItem("mathmaster_cloud_overwrite", "false");
+    
+    // Intercept localStorage.setItem to prevent the app from turning cloud overwrite back on
+    const originalSetItem = window.localStorage.setItem;
+    window.localStorage.setItem = function(key, value) {
+        if (key === "mathmaster_cloud_overwrite" && value === "true") {
+            console.warn("Blocked attempt to enable cloud overwrite. Forced to local only.");
+            originalSetItem.call(window.localStorage, key, "false");
+            return;
+        }
+        originalSetItem.call(window.localStorage, key, value);
+    };
+})();
+</script>
     <base href="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@main/speed-stars/">
-    <meta charset="utf-8">
+  <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Unity WebGL Player | Speed Stars</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
     <style>
-        /* This CSS ensures the container fills the browser tab perfectly */
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-            width: 100%;
-            background-color: #000;
-        }
+      html,
+      body {
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+          height: 100%;
+          width: 100%;
+      }
 
-        #unity-container {
-            width: 100%;
-            height: 100%;
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-
-        #unity-canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <div id="unity-container">
-        <canvas id="unity-canvas"></canvas>
-        <div id="unity-loading-bar">
-            <div id="unity-logo"></div>
-            <div id="unity-progress-bar-empty">
-                <div id="unity-progress-bar-full"></div>
-            </div>
+      #unity-container {
+          width: 100%;
+          height: 100%;
+          position: fixed;
+          top: 0;
+          left: 0;
+      }
+  
+</style>
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
         </div>
-        <div id="unity-warning"> </div>
+      </div>
+      <div id="unity-warning"> </div>
     </div>
-
-    <script>
-        window.fileMergerConfig = {
-            files: [
-                { name: 'webgl.data', parts: 5 },
-                { name: 'webgl.wasm', parts: 3 },
-                { name: 'webgl.framework.js', parts: 1 },
-            ],
-            basePath: 'Build/',
-            debug: false
-        };
+      <script>
+      window.fileMergerConfig = {
+        files: [
+          { name: 'webgl.data', parts: 5 },
+          { name: 'webgl.wasm', parts: 3 },
+          { name: 'webgl.framework.js', parts: 1 },
+        ],
+        basePath: 'Build/',
+        debug: true
+      };
     </script>
 
     <script src="https://cdn.jsdelivr.net/gh/bubbls/UGS-Assets@main/merge.js"></script>
     <script>
-        var container = document.querySelector("#unity-container");
-        var canvas = document.querySelector("#unity-canvas");
-        var loadingBar = document.querySelector("#unity-loading-bar");
-        var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
 
-        function unityShowBanner(msg, type) {
-            // Optional: Handle Unity warnings here
-        }
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
 
-        var buildUrl = "Build";
-        var loaderUrl = buildUrl + "/webgl.loader.js";
-        var config = {
-            dataUrl: buildUrl + "/webgl.data",
-            frameworkUrl: buildUrl + "/webgl.framework.js",
-            codeUrl: buildUrl + "/webgl.wasm",
-            streamingAssetsUrl: "StreamingAssets",
-            companyName: "Luke Doukakis",
-            productName: "Speed Stars",
-            productVersion: "1.0",
-            showBanner: unityShowBanner,
-        };
+      }
 
-        // --- FIXED TAB-FULLSCREEN LOGIC ---
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/webgl.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/webgl.data",
+        frameworkUrl: buildUrl + "/webgl.framework.js",
+        codeUrl: buildUrl + "/webgl.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Luke Doukakis",
+        productName: "Speed Stars",
+        productVersion: "1.0",
+        showBanner: unityShowBanner,
+      };
+
+      // By default Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        container.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+        canvas.style.width = window.innerWidth + 'px';
+        canvas.style.height = window.innerHeight + 'px';
+
+        unityShowBanner('WebGL builds are not supported on mobile devices.');
+      } else {
         function resizeCanvas() {
-            canvas.style.width = window.innerWidth + 'px';
-            canvas.style.height = window.innerHeight + 'px';
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          canvas.style.width = window.innerWidth + "px";
+          canvas.style.height = window.innerHeight + "px";
         }
-
-        // Apply mobile meta tags if needed, but use the same resize logic for both
-        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            var meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-            document.getElementsByTagName('head')[0].appendChild(meta);
-            container.className = "unity-mobile";
-        }
-
-        // Initial resize and listener to keep it filling the tab
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
-        // ----------------------------------
+      }
 
-        loadingBar.style.display = "block";
+      loadingBar.style.display = "block";
 
-        var script = document.createElement("script");
-        script.src = loaderUrl;
-        script.onload = () => {
-            createUnityInstance(canvas, config, (progress) => {
-                progressBarFull.style.width = 100 * progress + "%";
-            }).then((unityInstance) => {
-                loadingBar.style.display = "none";
-            }).catch((message) => {
-                alert(message);
-            });
-        };
-        document.body.appendChild(script);
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+      document.body.appendChild(script);
     </script>
+  
 </body>
 </html>

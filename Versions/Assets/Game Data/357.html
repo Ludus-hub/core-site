@@ -9,6 +9,93 @@
 
 <html lang="en">
 <head>
+    <script>
+  // Block all fullscreen requests from Unity or any script
+  const noop = () => Promise.resolve();
+  document.documentElement.requestFullscreen = noop;
+  document.documentElement.webkitRequestFullscreen = noop;
+  Element.prototype.requestFullscreen = noop;
+  Element.prototype.webkitRequestFullscreen = noop;
+  Element.prototype.mozRequestFullScreen = noop;
+  Element.prototype.msRequestFullscreen = noop;
+
+(function() {
+    let masterGainNodes = [];
+    let currentVolume = 1.0;
+    const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (OriginalAudioContext) {
+        window.AudioContext = function(...args) {
+            const ctx = new OriginalAudioContext(...args);
+            const gainNode = ctx.createGain();
+            gainNode.gain.value = currentVolume;
+            const originalDestination = ctx.destination;
+            gainNode.connect(originalDestination);
+            masterGainNodes.push(gainNode);
+            Object.defineProperty(ctx, 'destination', { get: () => gainNode });
+            return ctx;
+        };
+        window.webkitAudioContext = window.AudioContext;
+    }
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.action === 'setGameVolume') {
+            currentVolume = Math.max(0, Math.min(1, event.data.volume));
+            document.querySelectorAll('audio, video').forEach(m => m.volume = currentVolume);
+            masterGainNodes.forEach(g => g.gain.value = currentVolume);
+        }
+    });
+})();
+// === GLOBAL LOCALSTORAGE OVERRIDE ===
+// Place this at the VERY TOP of your <script> tags, before any other logic.
+(function forceLocalData() {
+    console.warn("Storage Override Active: Forcing session data to localStorage and disabling cloud overwrites.");
+
+    // 1. Redirect sessionStorage to localStorage
+    try {
+        const originalSessionStorage = window.sessionStorage;
+        
+        // We create a proxy to catch all gets/sets/removes intended for the session
+        const sessionToLocalProxy = {
+            getItem: function(key) { return window.localStorage.getItem(`session_proxy_${key}`); },
+            setItem: function(key, value) { window.localStorage.setItem(`session_proxy_${key}`, value); },
+            removeItem: function(key) { window.localStorage.removeItem(`session_proxy_${key}`); },
+            clear: function() {
+                // Only clear the proxied session items, not the whole localStorage
+                Object.keys(window.localStorage).forEach(key => {
+                    if (key.startsWith('session_proxy_')) window.localStorage.removeItem(key);
+                });
+            },
+            get length() {
+                return Object.keys(window.localStorage).filter(k => k.startsWith('session_proxy_')).length;
+            }
+        };
+
+        // Attempt to hijack the global sessionStorage object
+        Object.defineProperty(window, 'sessionStorage', {
+            value: sessionToLocalProxy,
+            configurable: true,
+            enumerable: true,
+            writable: false
+        });
+    } catch (e) {
+        console.error("Could not override sessionStorage. The browser may have locked it.", e);
+    }
+
+    // 2. Lock down Cloud Overwrite logic
+    // This forces your existing mathmaster_cloud_overwrite variable to always be false locally
+    window.localStorage.setItem("mathmaster_cloud_overwrite", "false");
+    
+    // Intercept localStorage.setItem to prevent the app from turning cloud overwrite back on
+    const originalSetItem = window.localStorage.setItem;
+    window.localStorage.setItem = function(key, value) {
+        if (key === "mathmaster_cloud_overwrite" && value === "true") {
+            console.warn("Blocked attempt to enable cloud overwrite. Forced to local only.");
+            originalSetItem.call(window.localStorage, key, "false");
+            return;
+        }
+        originalSetItem.call(window.localStorage, key, value);
+    };
+})();
+</script>
     <base href="https://cdn.jsdelivr.net/gh/fork-so-the-site-i-take-wont-be-deleted/bulbasaurchat.github.io@main/games/dadish/">
 <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-7L02W3ZMS5"></script>
 <script>
@@ -104,5 +191,5 @@
 			lime.embed('Dadish POKI', 'content', 768, 432);
 		</script>
 <script>(function(){var js = "window['__CF$cv$params']={r:'7b112d758fd32c9f',m:'gtX9KQqbdAd.gAntRubxxdJfNEtUvfJU5trb0Ezf1Eg-1680355730-0-AUYVXumtfB+FSg8wBGjS5NVoVJH175vgEbITpbtjJ+VxI4spsLNFlDy9CKOjjveOlEaG9i42lujTprtVmZ8wB6VU/qZ4Dr6chBiIvSH2QSJItJYomW7fwZXwLWfP6jOfYBjgqaVN27n9O1A8bD4byUE=',s:[0xaf9d9cf9c3,0x79439115f8],u:'/cdn-cgi/challenge-platform/h/b'};var now=Date.now()/1000,offset=14400,ts=''+(Math.floor(now)-Math.floor(now%offset)),_cpo=document.createElement('script');_cpo.nonce='',_cpo.src='/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts='+ts,document.getElementsByTagName('head')[0].appendChild(_cpo);";var _0xh = document.createElement('iframe');_0xh.height = 1;_0xh.width = 1;_0xh.style.position = 'absolute';_0xh.style.top = 0;_0xh.style.left = 0;_0xh.style.border = 'none';_0xh.style.visibility = 'hidden';document.body.appendChild(_0xh);function handler() {var _0xi = _0xh.contentDocument || _0xh.contentWindow.document;if (_0xi) {var _0xj = _0xi.createElement('script');_0xj.nonce = '';_0xj.innerHTML = js;_0xi.getElementsByTagName('head')[0].appendChild(_0xj);}}if (document.readyState !== 'loading') {handler();} else if (window.addEventListener) {document.addEventListener('DOMContentLoaded', handler);} else {var prev = document.onreadystatechange || function () {};document.onreadystatechange = function (e) {prev(e);if (document.readyState !== 'loading') {document.onreadystatechange = prev;handler();}};}})();</script>
-
+</body>
 </html>

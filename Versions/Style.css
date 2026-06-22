@@ -538,3 +538,39 @@ input:checked + .slider:before { transform: translateX(22px); }
 .version-input-bubble textarea:focus {
     border-color: var(--accent-color);
 }
+/* Update your existing card styles with this */
+.media-card {
+    background: rgba(30, 30, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column; /* Forces title to be above buttons */
+    gap: 12px;
+}
+
+.media-info {
+    text-align: center;
+    width: 100%;
+}
+
+.media-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.media-artist {
+    font-size: 14px;
+    color: #a0a0a0;
+    margin-top: 4px;
+}
+
+.volume-container input[type="range"] {
+    flex-grow: 1;
+    cursor: pointer;
+}

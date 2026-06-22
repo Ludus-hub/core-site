@@ -1108,3 +1108,346 @@ window.onload = function() {
     }
 
 };
+let mediaStates = {
+    music: { active: false, title: '', artist: '', playing: false, volume: 0.8 },
+    movie: { active: false, title: '', playing: false, volume: 1.0 },
+    unknown: { active: false, playing: false, volume: 1.0 }
+};
+
+// Sense incoming audio streams from iframes
+window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data) return;
+
+    if (data.target === 'music') {
+        mediaStates.music = { active: true, title: data.title || 'Unknown', artist: data.artist || '', playing: data.playing, volume: data.volume };
+        updateMixerUI();
+    } else if (data.target === 'movie') {
+        mediaStates.movie = { active: true, title: data.title || 'Unknown', playing: data.playing, volume: data.volume };
+        updateMixerUI();
+    } else if (data.isPlaying !== undefined && !data.target) {
+        // Fallback for unknown audio streams
+        mediaStates.unknown.active = true;
+        mediaStates.unknown.playing = data.isPlaying;
+        updateMixerUI();
+    }
+});
+
+// Sends volume updates directly to the specific stream
+window.changeVolume = function(target, value) {
+    const newVol = parseFloat(value);
+    if(mediaStates[target]) {
+        mediaStates[target].volume = newVol;
+    }
+    sendMediaCommand(target, 'setVolume', { volume: newVol });
+};
+
+// Sends play, pause, seek, and skip commands
+window.mediaAction = function(target, action) {
+    sendMediaCommand(target, action);
+};
+
+// The communication pipeline to your iframes
+function sendMediaCommand(target, action, extra = {}) {
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ target, action, ...extra }, '*');
+        }
+    });
+}
+
+function updateMixerUI() {
+    const svgPlay = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const svgPause = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+    // Toggle Music Card
+    const musicCard = document.getElementById('mixer-card-music');
+    if (musicCard) {
+        musicCard.style.display = mediaStates.music.active ? 'flex' : 'none';
+        document.getElementById('mix-music-title').textContent = mediaStates.music.title;
+        document.getElementById('mix-music-artist').textContent = mediaStates.music.artist;
+        document.getElementById('mix-music-vol').value = mediaStates.music.volume;
+        
+        const playBtn = document.getElementById('mix-music-play');
+        if (playBtn) playBtn.innerHTML = mediaStates.music.playing ? svgPause : svgPlay;
+    }
+
+    // Toggle Movie Card
+    const movieCard = document.getElementById('mixer-card-movie');
+    if (movieCard) {
+        movieCard.style.display = mediaStates.movie.active ? 'flex' : 'none';
+        document.getElementById('mix-movie-title').textContent = mediaStates.movie.title;
+        document.getElementById('mix-movie-vol').value = mediaStates.movie.volume;
+        
+        const playBtnMovie = document.getElementById('mix-movie-play');
+        if (playBtnMovie) playBtnMovie.innerHTML = mediaStates.movie.playing ? svgPause : svgPlay;
+    }
+    
+    // Toggle Unknown Card
+    const unknownCard = document.getElementById('mixer-card-unknown');
+    if (unknownCard) {
+        unknownCard.style.display = mediaStates.unknown.active ? 'flex' : 'none';
+        const playBtnUnknown = document.getElementById('mix-unknown-play');
+        if (playBtnUnknown) playBtnUnknown.innerHTML = mediaStates.unknown.playing ? svgPause : svgPlay;
+    }
+}
+// --- New Go to Movie Button Logic ---
+document.getElementById('mp-go-to-movie').addEventListener('click', () => {
+    // Find the movies dock button
+    const movieBtn = document.querySelector('.dock-btn[data-app="app-movies"]');
+    // Switch to the movie section just like the dock does
+    switchSection('app-movies', movieBtn);
+});
+// === GLOBAL FLOATING DRAGGABLE CONSOLE ===
+const globalConsole = document.createElement('div');
+globalConsole.id = 'global-dev-console';
+globalConsole.style.cssText = `
+    position: fixed; bottom: 100px; left: 20px; width: 450px; height: 300px;
+    background: rgba(5, 5, 5, 0.98); border: 1px solid var(--accent-color, #00C9FF);
+    border-radius: 12px; color: #0f0; font-family: monospace; font-size: 12px;
+    overflow: hidden; z-index: 1000000; display: none;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.9); backdrop-filter: blur(15px);
+    display: flex; flex-direction: column; cursor: grab;
+`;
+
+// Header for dragging
+const consoleHeader = document.createElement('div');
+consoleHeader.style.cssText = `padding: 8px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 10px; color: #888; display: flex; justify-content: space-between;`;
+consoleHeader.innerHTML = `<span>GLOBAL SITE CONSOLE</span><span id="close-console" style="cursor:pointer">✕</span>`;
+globalConsole.appendChild(consoleHeader);
+
+// Log Container
+const logContainer = document.createElement('div');
+logContainer.id = 'log-container';
+logContainer.style.cssText = `flex: 1; overflow-y: auto; padding: 10px;`;
+globalConsole.appendChild(logContainer);
+
+document.body.appendChild(globalConsole);
+
+// Dragging Logic
+let isDragging = false, offset = [0,0];
+consoleHeader.onmousedown = (e) => {
+    isDragging = true;
+    offset = [globalConsole.offsetLeft - e.clientX, globalConsole.offsetTop - e.clientY];
+    globalConsole.style.cursor = 'grabbing';
+};
+document.onmousemove = (e) => {
+    if (!isDragging) return;
+    globalConsole.style.left = (e.clientX + offset[0]) + 'px';
+    globalConsole.style.top = (e.clientY + offset[1]) + 'px';
+    globalConsole.style.bottom = 'auto'; // Break the bottom anchor
+};
+document.onmouseup = () => { isDragging = false; globalConsole.style.cursor = 'grab'; };
+
+document.getElementById('close-console').onclick = () => globalConsole.style.display = 'none';
+
+function renderGlobalLog(msg, type='log', source='MAIN') {
+    const div = document.createElement('div');
+    div.style.cssText = `margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px;`;
+    if (type === 'error') div.style.color = '#ff4a4a';
+    if (type === 'warn') div.style.color = '#ffcc00';
+    div.textContent = `[${source}] ${msg}`;
+    logContainer.appendChild(div);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// Global Message Listener (Catch logs from any iframe)
+window.addEventListener('message', (e) => {
+    if (e.data.type === 'CONSOLE_CMD') {
+        if (e.data.action === 'SHOW') globalConsole.style.display = 'flex';
+        if (e.data.action === 'DOCK') {
+            globalConsole.style.left = '260px'; // Adjust for file.html sidebar
+            globalConsole.style.bottom = '20px';
+            globalConsole.style.top = 'auto';
+            globalConsole.style.width = 'calc(100% - 280px)';
+        }
+    }
+    if (e.data && e.data.type === 'IFRAME_LOG') {
+        renderGlobalLog(e.data.message, e.data.level, e.data.source);
+    }
+});
+
+// Hijack Main
+const origLog = console.log;
+console.log = (...args) => { origLog(...args); renderGlobalLog(args.join(' '), 'log'); };
+// ===GLOBAL DEV CONSOLE & OMNISCIENT TRACKER ===
+const globalConsole = document.getElementById('global-dev-console');
+const consoleOutput = document.getElementById('console-output');
+const consoleHandle = document.getElementById('console-drag-handle');
+
+// 1. Master Log Renderer
+function renderGlobalLog(msg, level = 'log', source = 'MAIN') {
+    if (!consoleOutput) return;
+    const div = document.createElement('div');
+    div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+    div.style.paddingBottom = '4px';
+    div.style.wordWrap = 'break-word';
+    
+    let color = '#0f0'; // Default
+    if(level === 'warn') color = '#ffcc00';
+    if(level === 'error') color = '#ff4a4a';
+    if(level === 'network') color = '#ff00ff'; // Magenta for network blocks
+    
+    // Clean up the source name for readability
+    let cleanSource = source.split('/').pop() || source;
+    if(cleanSource.length > 20) cleanSource = cleanSource.substring(0, 17) + '...';
+
+    div.style.color = color;
+    div.innerHTML = `<span style="color: #666;">[${cleanSource}]</span> <span style="font-weight:bold; opacity: 0.8;">[${level.toUpperCase()}]</span> ${msg}`;
+    consoleOutput.appendChild(div);
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+}
+
+// Hijack Main Window Console
+const origLog = console.log, origWarn = console.warn, origError = console.error;
+console.log = (...args) => { origLog(...args); renderGlobalLog(args.join(' '), 'log'); };
+console.warn = (...args) => { origWarn(...args); renderGlobalLog(args.join(' '), 'warn'); };
+console.error = (...args) => { origError(...args); renderGlobalLog(args.join(' '), 'error'); };
+
+// Catch Main Window Global Errors
+window.addEventListener('error', (e) => renderGlobalLog(`${e.message} at ${e.filename}:${e.lineno}`, 'error'));
+window.addEventListener('unhandledrejection', (e) => renderGlobalLog(`Unhandled Promise: ${e.reason}`, 'error'));
+
+// 2. The Iframe Payload (This gets injected into every app)
+const iframePayload = function() {
+    if (window.__ludusTrackerInjected) return;
+    window.__ludusTrackerInjected = true;
+
+    const sourceName = window.location.pathname.split('/').pop() || 'iframe';
+    const sendLog = (level, args) => {
+        const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+        window.parent.postMessage({ type: 'IFRAME_LOG', level, source: sourceName, message: msg }, '*');
+    };
+
+    // Hijack Iframe Console
+    const oLog = console.log, oWarn = console.warn, oErr = console.error;
+    console.log = (...args) => { oLog(...args); sendLog('log', args); };
+    console.warn = (...args) => { oWarn(...args); sendLog('warn', args); };
+    console.error = (...args) => { oErr(...args); sendLog('error', args); };
+
+    // Catch Iframe Global Errors
+    window.addEventListener('error', (e) => sendLog('error', [`Global Error: ${e.message} at ${e.filename}:${e.lineno}`]));
+    window.addEventListener('unhandledrejection', (e) => sendLog('error', [`Unhandled Promise: ${e.reason}`]));
+
+    // Hijack Fetch (Catches modern network blocks)
+    const origFetch = window.fetch;
+    window.fetch = async (...args) => {
+        try {
+            const res = await origFetch(...args);
+            if (!res.ok) sendLog('network', [`Fetch failed: ${args[0]} (Status: ${res.status})`]);
+            return res;
+        } catch (err) {
+            sendLog('network', [`Fetch BLOCKED or FAILED: ${args[0]} - ${err.message}`]);
+            throw err;
+        }
+    };
+    
+    // Hijack XHR (Catches older network blocks)
+    const origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this.addEventListener('error', () => sendLog('network', [`XHR BLOCKED: ${url}`]));
+        this.addEventListener('load', () => { if(this.status >= 400) sendLog('network', [`XHR Error: ${url} (Status: ${this.status})`]) });
+        origOpen.apply(this, arguments);
+    };
+};
+
+// 3. The Omniscient Injector
+function attachTrackerToIframe(iframe) {
+    try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!doc) return;
+        
+        // Inject the payload script
+        const script = doc.createElement('script');
+        script.textContent = `(${iframePayload.toString()})();`;
+        doc.head.appendChild(script);
+        
+        renderGlobalLog(`Tracker attached to: ${iframe.id || 'Unnamed App'}`, 'log', 'SYSTEM');
+    } catch (e) {
+        // This fails silently if the iframe is cross-origin (e.g. Chatbot on Zapier). 
+        // We can't legally track cross-origin frames due to browser security.
+    }
+}
+
+// Listen for loads on existing frames
+document.querySelectorAll('iframe, embed[type="text/html"]').forEach(frame => {
+    frame.addEventListener('load', () => attachTrackerToIframe(frame));
+});
+
+// Watch for dynamically added frames (like when you open a game)
+const observer = new MutationObserver(mutations => {
+    mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+            if (node.tagName === 'IFRAME' || (node.tagName === 'EMBED' && node.type === 'text/html')) {
+                node.addEventListener('load', () => attachTrackerToIframe(node));
+            }
+        });
+    });
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+// 4. Message & Console UI Logic
+window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data) return;
+
+    if (data.type === 'IFRAME_LOG') {
+        renderGlobalLog(data.message, data.level, data.source);
+    }
+    
+    if (data.type === 'CONSOLE_CMD') {
+        if (data.action === 'TOGGLE' || data.action === 'SHOW') {
+            globalConsole.style.display = globalConsole.style.display === 'none' || globalConsole.style.display === '' ? 'flex' : 'none';
+        }
+        if (data.action === 'DOCK' && globalConsole.style.display === 'flex') {
+            globalConsole.style.transition = 'all 0.3s ease';
+            globalConsole.style.left = '240px';
+            globalConsole.style.bottom = '0px';
+            globalConsole.style.top = 'auto';
+            globalConsole.style.right = '0px';
+            globalConsole.style.width = 'calc(100vw - 240px)';
+            globalConsole.style.height = '200px';
+            globalConsole.style.borderRadius = '12px 0 0 0';
+            setTimeout(() => { globalConsole.style.transition = 'none'; }, 300);
+        }
+    }
+});
+
+// 5. Drag Physics
+let isDraggingConsole = false;
+let consoleOffsetX = 0, consoleOffsetY = 0;
+
+if (consoleHandle && globalConsole) {
+    consoleHandle.addEventListener('mousedown', (e) => {
+        isDraggingConsole = true;
+        const rect = globalConsole.getBoundingClientRect();
+        consoleOffsetX = e.clientX - rect.left;
+        consoleOffsetY = e.clientY - rect.top;
+        consoleHandle.style.cursor = 'grabbing';
+        
+        globalConsole.style.width = '450px';
+        globalConsole.style.height = '300px';
+        globalConsole.style.borderRadius = '12px';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDraggingConsole) return;
+        e.preventDefault();
+        let newX = e.clientX - consoleOffsetX;
+        let newY = e.clientY - consoleOffsetY;
+
+        newX = Math.max(0, Math.min(window.innerWidth - globalConsole.offsetWidth, newX));
+        newY = Math.max(0, Math.min(window.innerHeight - globalConsole.offsetHeight, newY));
+
+        globalConsole.style.left = newX + 'px';
+        globalConsole.style.top = newY + 'px';
+        globalConsole.style.right = 'auto';
+        globalConsole.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDraggingConsole = false;
+        if (consoleHandle) consoleHandle.style.cursor = 'grab';
+    });
+}

@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Ludus Proxy</title>
+<style>
+/* ── Reset ─────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+
+/* ── Ludus design tokens ────────────────────────────────────────── */
+:root{
+  --glass-bg:rgba(28,28,32,0.6);
+  --glass-border:rgba(255,255,255,0.13);
+  --glass-blur:blur(36px) saturate(170%);
+  --accent:rgb(0,174,255);
+  --accent-dim:rgba(0,174,255,0.25);
+  --accent-glow:rgba(0,174,255,0.35);
+  --text:#fff;
+  --text2:#d1d1d6;
+  --muted:rgba(255,255,255,0.38);
+  --danger:#ff6b6b;
+  --green:#34c759;
+  --r-lg:18px;--r-md:12px;--r-sm:8px;--r-pill:99px;
+  --shadow:0 20px 40px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.07) inset;
+  --tab-h:33px;--tool-h:42px;--bm-h:30px;
+}
+
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,sans-serif;font-size:13px;color:var(--text);overflow:hidden;user-select:none}
+
+body{
+  display:flex;flex-direction:column;
+  background:#060608;
+  background-image:
+    radial-gradient(circle at 15% 55%,rgba(14,165,164,0.2),transparent 42%),
+    radial-gradient(circle at 85% 28%,rgba(110,45,200,0.14),transparent 42%),
+    linear-gradient(180deg,#080809 0%,#111 100%);
+  background-attachment:fixed;
+}
+
+/* ══ TAB STRIP ══════════════════════════════════════════════════ */
+#title-bar{
+  flex-shrink:0;display:flex;align-items:flex-end;
+  height:calc(var(--tab-h) + 10px);padding:6px 6px 0;
+  background:rgba(8,8,10,0.85);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  gap:2px;z-index:30;
+}
+#tab-strip{flex:1;display:flex;align-items:flex-end;min-width:0;overflow:hidden;gap:2px;padding-right:2px}
+
+.tab{
+  display:flex;align-items:center;gap:6px;
+  height:var(--tab-h);min-width:40px;max-width:210px;flex:1 1 0;
+  padding:0 8px 0 10px;border-radius:10px 10px 0 0;
+  background:rgba(255,255,255,0.035);
+  border:1px solid rgba(255,255,255,0.05);border-bottom:none;
+  cursor:pointer;overflow:hidden;transition:background .14s;
+}
+.tab:hover{background:rgba(255,255,255,0.07)}
+.tab.active{background:rgba(26,27,32,0.9);backdrop-filter:blur(20px);border-color:rgba(255,255,255,0.11)}
+.tab.pinned{flex:0 0 38px;min-width:38px;max-width:38px;padding:0 11px}
+.tab.pinned .tab-title,.tab.pinned .tab-close{display:none}
+.tab-favicon{width:14px;height:14px;flex-shrink:0;border-radius:2px}
+.tab-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted)}
+.tab.active .tab-title{color:var(--text)}
+.tab-close{flex-shrink:0;width:18px;height:18px;border:none;background:transparent;color:var(--muted);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;opacity:0;transition:background .1s,opacity .1s}
+.tab:hover .tab-close,.tab.active .tab-close{opacity:1}
+.tab-close:hover{background:rgba(255,255,255,0.13);color:#fff}
+.tab-muted{font-size:9px;color:var(--muted);flex-shrink:0}
+
+#new-tab-btn{flex-shrink:0;width:28px;height:28px;margin-bottom:3px;border:none;background:transparent;color:var(--muted);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .14s,color .14s}
+#new-tab-btn:hover{background:rgba(255,255,255,0.08);color:#fff}
+#new-tab-btn svg{width:15px;height:15px}
+
+/* ══ TOOLBAR ════════════════════════════════════════════════════ */
+#toolbar{
+  flex-shrink:0;display:flex;align-items:center;gap:3px;
+  height:var(--tool-h);padding:5px 10px;
+  background:rgba(12,12,15,0.92);backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(255,255,255,0.06);z-index:25;
+}
+
+.tbtn{flex-shrink:0;width:30px;height:30px;border:none;background:transparent;color:var(--muted);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .14s,color .14s;position:relative}
+.tbtn:hover{background:rgba(255,255,255,0.08);color:var(--text)}
+.tbtn:active{background:rgba(255,255,255,0.12)}
+.tbtn:disabled{opacity:.24;cursor:default}
+.tbtn:disabled:hover{background:transparent}
+.tbtn svg{width:16px;height:16px;pointer-events:none}
+.tbtn.active-icon{color:var(--accent)}
+
+#nav-grp{display:flex;gap:2px;margin-right:2px}
+
+/* Zoom pill */
+#zoom-pill{
+  flex-shrink:0;font-size:11px;font-weight:600;color:var(--muted);
+  padding:3px 8px;border-radius:var(--r-pill);
+  border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.04);
+  cursor:pointer;transition:all .14s;white-space:nowrap;
+  display:none;
+}
+#zoom-pill:hover{background:rgba(255,255,255,0.08);color:var(--text)}
+#zoom-pill.visible{display:block}
+
+/* Omnibox */
+#omnibox{
+  flex:1;display:flex;align-items:center;height:30px;
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);
+  border-radius:var(--r-pill);padding:0 12px;gap:7px;
+  transition:background .18s,border-color .18s,box-shadow .18s,border-radius .15s;cursor:text;
+  position:relative;
+}
+#omnibox:focus-within{background:rgba(255,255,255,0.08);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);border-radius:var(--r-sm)}
+#sec-icon{flex-shrink:0;color:var(--muted);display:flex;align-items:center}
+#sec-icon svg{width:12px;height:12px}
+#sec-icon.insecure{color:var(--danger)}
+#url-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:12.5px;font-family:inherit;text-align:center;user-select:text}
+#omnibox:focus-within #url-input{text-align:left}
+#url-input::placeholder{color:var(--muted)}
+#clear-btn{flex-shrink:0;width:14px;height:14px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:50%;display:none;align-items:center;justify-content:center}
+#omnibox:focus-within #clear-btn{display:flex}
+#clear-btn svg{width:12px;height:12px}
+
+#toolbar-right{display:flex;align-items:center;gap:1px;margin-left:2px}
+#bm-star.starred svg polygon{fill:#fdd663;stroke:#fdd663}
+
+/* ══ BOOKMARKS BAR ══════════════════════════════════════════════ */
+#bm-bar{
+  flex-shrink:0;display:flex;align-items:center;height:var(--bm-h);
+  padding:0 10px;background:rgba(8,8,10,0.75);
+  border-bottom:1px solid rgba(255,255,255,0.05);overflow:hidden;gap:2px;
+}
+#bm-bar.hidden{display:none}
+.bm-item{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-pill);cursor:pointer;color:var(--text2);font-size:12px;white-space:nowrap;transition:background .13s,color .13s;max-width:155px;overflow:hidden}
+.bm-item:hover{background:rgba(255,255,255,0.07);color:#fff}
+.bm-item img{width:13px;height:13px;border-radius:2px;flex-shrink:0}
+.bm-item span{overflow:hidden;text-overflow:ellipsis}
+#bm-hint{font-size:11px;color:var(--muted);padding:0 4px}
+
+/* ══ FIND BAR ══════════════════════════════════════════════════ */
+#find-bar{
+  flex-shrink:0;display:none;align-items:center;gap:8px;
+  height:36px;padding:0 12px;
+  background:rgba(20,20,26,0.97);border-bottom:1px solid rgba(255,255,255,0.08);z-index:20;
+}
+#find-bar.open{display:flex}
+#find-input{flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-sm);padding:4px 10px;color:var(--text);font-size:12.5px;font-family:inherit;outline:none;user-select:text;max-width:260px}
+#find-input:focus{border-color:var(--accent)}
+#find-count{font-size:11px;color:var(--muted);min-width:40px}
+#find-close{margin-left:auto}
+
+/* ══ FRAMES ═════════════════════════════════════════════════════ */
+#frames{flex:1;position:relative;overflow:hidden;min-height:0}
+.tab-frame{position:absolute;inset:0;width:100%;height:100%;border:none;display:none}
+.tab-frame.active{display:block}
+
+/* ══ NEW TAB PAGE ═══════════════════════════════════════════════ */
+.ntp{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;overflow-y:auto}
+.ntp.active{display:flex}
+.ntp-inner{display:flex;flex-direction:column;align-items:center;gap:24px;width:100%;max-width:520px}
+.ntp-brand{display:flex;flex-direction:column;align-items:center;gap:10px}
+.ntp-icon{width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,var(--accent),rgba(100,40,200,0.9));display:flex;align-items:center;justify-content:center;box-shadow:0 0 28px var(--accent-glow),0 8px 24px rgba(0,0,0,0.45)}
+.ntp-icon svg{width:30px;height:30px;color:#fff}
+.ntp-title{font-size:38px;font-weight:700;letter-spacing:-1.5px;background:linear-gradient(180deg,#fff 10%,rgba(255,255,255,0.5) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.ntp-sub{font-size:13px;color:var(--muted)}
+.ntp-search{width:100%;background:rgba(28,28,36,0.6);backdrop-filter:blur(30px);border:1px solid var(--glass-border);border-radius:var(--r-pill);padding:0 16px;height:46px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);transition:border-color .18s,box-shadow .18s}
+.ntp-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow),var(--shadow)}
+.ntp-search svg{color:var(--muted);width:17px;height:17px;flex-shrink:0}
+.ntp-search input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:14px;font-family:inherit;user-select:text}
+.ntp-search input::placeholder{color:var(--muted)}
+.ntp-search button{flex-shrink:0;background:var(--accent);border:none;border-radius:var(--r-pill);color:#000;font-size:12px;font-weight:700;padding:5px 14px;cursor:pointer;font-family:inherit;transition:opacity .14s}
+.ntp-search button:hover{opacity:.84}
+.sc-hdr{width:100%;display:flex;align-items:center;justify-content:space-between}
+.sc-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sc-add{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-pill);border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--muted);font-size:11px;cursor:pointer;font-family:inherit;transition:background .14s,color .14s,border-color .14s}
+.sc-add:hover{background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.18)}
+.sc-add svg{width:11px;height:11px}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,80px);gap:6px;width:100%;justify-content:center;margin-top:10px}
+.sc-item{display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px 8px;border-radius:var(--r-md);cursor:pointer;position:relative;transition:background .13s}
+.sc-item:hover{background:rgba(255,255,255,0.055)}
+.sc-ico{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;overflow:hidden;transition:box-shadow .14s}
+.sc-item:hover .sc-ico{box-shadow:0 4px 14px rgba(0,174,255,0.18);border-color:rgba(0,174,255,0.25)}
+.sc-ico img{width:22px;height:22px}
+.sc-ico .sc-letter{font-size:18px;font-weight:700;color:var(--text)}
+.sc-name{font-size:11px;color:var(--text2);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:76px}
+.sc-edit-dot{position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .13s;cursor:pointer}
+.sc-item:hover .sc-edit-dot{opacity:1}
+.sc-edit-dot svg{width:9px;height:9px;color:#fff}
+.ntp-empty{color:var(--muted);font-size:12.5px;text-align:center;padding:18px;width:100%;border:1px dashed rgba(255,255,255,0.09);border-radius:var(--r-md)}
+
+/* ══ PANELS (History, Settings) — slide-in side panel ══════════ */
+:root{--panel-w:360px}
+.panel{
+  position:absolute;top:0;right:0;bottom:0;
+  width:var(--panel-w);min-width:240px;max-width:680px;
+  z-index:50;
+  display:flex;flex-direction:column;
+  background:rgba(10,10,14,0.97);backdrop-filter:blur(30px);
+  border-left:1px solid rgba(255,255,255,0.09);
+  transform:translateX(102%);
+  transition:transform .22s cubic-bezier(0.4,0,0.2,1),box-shadow .22s;
+  pointer-events:none;
+  will-change:transform;
+}
+.panel.open{
+  transform:translateX(0);
+  pointer-events:all;
+  box-shadow:-10px 0 40px rgba(0,0,0,0.65),-1px 0 0 rgba(255,255,255,0.05);
+}
+/* Drag-resize handle on left edge */
+.panel-resize{
+  position:absolute;left:-3px;top:0;bottom:0;width:7px;
+  cursor:col-resize;z-index:20;
+  background:transparent;border-radius:4px;
+  transition:background .18s;
+}
+.panel-resize::after{
+  content:"";position:absolute;left:3px;top:50%;transform:translateY(-50%);
+  width:1px;height:36px;border-radius:1px;
+  background:rgba(255,255,255,0.18);
+  opacity:0;transition:opacity .18s;
+}
+.panel-resize:hover,.panel-resize.dragging{background:rgba(0,174,255,0.18)}
+.panel-resize:hover::after,.panel-resize.dragging::after{opacity:1}
+.panel-head{
+  flex-shrink:0;display:flex;align-items:center;gap:10px;
+  height:50px;padding:0 16px;
+  border-bottom:1px solid rgba(255,255,255,0.07);
+}
+.panel-title{font-size:15px;font-weight:600;flex:1}
+.panel-close{margin-left:auto}
+.panel-body{flex:1;overflow-y:auto;padding:0}
+/* scrollbar */
+.panel-body::-webkit-scrollbar{width:5px}
+.panel-body::-webkit-scrollbar-track{background:transparent}
+.panel-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px}
+
+/* History panel */
+#hist-search-wrap{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06)}
+#hist-search{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:var(--r-sm);padding:7px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;user-select:text}
+#hist-search:focus{border-color:var(--accent)}
+.hist-day{padding:10px 16px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.hist-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;transition:background .12s}
+.hist-item:hover{background:rgba(255,255,255,0.045)}
+.hist-item img{width:16px;height:16px;border-radius:3px;flex-shrink:0}
+.hist-info{flex:1;min-width:0}
+.hist-title{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.hist-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-time{font-size:11px;color:var(--muted);flex-shrink:0;white-space:nowrap}
+.hist-del{flex-shrink:0;width:24px;height:24px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s,background .12s}
+.hist-item:hover .hist-del{opacity:1}
+.hist-del:hover{background:rgba(255,107,107,0.15);color:var(--danger)}
+.hist-del svg{width:13px;height:13px}
+#hist-empty{padding:48px 20px;text-align:center;color:var(--muted)}
+#hist-footer{flex-shrink:0;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.07);display:flex;justify-content:flex-end}
+
+/* Settings panel */
+.settings-nav{display:flex;overflow-x:auto;gap:2px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0}
+.settings-nav::-webkit-scrollbar{display:none}
+.snav-btn{flex-shrink:0;padding:6px 14px;border-radius:var(--r-pill);border:none;background:transparent;color:var(--muted);font-size:12.5px;font-family:inherit;cursor:pointer;transition:background .13s,color .13s;font-weight:500}
+.snav-btn:hover{background:rgba(255,255,255,0.07);color:var(--text)}
+.snav-btn.active{background:rgba(0,174,255,0.15);color:var(--accent)}
+.stab{display:none;padding:16px}
+.stab.active{display:block}
+.s-section{margin-bottom:20px}
+.s-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px;padding-left:2px}
+.s-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r-md);overflow:hidden}
+.s-row{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.s-row:last-child{border-bottom:none}
+.s-row-left{display:flex;flex-direction:column;gap:3px;max-width:68%}
+.s-row-label{font-size:13px;color:var(--text);font-weight:500}
+.s-row-desc{font-size:11px;color:var(--muted);line-height:1.4}
+/* Controls */
+.s-input{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-sm);padding:6px 10px;color:var(--text);font-size:12.5px;font-family:inherit;outline:none;width:200px;user-select:text}
+.s-input:focus{border-color:var(--accent)}
+.s-select{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:var(--r-sm);padding:6px 10px;color:var(--text);font-size:12.5px;font-family:inherit;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:28px;min-width:150px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:14px}
+.s-select:focus{border-color:var(--accent)}
+.s-select option{background:#1a1a22}
+.s-btn{padding:7px 16px;border-radius:var(--r-pill);border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:var(--text);font-size:12.5px;font-family:inherit;cursor:pointer;transition:background .13s;font-weight:500}
+.s-btn:hover{background:rgba(255,255,255,0.1)}
+.s-btn.danger{color:var(--danger);border-color:rgba(255,107,107,0.2);background:rgba(255,107,107,0.06)}
+.s-btn.danger:hover{background:rgba(255,107,107,0.13)}
+.s-btn.accent{background:var(--accent);color:#000;border-color:transparent;font-weight:700}
+.s-btn.accent:hover{opacity:.85}
+/* iOS toggle */
+.ios-toggle{position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0}
+.ios-toggle input{opacity:0;width:0;height:0;position:absolute}
+.ios-slider{position:absolute;inset:0;background:rgba(255,255,255,0.18);border-radius:13px;cursor:pointer;transition:.35s}
+.ios-slider::before{content:"";position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.35s;box-shadow:0 2px 5px rgba(0,0,0,0.25)}
+.ios-toggle input:checked + .ios-slider{background:var(--accent)}
+.ios-toggle input:checked + .ios-slider::before{transform:translateX(18px)}
+/* zoom slider */
+.s-zoom-row{display:flex;align-items:center;gap:10px}
+.s-zoom-slider{flex:1;height:4px;border-radius:2px;-webkit-appearance:none;background:rgba(255,255,255,0.1);outline:none;cursor:pointer}
+.s-zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 8px var(--accent-glow)}
+.s-zoom-val{font-size:12px;color:var(--muted);width:40px;text-align:right}
+
+/* ══ MODALS (Shortcut add/edit) ════════════════════════════════ */
+.modal-back{position:fixed;inset:0;background:rgba(0,0,0,0.62);backdrop-filter:blur(8px);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-back.open{display:flex}
+.modal-box{background:rgba(22,22,28,0.97);backdrop-filter:blur(40px);border:1px solid var(--glass-border);border-radius:var(--r-lg);padding:26px 26px 22px;width:320px;box-shadow:0 40px 80px rgba(0,0,0,0.7);display:flex;flex-direction:column;gap:14px}
+.modal-title{font-size:15px;font-weight:600}
+.mf{display:flex;flex-direction:column;gap:5px}
+.ml{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+.mi{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.11);border-radius:var(--r-sm);padding:8px 11px;color:var(--text);font-size:13px;font-family:inherit;outline:none;user-select:text;width:100%;transition:border-color .18s}
+.mi:focus{border-color:var(--accent)}
+.ma{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
+.mb{padding:7px 16px;border-radius:var(--r-pill);border:1px solid rgba(255,255,255,0.11);background:rgba(255,255,255,0.06);color:var(--text);font-size:12.5px;font-family:inherit;font-weight:500;cursor:pointer;transition:background .13s}
+.mb:hover{background:rgba(255,255,255,0.1)}
+.mb.primary{background:var(--accent);color:#000;border-color:transparent;font-weight:700}
+.mb.primary:hover{opacity:.84}
+.mb.danger{color:var(--danger);border-color:rgba(255,107,107,0.22);background:rgba(255,107,107,0.06)}
+.mb.danger:hover{background:rgba(255,107,107,0.13)}
+
+/* ══ CONTEXT MENU ═══════════════════════════════════════════════ */
+#ctx{position:fixed;background:rgba(22,22,28,0.98);backdrop-filter:blur(28px);border:1px solid var(--glass-border);border-radius:var(--r-md);padding:5px;min-width:172px;z-index:9999;box-shadow:0 18px 40px rgba(0,0,0,0.65);display:none}
+#ctx.open{display:block}
+.ci{padding:7px 11px;border-radius:var(--r-sm);cursor:pointer;font-size:12.5px;color:var(--text2);display:flex;align-items:center;gap:9px;transition:background .1s,color .1s;white-space:nowrap}
+.ci:hover{background:rgba(255,255,255,0.07);color:var(--text)}
+.ci.danger{color:var(--danger)}
+.ci.danger:hover{background:rgba(255,107,107,0.09)}
+.ci svg{width:14px;height:14px;flex-shrink:0;opacity:.7}
+.csep{height:1px;background:rgba(255,255,255,0.06);margin:3px 0}
+
+/* ══ PROGRESS BAR ═══════════════════════════════════════════════ */
+#progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--accent),rgba(100,40,200,0.9));width:0%;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+#progress.loading{opacity:1;animation:prg 2s ease-in-out infinite}
+@keyframes prg{0%{width:8%}60%{width:82%}100%{width:96%}}
+#progress.done{width:100%!important;opacity:0;animation:none}
+
+/* ══ INIT SCREEN ════════════════════════════════════════════════ */
+#init-screen{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(8,8,10,0.96);backdrop-filter:blur(20px)}
+#init-screen.gone{display:none}
+.init-spinner{width:36px;height:36px;border-radius:50%;border:2.5px solid rgba(0,174,255,0.2);border-top-color:var(--accent);animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.init-msg{font-size:13px;color:var(--muted)}
+
+/* ══ AUTOCOMPLETE DROPDOWN ══════════════════════════════════════ */
+#ac-dropdown{
+  position:absolute;top:calc(100% + 8px);left:-12px;right:-12px;
+  background:rgba(14,14,20,0.98);backdrop-filter:blur(32px);
+  border:1px solid rgba(255,255,255,0.13);border-radius:var(--r-md);
+  box-shadow:0 16px 48px rgba(0,0,0,0.75),0 0 0 1px rgba(255,255,255,0.05) inset;
+  z-index:200;display:none;overflow:hidden;pointer-events:all;
+}
+#ac-dropdown.open{display:block}
+.ac-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;cursor:pointer;transition:background .1s;
+  user-select:none;
+}
+.ac-item:hover,.ac-item.focused{background:rgba(0,174,255,0.11)}
+.ac-fav{width:14px;height:14px;border-radius:3px;flex-shrink:0;object-fit:contain}
+.ac-fav-ph{width:14px;height:14px;border-radius:3px;flex-shrink:0;
+  background:rgba(255,255,255,0.09);display:flex;align-items:center;
+  justify-content:center;font-size:8px;color:var(--muted);font-weight:700}
+.ac-texts{flex:1;min-width:0}
+.ac-title{font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ac-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.ac-badge{flex-shrink:0;font-size:10px;color:var(--accent);
+  background:rgba(0,174,255,0.1);border:1px solid rgba(0,174,255,0.22);
+  padding:1px 8px;border-radius:var(--r-pill)}
+/* ══ TAB DRAG FEEDBACK ══════════════════════════════════════════ */
+.tab.dragging{opacity:.35;background:rgba(255,255,255,0.035)!important}
+.tab.drag-over-left{border-left:2px solid var(--accent)!important}
+.tab.drag-over-right{border-right:2px solid var(--accent)!important}
+</style>
+</head>
+<body>
+
+<!-- ── TAB STRIP ─────────────────────────────────────────────── -->
+<div id="title-bar">
+  <div id="tab-strip">
+    <button id="new-tab-btn" title="New tab (Ctrl+T)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ── TOOLBAR ───────────────────────────────────────────────── -->
+<div id="toolbar">
+  <div id="nav-grp">
+    <button class="tbtn" id="btn-back" disabled title="Back (Alt+←)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="tbtn" id="btn-fwd" disabled title="Forward (Alt+→)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <button class="tbtn" id="btn-reload" title="Reload (Ctrl+R)">
+      <svg id="ico-reload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.6-6.4L23 10"/></svg>
+      <svg id="ico-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <form id="omnibox" autocomplete="off">
+    <span id="sec-icon" class="secure">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </span>
+    <input id="url-input" type="text" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search DuckDuckGo or enter URL"/>
+    <button type="button" id="clear-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div id="ac-dropdown"></div>
+  </form>
+
+  <div id="toolbar-right">
+    <span id="zoom-pill" title="Click to reset zoom">100%</span>
+    <button class="tbtn" id="bm-star" title="Bookmark (Ctrl+D)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    </button>
+    <button class="tbtn" id="btn-hist" title="History (Ctrl+H)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </button>
+    <button class="tbtn" id="btn-fullscreen" title="Fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    </button>
+    <button class="tbtn" id="btn-settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ── BOOKMARKS BAR ──────────────────────────────────────────── -->
+<div id="bm-bar"><span id="bm-hint">No bookmarks yet — ★ a page to save it here</span></div>
+
+<!-- ── FIND BAR ──────────────────────────────────────────────── -->
+<div id="find-bar">
+  <svg style="width:14px;height:14px;color:var(--muted);flex-shrink:0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input id="find-input" placeholder="Find in page…" autocomplete="off" spellcheck="false"/>
+  <span id="find-count"></span>
+  <button class="tbtn find-close" id="find-close" title="Close (Esc)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+</div>
+
+<!-- ── PROGRESS ──────────────────────────────────────────────── -->
+<div id="progress"></div>
+
+<!-- ── FRAMES + PANELS ─────────────────────────────────────────── -->
+<div id="frames">
+
+  <!-- History panel (lives inside #frames so it overlays the frame area only) -->
+  <div class="panel" id="hist-panel">
+    <div class="panel-resize" id="hist-resize" title="Drag to resize"></div>
+    <div class="panel-head">
+      <svg style="width:17px;height:17px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="panel-title">History</span>
+      <button class="tbtn panel-close" id="hist-close" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="hist-search-wrap">
+      <input id="hist-search" placeholder="Search history…" autocomplete="off" spellcheck="false"/>
+    </div>
+    <div class="panel-body" id="hist-body"></div>
+    <div id="hist-footer">
+      <button class="s-btn danger" id="hist-clear-all">Clear all history</button>
+    </div>
+  </div>
+
+  <!-- Settings panel -->
+  <div class="panel" id="settings-panel">
+    <div class="panel-resize" id="sett-resize" title="Drag to resize"></div>
+    <div class="panel-head">
+      <svg style="width:17px;height:17px;color:var(--muted)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="panel-title">Settings</span>
+      <button class="tbtn panel-close" id="settings-close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="settings-nav">
+      <button class="snav-btn active" data-tab="s-general">General</button>
+      <button class="snav-btn" data-tab="s-privacy">Privacy</button>
+      <button class="snav-btn" data-tab="s-appearance">Appearance</button>
+      <button class="snav-btn" data-tab="s-network">Network</button>
+      <button class="snav-btn" data-tab="s-about">About</button>
+    </div>
+    <div class="panel-body">
+
+      <!-- General -->
+      <div class="stab active" id="s-general">
+        <div class="s-section">
+          <div class="s-section-title">Search & Navigation</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Search engine</div><div class="s-row-desc">Used when you type a query instead of a URL</div></div>
+              <select class="s-select" id="s-engine">
+                <option value="ddg">DuckDuckGo</option>
+                <option value="brave">Brave Search</option>
+                <option value="google">Google</option>
+                <option value="bing">Bing</option>
+                <option value="startpage">Startpage</option>
+              </select>
+            </div>
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Homepage</div><div class="s-row-desc">Opened when you click the home button or open a new tab</div></div>
+              <input class="s-input" id="s-homepage" placeholder="New Tab" style="width:180px"/>
+            </div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-section-title">Tab behaviour</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Restore closed tabs</div><div class="s-row-desc">Ctrl+Shift+T reopens recently closed tabs (last 10)</div></div>
+              <label class="ios-toggle"><input type="checkbox" id="s-restore" checked/><span class="ios-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Privacy -->
+      <div class="stab" id="s-privacy">
+        <div class="s-section">
+          <div class="s-section-title">History</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Save browsing history</div><div class="s-row-desc">Records pages you visit</div></div>
+              <label class="ios-toggle"><input type="checkbox" id="s-hist-enabled" checked/><span class="ios-slider"></span></label>
+            </div>
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Max history entries</div><div class="s-row-desc">Older entries are removed automatically</div></div>
+              <select class="s-select" id="s-hist-max">
+                <option value="100">100</option>
+                <option value="500" selected>500</option>
+                <option value="1000">1 000</option>
+                <option value="5000">5 000</option>
+              </select>
+            </div>
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Clear history</div><div class="s-row-desc">Deletes all saved history</div></div>
+              <button class="s-btn danger" id="s-clear-hist">Clear history</button>
+            </div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-section-title">Data</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Clear bookmarks</div><div class="s-row-desc">Removes all saved bookmarks</div></div>
+              <button class="s-btn danger" id="s-clear-bm">Clear bookmarks</button>
+            </div>
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Reset shortcuts</div><div class="s-row-desc">Restores default new-tab shortcuts</div></div>
+              <button class="s-btn danger" id="s-reset-sc">Reset shortcuts</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="stab" id="s-appearance">
+        <div class="s-section">
+          <div class="s-section-title">Zoom</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Default zoom level</div><div class="s-row-desc">Applied to new tabs; can be changed per-tab with Ctrl+/−</div></div>
+              <div class="s-zoom-row" style="width:220px">
+                <input type="range" class="s-zoom-slider" id="s-zoom-slider" min="50" max="200" step="10" value="100"/>
+                <span class="s-zoom-val" id="s-zoom-val">100%</span>
+                <button class="s-btn" id="s-zoom-reset" style="padding:4px 10px;font-size:11px;margin-left:4px">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-section-title">Toolbar</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Bookmarks bar</div><div class="s-row-desc">Show the bookmarks bar below the address bar</div></div>
+              <label class="ios-toggle"><input type="checkbox" id="s-show-bm"/><span class="ios-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Network -->
+      <div class="stab" id="s-network">
+        <div class="s-section">
+          <div class="s-section-title">Transport</div>
+          <div class="s-card">
+            <div class="s-row" style="flex-direction:column;align-items:flex-start;gap:10px">
+              <div class="s-row-label">Wisp server URL</div>
+              <div class="s-row-desc">WebSocket server used to tunnel web requests. The default is Mercury Workshop's public server. Self-host for better performance.</div>
+              <div style="display:flex;gap:8px;width:100%">
+                <input class="s-input" id="s-wisp" style="flex:1" placeholder="wss://nebulaproxy.io/wisp/"/>
+                <button class="s-btn accent" id="s-wisp-save">Save & Reload</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-section-title">Proxy</div>
+          <div class="s-card">
+            <div class="s-row">
+              <div class="s-row-left"><div class="s-row-label">Scramjet prefix</div><div class="s-row-desc">URL path prefix used for proxied requests (default: /scramjet/)</div></div>
+              <input class="s-input" id="s-prefix" placeholder="/scramjet/" style="width:140px"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="stab" id="s-about">
+        <div class="s-section">
+          <div class="s-section-title">Ludus Proxy</div>
+          <div class="s-card">
+            <div class="s-row"><div class="s-row-label">Version</div><span style="color:var(--muted);font-size:12px">1.0.0</span></div>
+            <div class="s-row"><div class="s-row-label">Scramjet</div><span style="color:var(--muted);font-size:12px">v2.0.0-alpha</span></div>
+            <div class="s-row"><div class="s-row-label">Transport</div><span style="color:var(--muted);font-size:12px">Epoxy (built-in)</span></div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-section-title">Embedding</div>
+          <div class="s-card">
+            <div class="s-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+              <div class="s-row-label">Parent iframe snippet</div>
+              <pre style="font-size:11px;color:var(--muted);background:rgba(255,255,255,0.04);padding:12px;border-radius:8px;width:100%;overflow-x:auto;user-select:text;white-space:pre-wrap"><code id="embed-snippet"></code></pre>
+            </div>
+          </div>
+        </div>
+        <div class="s-section">
+          <div class="s-section-title">postMessage API</div>
+          <div class="s-card">
+            <div class="s-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+              <div class="s-row-label">Commands (send to proxy iframe)</div>
+              <div style="font-size:11.5px;color:var(--muted);line-height:1.7;user-select:text">
+                <code style="color:var(--accent)">{ type: "ludus:navigate", url }</code> — Navigate active tab<br>
+                <code style="color:var(--accent)">{ type: "ludus:newTab", url? }</code> — Open new tab<br>
+                <code style="color:var(--accent)">{ type: "ludus:closeTab" }</code> — Close active tab<br>
+                <code style="color:var(--accent)">{ type: "ludus:getState" }</code> — Request state reply<br>
+                <code style="color:var(--accent)">{ type: "ludus:setZoom", level }</code> — Set zoom (0.5–2)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-body -->
+  </div><!-- /settings-panel -->
+
+</div><!-- /#frames -->
+
+<!-- ── CONTEXT MENU ──────────────────────────────────────────── -->
+<div id="ctx">
+  <div class="ci" id="cx-newtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>New tab</div>
+  <div class="ci" id="cx-dup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Duplicate tab</div>
+  <div class="ci" id="cx-pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Pin tab</div>
+  <div class="csep"></div>
+  <div class="ci" id="cx-reload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.6-6.4L23 10"/></svg>Reload</div>
+  <div class="ci" id="cx-bm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Bookmark page</div>
+  <div class="csep"></div>
+  <div class="ci" id="cx-toggle-bm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>Toggle bookmarks bar</div>
+  <div class="ci" id="cx-hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History</div>
+  <div class="csep"></div>
+  <div class="ci danger" id="cx-close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Close tab</div>
+</div>
+
+<!-- ── SHORTCUT MODAL ────────────────────────────────────────── -->
+<div class="modal-back" id="bm-modal">
+  <div class="modal-box">
+    <div class="modal-title">Save bookmark</div>
+    <div class="mf"><div class="ml">Title</div><input class="mi" id="bm-modal-name" placeholder="Page title" autocomplete="off"/></div>
+    <div class="mf"><div class="ml">URL</div><input class="mi" id="bm-modal-url" placeholder="https://..." autocomplete="off" readonly style="opacity:.6;cursor:default"/></div>
+    <div class="ma">
+      <button class="mb" id="bm-modal-cancel">Cancel</button>
+      <button class="mb primary" id="bm-modal-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="sc-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="sc-modal-title">Add shortcut</div>
+    <div class="mf"><div class="ml">Name</div><input class="mi" id="sc-name" placeholder="e.g. YouTube" autocomplete="off"/></div>
+    <div class="mf"><div class="ml">URL</div><input class="mi" id="sc-url" placeholder="e.g. youtube.com" autocomplete="off"/></div>
+    <div class="ma">
+      <button class="mb danger" id="sc-del" style="margin-right:auto;display:none">Remove</button>
+      <button class="mb" id="sc-cancel">Cancel</button>
+      <button class="mb primary" id="sc-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── INIT SCREEN ───────────────────────────────────────────── -->
+<div id="init-screen">
+  <div class="init-spinner"></div>
+  <div class="init-msg" id="init-msg">Starting Ludus Proxy…</div>
+</div>
+
+<!-- ── SCRAMJET + APP ────────────────────────────────────────── -->
+<script src="/p/scram/scramjet.all.js"></script>
+<script>
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  SETTINGS  (localStorage-backed)                                 ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+const SEARCH_ENGINES = {
+  ddg:       q => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
+  google:    q => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+  bing:      q => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+  brave:     q => `https://search.brave.com/search?q=${encodeURIComponent(q)}`,
+  startpage: q => `https://www.startpage.com/search?q=${encodeURIComponent(q)}`,
+};
+
+function loadSettings() {
+  const D = {
+    engine: "ddg", homepage: "", showBmBar: true,
+    histEnabled: true, histMax: 500,
+    zoomDefault: 1.0, wispUrl: "wss://nebulaproxy.io/wisp/",
+    prefix: "/scramjet/", restoreTabs: true,
+  };
+  try { return { ...D, ...JSON.parse(localStorage.getItem("ludus_cfg") || "{}") }; }
+  catch { return D; }
+}
+
+function saveSettings() { localStorage.setItem("ludus_cfg", JSON.stringify(CFG)); }
+
+let CFG = loadSettings();
+
+function searchUrl(q) { return (SEARCH_ENGINES[CFG.engine] || SEARCH_ENGINES.ddg)(q); }
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  SCRAMJET INIT                                                   ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+const { ScramjetController } = $scramjetLoadController();
+const scramjet = new ScramjetController({
+  prefix: CFG.prefix,
+  wisp:   CFG.wispUrl,
+  files: {
+    wasm: "/p/scram/scramjet.wasm.wasm",
+    all:  "/p/scram/scramjet.all.js",
+    sync: "/p/scram/scramjet.sync.js",
+  },
+  flags: { captureErrors: true, sourcemaps: false, allowInvalidJs: true, strictRewrites: false },
+});
+
+let scramjetReady = false;
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  PERSISTENT DATA                                                 ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+let bookmarks  = JSON.parse(localStorage.getItem("ludus_bm") || "[]");
+let history    = JSON.parse(localStorage.getItem("ludus_hist") || "[]");
+let shortcuts  = JSON.parse(localStorage.getItem("ludus_sc") || "null");
+let closedTabs = [];   // stack of { title, url } for Ctrl+Shift+T
+
+// URL visit frequency for autocomplete (Chrome-style)
+let urlFreq = {};
+try { urlFreq = JSON.parse(localStorage.getItem("ludus_freq") || "{}"); } catch {}
+function saveFreq() {
+  // Keep only top 2000 entries by score to avoid unbounded growth
+  const entries = Object.entries(urlFreq);
+  if (entries.length > 2000) {
+    entries.sort((a, b) => (b[1].count * 1e12 + b[1].ts) - (a[1].count * 1e12 + a[1].ts));
+    urlFreq = Object.fromEntries(entries.slice(0, 2000));
+  }
+  localStorage.setItem("ludus_freq", JSON.stringify(urlFreq));
+}
+function recordFreq(url, title) {
+  if (!url) return;
+  if (!urlFreq[url]) urlFreq[url] = { title: title || url, count: 0, ts: 0 };
+  urlFreq[url].count++;
+  urlFreq[url].ts = Date.now();
+  if (title && title !== url) urlFreq[url].title = title;
+  saveFreq();
+}
+
+if (shortcuts === null) {
+  shortcuts = [
+    { title:"DuckDuckGo", url:"https://duckduckgo.com" },
+    { title:"Reddit",     url:"https://reddit.com"     },
+    { title:"GitHub",     url:"https://github.com"     },
+    { title:"Wikipedia",  url:"https://wikipedia.org"  },
+    { title:"Discord",    url:"https://discord.com"    },
+  ];
+  localStorage.setItem("ludus_sc", JSON.stringify(shortcuts));
+}
+
+function saveBm()   { localStorage.setItem("ludus_bm", JSON.stringify(bookmarks)); }
+function saveHist() { localStorage.setItem("ludus_hist", JSON.stringify(history.slice(0, CFG.histMax))); }
+function saveSc()   { localStorage.setItem("ludus_sc", JSON.stringify(shortcuts)); }
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  TABS STATE                                                      ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// tab = { id, title, url, frame, ntpEl, loading, pinned, zoom }
+let tabs = [], activeId = null, tabCounter = 0;
+function getActive() { return tabs.find(t => t.id === activeId) || null; }
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  DOM REFS                                                        ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+const $ = id => document.getElementById(id);
+const tabStrip  = $("tab-strip");
+const framesEl  = $("frames");
+const urlInput  = $("url-input");
+const omnibox   = $("omnibox");
+const btnBack   = $("btn-back");
+const btnFwd    = $("btn-fwd");
+const btnReload = $("btn-reload");
+const icoReload = $("ico-reload");
+const icoStop   = $("ico-stop");
+const secIcon   = $("sec-icon");
+const bmBar     = $("bm-bar");
+const bmHint    = $("bm-hint");
+const progBar   = $("progress");
+const bmStar    = $("bm-star");
+const zoomPill  = $("zoom-pill");
+const histPanel = $("hist-panel");
+const settPanel = $("settings-panel");
+const findBar   = $("find-bar");
+const findInput = $("find-input");
+const ctxMenu   = $("ctx");
+const initScr   = $("init-screen");
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  HELPERS                                                         ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function favFor(url) {
+  try { return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=32`; }
+  catch { return null; }
+}
+
+function normaliseUrl(raw) {
+  raw = (raw || "").trim();
+  if (!raw || raw === "about:blank") return null;
+  if (raw.startsWith("about:") || raw.startsWith("javascript:")) return null;
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw) && !/^https?:/i.test(raw)) return searchUrl(raw);
+  if (!/^https?:\/\//i.test(raw)) {
+    if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(raw)) raw = "https://" + raw;
+    else return searchUrl(raw);
+  }
+  try { return new URL(raw).href; } catch { return searchUrl(raw); }
+}
+
+function decodeUrl(src) {
+  if (!src || src === "about:blank") return "";
+  try { return scramjet.decodeUrl(src) || ""; } catch { return ""; }
+}
+
+function fmt12(ts) {
+  const d = new Date(ts), h = d.getHours() % 12 || 12, m = String(d.getMinutes()).padStart(2,"0");
+  return `${h}:${m} ${d.getHours() >= 12 ? "PM" : "AM"}`;
+}
+
+function dayKey(ts) {
+  const d = new Date(ts), now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diff = today - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  if (diff === 0) return "Today";
+  if (diff === 86400000) return "Yesterday";
+  if (diff < 7 * 86400000) return d.toLocaleDateString(undefined, { weekday: "long" });
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric", day: "numeric" });
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  PROGRESS                                                        ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function progStart() { progBar.className = "loading"; }
+function progDone()  { progBar.className = "done"; setTimeout(() => progBar.className = "", 400); }
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  HISTORY                                                         ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function recordHistory(url, title) {
+  if (!CFG.histEnabled || !url) return;
+  // Remove duplicate at top
+  if (history.length && history[0].url === url) {
+    // Still bump frequency even for repeat visits
+    recordFreq(url, title);
+    return;
+  }
+  history.unshift({ url, title: title || url, favicon: favFor(url), ts: Date.now() });
+  if (history.length > CFG.histMax) history = history.slice(0, CFG.histMax);
+  saveHist();
+  recordFreq(url, title);
+}
+
+function renderHistPanel(filter = "") {
+  const body = $("hist-body");
+  const lc = filter.toLowerCase();
+  const items = filter
+    ? history.filter(h => h.title?.toLowerCase().includes(lc) || h.url.toLowerCase().includes(lc))
+    : history;
+
+  if (!items.length) {
+    body.innerHTML = `<div id="hist-empty">${filter ? "No results found" : "No history yet"}</div>`;
+    return;
+  }
+
+  body.innerHTML = "";
+  let lastDay = null;
+  items.forEach((h, i) => {
+    const dk = dayKey(h.ts);
+    if (dk !== lastDay) {
+      const dh = document.createElement("div");
+      dh.className = "hist-day";
+      dh.textContent = dk;
+      body.appendChild(dh);
+      lastDay = dk;
+    }
+    const row = document.createElement("div");
+    row.className = "hist-item";
+
+    const img = document.createElement("img");
+    img.src = h.favicon || favFor(h.url) || "";
+    img.onerror = () => img.style.display = "none";
+
+    const info = document.createElement("div");
+    info.className = "hist-info";
+    info.innerHTML = `<div class="hist-title">${escHtml(h.title || h.url)}</div><div class="hist-url">${escHtml(h.url)}</div>`;
+
+    const time = document.createElement("span");
+    time.className = "hist-time";
+    time.textContent = fmt12(h.ts);
+
+    const del = document.createElement("button");
+    del.className = "hist-del";
+    del.title = "Remove";
+    del.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    del.addEventListener("click", e => {
+      e.stopPropagation();
+      const realIdx = history.indexOf(h);
+      if (realIdx >= 0) { history.splice(realIdx, 1); saveHist(); }
+      renderHistPanel(filter);
+    });
+
+    row.appendChild(img); row.appendChild(info); row.appendChild(time); row.appendChild(del);
+    row.addEventListener("click", () => { navigateActive(h.url); closePanel(histPanel); });
+    body.appendChild(row);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  BOOKMARKS BAR                                                   ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function renderBmBar() {
+  if (!CFG.showBmBar) { bmBar.classList.add("hidden"); return; }
+  bmBar.classList.remove("hidden");
+  bmBar.innerHTML = "";
+  if (!bookmarks.length) { bmBar.appendChild(bmHint); return; }
+  bookmarks.forEach((bm, i) => {
+    const el = document.createElement("div");
+    el.className = "bm-item";
+    el.title = bm.url;
+    const img = document.createElement("img");
+    img.src = bm.favicon || favFor(bm.url) || "";
+    img.onerror = () => img.style.display = "none";
+    const span = document.createElement("span");
+    span.textContent = bm.title;
+    el.appendChild(img); el.appendChild(span);
+    el.addEventListener("click", () => navigateActive(bm.url));
+    el.addEventListener("contextmenu", e => { e.preventDefault(); showCtx(e, "bm", i); });
+    bmBar.appendChild(el);
+  });
+}
+
+function isBookmarked(url) { return bookmarks.some(b => b.url === url); }
+
+// ── Bookmark save modal ────────────────────────────────────────────
+const bmModal       = $("bm-modal");
+const bmModalName   = $("bm-modal-name");
+const bmModalUrl    = $("bm-modal-url");
+
+function openBmModal(url, title) {
+  bmModalName.value = title || url;
+  bmModalUrl.value  = url;
+  bmModal.classList.add("open");
+  setTimeout(() => { bmModalName.focus(); bmModalName.select(); }, 60);
+}
+function closeBmModal() { bmModal.classList.remove("open"); }
+
+$("bm-modal-cancel").addEventListener("click", closeBmModal);
+bmModal.addEventListener("click", e => { if (e.target === bmModal) closeBmModal(); });
+bmModalName.addEventListener("keydown", e => {
+  if (e.key === "Enter") $("bm-modal-save").click();
+  if (e.key === "Escape") closeBmModal();
+});
+$("bm-modal-save").addEventListener("click", () => {
+  const url   = bmModalUrl.value.trim();
+  const title = bmModalName.value.trim() || url;
+  if (!url) return;
+  bookmarks.push({ title, url, favicon: favFor(url) });
+  saveBm(); renderBmBar(); updateBmStar();
+  closeBmModal();
+});
+
+function toggleBookmark(url, title) {
+  const idx = bookmarks.findIndex(b => b.url === url);
+  if (idx >= 0) {
+    // Already bookmarked — remove immediately (same as before)
+    bookmarks.splice(idx, 1);
+    saveBm(); renderBmBar(); updateBmStar();
+  } else {
+    // Not bookmarked — open dialog so user can edit title first
+    openBmModal(url, title);
+  }
+}
+
+function updateBmStar() {
+  const url = getActive()?.url || "";
+  const starred = url && isBookmarked(url);
+  bmStar.classList.toggle("starred", !!starred);
+  const p = bmStar.querySelector("polygon");
+  if (p) p.setAttribute("fill", starred ? "#fdd663" : "none");
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  ZOOM                                                            ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function applyZoom(tab, level) {
+  if (!tab) return;
+  tab.zoom = level;
+  const el = tab.frame?.frame || tab.ntpEl;
+  if (el) el.style.zoom = level;
+  updateZoomPill(level);
+}
+
+function updateZoomPill(level) {
+  const pct = Math.round(level * 100);
+  if (pct === 100) { zoomPill.classList.remove("visible"); return; }
+  zoomPill.textContent = pct + "%";
+  zoomPill.classList.add("visible");
+}
+
+zoomPill.addEventListener("click", () => { applyZoom(getActive(), 1.0); });
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  PANELS                                                          ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function openPanel(panel) {
+  histPanel.classList.remove("open");
+  settPanel.classList.remove("open");
+  panel.classList.add("open");
+}
+function closePanel(panel) { panel.classList.remove("open"); }
+function togglePanel(panel) {
+  if (panel.classList.contains("open")) closePanel(panel);
+  else openPanel(panel);
+}
+
+// ── Panel drag-resize (left edge handle) ──────────────────────────
+function makePanelResizable(panel, handle) {
+  let startX, startW;
+  handle.addEventListener("mousedown", e => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = panel.offsetWidth;
+    handle.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    function onMove(e) {
+      const delta = startX - e.clientX;   // dragging left = growing
+      const newW  = Math.min(680, Math.max(240, startW + delta));
+      panel.style.setProperty("--panel-w", newW + "px");
+    }
+    function onUp() {
+      handle.classList.remove("dragging");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup",   onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup",   onUp);
+  });
+}
+makePanelResizable(histPanel, $("hist-resize"));
+makePanelResizable(settPanel, $("sett-resize"));
+
+$("hist-close").addEventListener("click",     () => closePanel(histPanel));
+$("settings-close").addEventListener("click", () => closePanel(settPanel));
+
+$("btn-hist").addEventListener("click", () => {
+  renderHistPanel();
+  togglePanel(histPanel);
+});
+$("btn-settings").addEventListener("click", () => {
+  syncSettingsUI();
+  togglePanel(settPanel);
+});
+
+// Settings tabs nav
+document.querySelectorAll(".snav-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".snav-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".stab").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    $(btn.dataset.tab)?.classList.add("active");
+  });
+});
+
+// History search
+$("hist-search").addEventListener("input", e => renderHistPanel(e.target.value));
+$("hist-clear-all").addEventListener("click", () => {
+  if (confirm("Clear all history?")) { history = []; saveHist(); renderHistPanel(); }
+});
+
+// ── Settings UI sync ─────────────────────────────────────────────
+function syncSettingsUI() {
+  $("s-engine").value     = CFG.engine;
+  $("s-homepage").value   = CFG.homepage;
+  $("s-hist-enabled").checked = CFG.histEnabled;
+  $("s-hist-max").value   = String(CFG.histMax);
+  $("s-zoom-slider").value = String(Math.round(CFG.zoomDefault * 100));
+  $("s-zoom-val").textContent = Math.round(CFG.zoomDefault * 100) + "%";
+  $("s-show-bm").checked  = CFG.showBmBar;
+  $("s-restore").checked  = CFG.restoreTabs;
+  $("s-wisp").value       = CFG.wispUrl;
+  $("s-prefix").value     = CFG.prefix;
+  // embed snippet
+  $("embed-snippet").textContent =
+    `<iframe\n  src="${location.origin}/"\n  allow="fullscreen clipboard-write clipboard-read"\n  style="width:100%;height:600px;border:none"\n  title="Ludus Proxy"\n></iframe>`;
+}
+
+// Settings change handlers
+$("s-engine").addEventListener("change",   e => { CFG.engine = e.target.value; saveSettings(); });
+$("s-homepage").addEventListener("change", e => { CFG.homepage = e.target.value.trim(); saveSettings(); });
+$("s-hist-enabled").addEventListener("change", e => { CFG.histEnabled = e.target.checked; saveSettings(); });
+$("s-hist-max").addEventListener("change", e => { CFG.histMax = parseInt(e.target.value); saveSettings(); });
+$("s-show-bm").addEventListener("change",  e => { CFG.showBmBar = e.target.checked; saveSettings(); renderBmBar(); });
+$("s-restore").addEventListener("change",  e => { CFG.restoreTabs = e.target.checked; saveSettings(); });
+
+$("s-zoom-slider").addEventListener("input", e => {
+  const v = parseInt(e.target.value) / 100;
+  $("s-zoom-val").textContent = parseInt(e.target.value) + "%";
+  CFG.zoomDefault = v; saveSettings();
+  applyZoom(getActive(), v);
+});
+$("s-zoom-reset").addEventListener("click", () => {
+  $("s-zoom-slider").value = "100";
+  $("s-zoom-val").textContent = "100%";
+  CFG.zoomDefault = 1.0; saveSettings();
+  applyZoom(getActive(), 1.0);
+});
+
+$("s-wisp-save").addEventListener("click", () => {
+  const v = $("s-wisp").value.trim();
+  if (!v) return;
+  CFG.wispUrl = v; saveSettings();
+  alert("Wisp URL saved. The page will reload to apply the change.");
+  location.reload();
+});
+
+$("s-prefix").addEventListener("change", e => { CFG.prefix = e.target.value.trim() || "/scramjet/"; saveSettings(); });
+
+$("s-clear-hist").addEventListener("click", () => {
+  if (confirm("Clear all browsing history?")) { history = []; saveHist(); }
+});
+$("s-clear-bm").addEventListener("click", () => {
+  if (confirm("Clear all bookmarks?")) { bookmarks = []; saveBm(); renderBmBar(); }
+});
+$("s-reset-sc").addEventListener("click", () => {
+  if (confirm("Reset shortcuts to defaults?")) {
+    localStorage.removeItem("ludus_sc"); shortcuts = null;
+    shortcuts = JSON.parse(localStorage.getItem("ludus_sc") || "null") || [];
+    saveSc(); refreshAllNTPs();
+  }
+});
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  NEW TAB PAGE                                                    ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function buildNTP(tab) {
+  const div = document.createElement("div");
+  div.className = "ntp tab-frame";
+  div.dataset.tabId = tab.id;
+  div._isNtp = true;
+  div.innerHTML = `
+    <div class="ntp-inner">
+      <div class="ntp-brand">
+        <div class="ntp-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <div class="ntp-title">Ludus Proxy</div>
+        <div class="ntp-sub">Private browsing · Scramjet v2</div>
+      </div>
+      <form class="ntp-search" id="ntpf-${tab.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search or enter URL" autocomplete="off" spellcheck="false" id="ntpi-${tab.id}"/>
+        <button type="submit">Go</button>
+      </form>
+      <div style="width:100%">
+        <div class="sc-hdr">
+          <span class="sc-label">Shortcuts</span>
+          <button class="sc-add" id="sc-add-${tab.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add
+          </button>
+        </div>
+        <div id="sc-grid-${tab.id}"></div>
+      </div>
+    </div>`;
+  div.querySelector(`#ntpf-${tab.id}`).addEventListener("submit", e => {
+    e.preventDefault();
+    const q = div.querySelector(`#ntpi-${tab.id}`).value.trim();
+    if (q) navigateActive(normaliseUrl(q));
+  });
+  div.querySelector(`#sc-add-${tab.id}`).addEventListener("click", () => openScModal());
+  renderScGrid(div, tab.id);
+  return div;
+}
+
+function renderScGrid(ntpEl, tabId) {
+  const container = ntpEl.querySelector(`#sc-grid-${tabId}`);
+  if (!container) return;
+  if (!shortcuts.length) {
+    container.innerHTML = `<div class="ntp-empty">No shortcuts — click Add to create one</div>`; return;
+  }
+  const grid = document.createElement("div");
+  grid.className = "sc-grid";
+  shortcuts.forEach((sc, i) => {
+    const item = document.createElement("div");
+    item.className = "sc-item";
+    const ico = document.createElement("div");
+    ico.className = "sc-ico";
+    const img = document.createElement("img");
+    img.src = favFor(sc.url) || "";
+    img.onerror = () => { img.remove(); const s=document.createElement("span"); s.className="sc-letter"; s.textContent=(sc.title||sc.url||"?")[0].toUpperCase(); ico.appendChild(s); };
+    ico.appendChild(img);
+    const lbl = document.createElement("div");
+    lbl.className = "sc-name"; lbl.textContent = sc.title || sc.url;
+    const dot = document.createElement("div");
+    dot.className = "sc-edit-dot"; dot.title = "Edit";
+    dot.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    dot.addEventListener("click", e => { e.stopPropagation(); openScModal(i); });
+    item.appendChild(dot); item.appendChild(ico); item.appendChild(lbl);
+    item.addEventListener("click", () => navigateActive(sc.url));
+    grid.appendChild(item);
+  });
+  container.innerHTML = ""; container.appendChild(grid);
+}
+
+function refreshAllNTPs() { tabs.forEach(t => { if (t.ntpEl) renderScGrid(t.ntpEl, t.id); }); }
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  AUTOCOMPLETE (Chrome-style URL suggestions)                     ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+const acDropdown = $("ac-dropdown");
+let acItems = [], acFocusIdx = -1, acPreTyped = "";
+
+function getAcSuggestions(query) {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) return [];
+
+  const seen = new Set();
+  const results = [];
+
+  function tryAdd(url, title, badge) {
+    if (!url || seen.has(url)) return;
+    const lu = url.toLowerCase(), lt = (title || "").toLowerCase();
+    if (!lu.includes(q) && !lt.includes(q)) return;
+    seen.add(url);
+    const freq = urlFreq[url] || {};
+    const score = (freq.count || 0) * 1e9 + (freq.ts || 0) / 1000;
+    results.push({ url, title: (freq.title && freq.title !== url ? freq.title : title) || url, badge, score });
+  }
+
+  // History (most recent first, so high-score entries float up after sort)
+  history.slice(0, 300).forEach(h => tryAdd(h.url, h.title, ""));
+  // Bookmarks (badge star)
+  bookmarks.forEach(b => tryAdd(b.url, b.title, "★"));
+  // Shortcuts (badge lightning)
+  shortcuts.forEach(s => tryAdd(s.url, s.title, "⚡"));
+
+  results.sort((a, b) => b.score - a.score);
+  return results.slice(0, 8);
+}
+
+function renderAcDropdown(query) {
+  acItems = getAcSuggestions(query);
+  acFocusIdx = -1;
+  if (!acItems.length || !(query || "").trim()) {
+    acDropdown.classList.remove("open");
+    acDropdown.innerHTML = "";
+    return;
+  }
+  acDropdown.innerHTML = "";
+  acItems.forEach((item, i) => {
+    const el = document.createElement("div");
+    el.className = "ac-item";
+
+    const fav = document.createElement("img");
+    fav.className = "ac-fav";
+    fav.src = favFor(item.url) || "";
+    fav.onerror = () => {
+      const ph = document.createElement("span");
+      ph.className = "ac-fav-ph";
+      ph.textContent = (item.title || item.url)[0].toUpperCase();
+      el.replaceChild(ph, fav);
+    };
+
+    const texts = document.createElement("div");
+    texts.className = "ac-texts";
+    texts.innerHTML = `<div class="ac-title">${escHtml(item.title)}</div><div class="ac-url">${escHtml(item.url)}</div>`;
+
+    el.appendChild(fav);
+    el.appendChild(texts);
+    if (item.badge) {
+      const badge = document.createElement("span");
+      badge.className = "ac-badge";
+      badge.textContent = item.badge;
+      el.appendChild(badge);
+    }
+
+    el.addEventListener("mousedown", e => {
+      e.preventDefault(); // prevent input blur killing the dropdown before click
+      navigateActive(item.url);
+      hideAcDropdown();
+      urlInput.blur();
+    });
+    el.addEventListener("mouseenter", () => { setAcFocus(i, false); });
+
+    acDropdown.appendChild(el);
+  });
+  acDropdown.classList.add("open");
+}
+
+function hideAcDropdown() {
+  acDropdown.classList.remove("open");
+  acFocusIdx = -1;
+}
+
+function setAcFocus(idx, updateInput = true) {
+  const els = acDropdown.querySelectorAll(".ac-item");
+  els.forEach(el => el.classList.remove("focused"));
+  acFocusIdx = idx;
+  if (idx >= 0 && idx < els.length) {
+    els[idx].classList.add("focused");
+    if (updateInput && acItems[idx]) urlInput.value = acItems[idx].url;
+  } else {
+    acFocusIdx = -1;
+    if (updateInput) urlInput.value = acPreTyped;
+  }
+}
+
+// ── Shortcut modal ────────────────────────────────────────────────
+let editingScIdx = null;
+const scModal = $("sc-modal");
+const scName  = $("sc-name");
+const scUrl   = $("sc-url");
+
+function openScModal(idx) {
+  editingScIdx = idx !== undefined ? idx : null;
+  $("sc-modal-title").textContent = editingScIdx !== null ? "Edit shortcut" : "Add shortcut";
+  $("sc-del").style.display = editingScIdx !== null ? "block" : "none";
+  scName.value = editingScIdx !== null ? (shortcuts[editingScIdx]?.title || "") : "";
+  scUrl.value  = editingScIdx !== null ? (shortcuts[editingScIdx]?.url  || "") : "";
+  scModal.classList.add("open");
+  setTimeout(() => scName.focus(), 40);
+}
+
+function closeScModal() { scModal.classList.remove("open"); }
+
+$("sc-cancel").addEventListener("click", closeScModal);
+scModal.addEventListener("click", e => { if (e.target === scModal) closeScModal(); });
+
+$("sc-save").addEventListener("click", () => {
+  const name = scName.value.trim(), rawUrl = scUrl.value.trim();
+  if (!rawUrl) return;
+  const url = normaliseUrl(rawUrl) || rawUrl;
+  if (editingScIdx !== null) shortcuts[editingScIdx] = { title: name || rawUrl, url };
+  else shortcuts.push({ title: name || rawUrl, url });
+  saveSc(); refreshAllNTPs(); closeScModal();
+});
+
+$("sc-del").addEventListener("click", () => {
+  if (editingScIdx !== null) { shortcuts.splice(editingScIdx, 1); saveSc(); refreshAllNTPs(); }
+  closeScModal();
+});
+
+scModal.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeScModal();
+  if (e.key === "Enter" && (e.target === scName || e.target === scUrl)) $("sc-save").click();
+});
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  TABS                                                            ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function createTab(url, opts = {}) {
+  const id = ++tabCounter;
+  const tab = { id, title: "New Tab", url: "", frame: null, ntpEl: null, loading: false, pinned: false, zoom: CFG.zoomDefault };
+  tab.ntpEl = buildNTP(tab);
+  tab.ntpEl.style.zoom = tab.zoom;
+  framesEl.appendChild(tab.ntpEl);
+  tabs.push(tab);
+  renderTabs();
+  activateTab(id);
+  if (url && scramjetReady) setTimeout(() => navigateActive(url), 30);
+  return tab;
+}
+
+function attachFrame(tab) {
+  if (tab.frame) return;
+  const sf = scramjet.createFrame();
+  sf.frame.className = "tab-frame";
+  sf.frame.dataset.tabId = tab.id;
+  sf.frame.style.zoom = tab.zoom;
+  sf.frame.addEventListener("load", () => onFrameLoad(tab, sf.frame));
+  tab.frame = sf;
+  framesEl.appendChild(sf.frame);
+}
+
+function onFrameLoad(tab, iframe) {
+  tab.loading = false;
+  const src = iframe.src;
+  if (!src || src === location.href || src === "about:blank") return;
+  const real = decodeUrl(src);
+  if (real) {
+    tab.url = real;
+    try { const t = iframe.contentDocument?.title; if (t) tab.title = t; } catch {}
+    if (!tab.title || tab.title === "New Tab") try { tab.title = new URL(real).hostname; } catch {}
+    recordHistory(real, tab.title);
+  }
+  if (tab.id === activeId) {
+    urlInput.value = real || "";
+    progDone();
+    updateSecIcon(real);
+    updateBmStar();
+    updateNavBtns();
+    document.title = tab.title + " – Ludus";
+    icoReload.style.display = "";
+    icoStop.style.display = "none";
+  }
+  renderTabs();
+  notifyParent("tabUpdate", { id: tab.id, url: real, title: tab.title });
+}
+
+function activateTab(id) {
+  activeId = id;
+  const tab = getActive();
+  if (!tab) return;
+  framesEl.querySelectorAll(".tab-frame").forEach(el => el.classList.remove("active"));
+  (tab.url && tab.frame ? tab.frame.frame : tab.ntpEl).classList.add("active");
+  urlInput.value = tab.url || "";
+  document.title = (tab.url ? tab.title : "New Tab") + " – Ludus";
+  updateNavBtns(); updateSecIcon(tab.url); updateBmStar(); updateZoomPill(tab.zoom);
+  renderTabs();
+  notifyParent("tabActivated", { id, url: tab.url, title: tab.title });
+}
+
+function closeTab(id) {
+  const idx = tabs.findIndex(t => t.id === id);
+  if (idx < 0) return;
+  const tab = tabs[idx];
+  if (CFG.restoreTabs && tab.url) {
+    closedTabs.unshift({ title: tab.title, url: tab.url });
+    if (closedTabs.length > 10) closedTabs.pop();
+  }
+  tab.ntpEl?.remove(); tab.frame?.frame?.remove();
+  tabs.splice(idx, 1);
+  if (!tabs.length) { createTab(); return; }
+  if (activeId === id) activateTab(tabs[Math.min(idx, tabs.length - 1)].id);
+  renderTabs();
+}
+
+function duplicateTab(id) {
+  const src = tabs.find(t => t.id === id);
+  if (src) createTab(src.url || "");
+}
+
+function pinTab(id) {
+  const t = tabs.find(t => t.id === id);
+  if (t) { t.pinned = !t.pinned; renderTabs(); }
+}
+
+const GLOB = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='2' y1='12' x2='22' y2='12'/%3E%3Cpath d='M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/%3E%3C/svg%3E`;
+const SPIN = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5.5' fill='none' stroke='%2300AEff' stroke-width='2' stroke-dasharray='18' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 8 8' to='360 8 8' dur='0.7s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E`;
+
+let draggingTabId = null;
+
+function renderTabs() {
+  const newTabBtn = $("new-tab-btn");
+  tabStrip.innerHTML = "";
+  // Pinned tabs first
+  const sorted = [...tabs.filter(t => t.pinned), ...tabs.filter(t => !t.pinned)];
+  sorted.forEach(tab => {
+    const el = document.createElement("div");
+    el.className = "tab" + (tab.id === activeId ? " active" : "") + (tab.pinned ? " pinned" : "");
+    el.draggable = true;
+
+    const img = document.createElement("img");
+    img.className = "tab-favicon";
+    img.src = tab.loading ? SPIN : (tab.url ? favFor(tab.url) || GLOB : GLOB);
+    if (!tab.loading && tab.url) img.onerror = () => img.src = GLOB;
+
+    const title = document.createElement("span");
+    title.className = "tab-title";
+    title.textContent = tab.title;
+
+    const close = document.createElement("button");
+    close.className = "tab-close";
+    close.innerHTML = "×";
+    close.addEventListener("click", e => { e.stopPropagation(); closeTab(tab.id); });
+
+    el.appendChild(img); el.appendChild(title); el.appendChild(close);
+    el.addEventListener("click", () => activateTab(tab.id));
+    el.addEventListener("contextmenu", e => { e.preventDefault(); showCtx(e, "tab", tab.id); });
+
+    // ── Drag-and-drop reorder ──────────────────────────────────
+    el.addEventListener("dragstart", e => {
+      draggingTabId = tab.id;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(tab.id));
+      setTimeout(() => el.classList.add("dragging"), 0);
+    });
+    el.addEventListener("dragend", () => {
+      draggingTabId = null;
+      el.classList.remove("dragging");
+      tabStrip.querySelectorAll(".tab").forEach(t => {
+        t.classList.remove("drag-over-left"); t.classList.remove("drag-over-right");
+      });
+    });
+    el.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (draggingTabId === tab.id) return;
+      tabStrip.querySelectorAll(".tab").forEach(t => {
+        t.classList.remove("drag-over-left"); t.classList.remove("drag-over-right");
+      });
+      const rect = el.getBoundingClientRect();
+      const mid  = rect.left + rect.width / 2;
+      el.classList.add(e.clientX < mid ? "drag-over-left" : "drag-over-right");
+    });
+    el.addEventListener("dragleave", () => {
+      el.classList.remove("drag-over-left"); el.classList.remove("drag-over-right");
+    });
+    el.addEventListener("drop", e => {
+      e.preventDefault();
+      el.classList.remove("drag-over-left"); el.classList.remove("drag-over-right");
+      if (draggingTabId === null || draggingTabId === tab.id) return;
+      const fromIdx = tabs.findIndex(t => t.id === draggingTabId);
+      let   toIdx   = tabs.findIndex(t => t.id === tab.id);
+      if (fromIdx < 0 || toIdx < 0) return;
+      const rect = el.getBoundingClientRect();
+      const after = e.clientX >= rect.left + rect.width / 2;
+      const [moved] = tabs.splice(fromIdx, 1);
+      toIdx = tabs.findIndex(t => t.id === tab.id); // recalculate after splice
+      tabs.splice(after ? toIdx + 1 : toIdx, 0, moved);
+      renderTabs();
+    });
+
+    tabStrip.appendChild(el);
+  });
+  // Re-append new-tab button after tabs (Chrome-style: button stays at end)
+  if (newTabBtn) tabStrip.appendChild(newTabBtn);
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  NAVIGATION                                                      ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function navigateActive(url, bypassIntercept = false) {
+  url = normaliseUrl(url);
+  if (!url || !scramjetReady) return;
+  const tab = getActive();
+  if (!tab) return;
+
+  // YouTube intercept logic
+  if (!bypassIntercept && (url.includes("youtube.com") || url.includes("youtu.be"))) {
+    const interceptHtml = `
+      <!DOCTYPE html>
+      <html style="background:#08080A;color:#fff;font-family:-apple-system,sans-serif;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;">
+        <div>
+          <h1 style="margin-bottom:10px;font-size:24px;">YouTube is Restricted</h1>
+          <p style="color:#d1d1d6;margin-bottom:24px;">This page does not work well here. Please use the dedicated YouTube app in the Games section.</p>
+          <button onclick="parent.postMessage({type:'ludus:ytBypass', url:'${url}'}, '*')" style="padding:10px 20px;border-radius:99px;border:none;background:#00aeff;color:#000;font-weight:bold;cursor:pointer;font-size:14px;transition:opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">Proceed Anyways</button>
+        </div>
+      </html>
+    `;
+    
+    tab.url = url;
+    tab.title = "Action Required";
+    urlInput.value = url;
+    if (!tab.frame) attachFrame(tab);
+    
+    tab.ntpEl.classList.remove("active");
+    tab.frame.frame.classList.add("active");
+    
+    // Inject the custom page directly into the active iframe
+    tab.frame.frame.src = "data:text/html;charset=utf-8," + encodeURIComponent(interceptHtml);
+    
+    updateNavBtns(); updateSecIcon(url); updateBmStar(); renderTabs();
+    return;
+  }
+
+  // Normal navigation logic
+  tab.url = url; tab.loading = true;
+  try { tab.title = new URL(url).hostname; } catch {}
+  urlInput.value = url;
+  if (!tab.frame) attachFrame(tab);
+  tab.ntpEl.classList.remove("active");
+  tab.frame.frame.classList.add("active");
+  tab.frame.go(url);
+  progStart();
+  icoReload.style.display = "none"; icoStop.style.display = "";
+  updateNavBtns(); updateSecIcon(url); updateBmStar(); renderTabs();
+  notifyParent("navigate", { url });
+}
+
+function updateNavBtns() {
+  const tab = getActive();
+  if (!tab?.frame) { btnBack.disabled = true; btnFwd.disabled = true; return; }
+  try {
+    const hl = tab.frame.frame.contentWindow?.history?.length || 0;
+    btnBack.disabled = hl <= 1; btnFwd.disabled = false;
+  } catch { btnBack.disabled = true; btnFwd.disabled = true; }
+}
+
+function updateSecIcon(url) {
+  if (!url) { secIcon.className = "secure"; return; }
+  const https = url.startsWith("https://");
+  secIcon.className = https ? "secure" : "insecure";
+  secIcon.querySelector("svg").innerHTML = https
+    ? `<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`
+    : `<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`;
+}
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CONTEXT MENU                                                    ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+let ctxTabId = null;
+
+function showCtx(e, type, id) {
+  ctxTabId = id;
+  const x = Math.min(e.clientX, window.innerWidth - 190);
+  const y = Math.min(e.clientY, window.innerHeight - 280);
+  ctxMenu.style.left = x + "px"; ctxMenu.style.top = y + "px";
+  ctxMenu.classList.add("open");
+}
+
+document.addEventListener("click", e => { if (!ctxMenu.contains(e.target)) ctxMenu.classList.remove("open"); });
+document.addEventListener("contextmenu", e => {
+  const onTab = e.target.closest(".tab");
+  if (!onTab) e.preventDefault(); // suppress default context menu everywhere except tabs (which have own handler)
+});
+
+const ctxClose = () => ctxMenu.classList.remove("open");
+$("cx-newtab").addEventListener("click",  () => { createTab(); ctxClose(); });
+$("cx-dup").addEventListener("click",     () => { duplicateTab(ctxTabId ?? activeId); ctxClose(); });
+$("cx-pin").addEventListener("click",     () => { pinTab(ctxTabId ?? activeId); ctxClose(); });
+$("cx-reload").addEventListener("click",  () => { getActive()?.frame?.frame?.contentWindow?.location.reload(); ctxClose(); });
+$("cx-bm").addEventListener("click",      () => { const t = getActive(); if (t?.url) toggleBookmark(t.url, t.title); ctxClose(); });
+$("cx-toggle-bm").addEventListener("click", () => { CFG.showBmBar = !CFG.showBmBar; saveSettings(); renderBmBar(); ctxClose(); });
+$("cx-hist").addEventListener("click",    () => { renderHistPanel(); openPanel(histPanel); ctxClose(); });
+$("cx-close").addEventListener("click",   () => { closeTab(ctxTabId ?? activeId); ctxClose(); });
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  TOOLBAR / KEYBOARD                                              ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+omnibox.addEventListener("submit", e => {
+  e.preventDefault();
+  if (acFocusIdx >= 0 && acItems[acFocusIdx]) {
+    navigateActive(acItems[acFocusIdx].url);
+  } else {
+    navigateActive(urlInput.value);
+  }
+  hideAcDropdown();
+  urlInput.blur();
+});
+omnibox.addEventListener("click", () => urlInput.select());
+
+urlInput.addEventListener("input", () => {
+  acPreTyped = urlInput.value;
+  acFocusIdx = -1;
+  renderAcDropdown(urlInput.value);
+});
+urlInput.addEventListener("focus", () => {
+  acPreTyped = urlInput.value;
+  renderAcDropdown(urlInput.value);
+});
+urlInput.addEventListener("blur", () => setTimeout(hideAcDropdown, 160));
+urlInput.addEventListener("keydown", e => {
+  const isOpen = acDropdown.classList.contains("open");
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (!isOpen) { acPreTyped = urlInput.value; renderAcDropdown(urlInput.value); return; }
+    setAcFocus(Math.min(acFocusIdx + 1, acItems.length - 1));
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!isOpen) return;
+    setAcFocus(acFocusIdx <= 0 ? -1 : acFocusIdx - 1);
+  } else if (e.key === "Escape" && isOpen) {
+    e.stopPropagation();
+    urlInput.value = acPreTyped;
+    hideAcDropdown();
+  }
+});
+$("clear-btn").addEventListener("click", () => { urlInput.value = ""; acPreTyped = ""; hideAcDropdown(); urlInput.focus(); });
+
+btnBack.addEventListener("click",   () => { try { getActive()?.frame?.back(); } catch {} setTimeout(updateNavBtns, 200); });
+btnFwd.addEventListener("click",    () => { try { getActive()?.frame?.forward(); } catch {} setTimeout(updateNavBtns, 200); });
+btnReload.addEventListener("click", () => {
+  const t = getActive(); if (!t) return;
+  if (t.loading) {
+    try { t.frame?.frame?.contentWindow?.stop?.(); } catch {}
+    t.loading = false; progDone();
+    icoReload.style.display = ""; icoStop.style.display = "none"; renderTabs();
+  } else {
+    try { t.frame?.frame?.contentWindow?.location.reload(); } catch {}
+    progStart(); icoReload.style.display = "none"; icoStop.style.display = "";
+  }
+});
+
+$("new-tab-btn").addEventListener("click", () => createTab());
+bmStar.addEventListener("click", () => { const t = getActive(); if (t?.url) toggleBookmark(t.url, t.title); });
+$("btn-fullscreen").addEventListener("click", () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(err => console.warn(err));
+  } else {
+    document.exitFullscreen();
+  }
+});
+// Find bar
+$("find-close").addEventListener("click", () => { findBar.classList.remove("open"); findInput.value = ""; $("find-count").textContent = ""; });
+findInput.addEventListener("input", e => {
+  const q = e.target.value;
+  if (!q) { $("find-count").textContent = ""; return; }
+  try {
+    const fw = getActive()?.frame?.frame?.contentWindow;
+    if (fw) {
+      // Use browser native find
+      const found = fw.find(q, false, false, true, false, false, false);
+      $("find-count").textContent = found ? "" : "No results";
+    }
+  } catch {}
+});
+findInput.addEventListener("keydown", e => {
+  if (e.key === "Escape") { findBar.classList.remove("open"); findInput.value = ""; }
+  if (e.key === "Enter") {
+    try {
+      const fw = getActive()?.frame?.frame?.contentWindow;
+      if (fw) fw.find(findInput.value, false, e.shiftKey, true, false, false, false);
+    } catch {}
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener("keydown", e => {
+  const mod = e.ctrlKey || e.metaKey;
+
+  // Don't intercept if typing in an input (except specific combos)
+  const inInput = ["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName);
+
+  if (e.key === "Escape") {
+    closePanel(histPanel); closePanel(settPanel);
+    findBar.classList.remove("open"); findInput.value = "";
+    closeScModal(); ctxClose();
+    return;
+  }
+
+  if (!mod) return;
+
+  if (e.key === "t") { e.preventDefault(); createTab(CFG.homepage || ""); }
+  if (e.key === "w") { e.preventDefault(); closeTab(activeId); }
+  if (e.key === "l") { e.preventDefault(); urlInput.focus(); urlInput.select(); }
+  if (e.key === "r") { e.preventDefault(); btnReload.click(); }
+  if (e.key === "d") { e.preventDefault(); const t = getActive(); if (t?.url) toggleBookmark(t.url, t.title); }
+  if (e.key === "h") { e.preventDefault(); renderHistPanel(); togglePanel(histPanel); }
+  if (e.key === "f") { e.preventDefault(); findBar.classList.add("open"); findInput.focus(); }
+  if (e.key === ",") { e.preventDefault(); syncSettingsUI(); togglePanel(settPanel); }
+  if (e.key === "=" || e.key === "+") { e.preventDefault(); const t = getActive(); if (t) applyZoom(t, Math.min(2, +(t.zoom + 0.1).toFixed(1))); }
+  if (e.key === "-") { e.preventDefault(); const t = getActive(); if (t) applyZoom(t, Math.max(0.5, +(t.zoom - 0.1).toFixed(1))); }
+  if (e.key === "0") { e.preventDefault(); applyZoom(getActive(), 1.0); }
+  if (e.shiftKey && e.key === "T") { e.preventDefault(); if (closedTabs.length) { const c = closedTabs.shift(); createTab(c.url); } }
+
+  const n = parseInt(e.key);
+  if (n >= 1 && n <= 9 && tabs[n - 1]) { e.preventDefault(); activateTab(tabs[n - 1].id); }
+});
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  POLLING — keep titles / URLs in sync from live frames           ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+setInterval(() => {
+  tabs.forEach(tab => {
+    if (!tab.frame?.frame) return;
+    try {
+      const doc = tab.frame.frame.contentDocument;
+      if (!doc || doc.readyState === "loading") return;
+      if (doc.title && doc.title !== tab.title) {
+        tab.title = doc.title;
+        if (tab.id === activeId) document.title = tab.title + " – Ludus";
+        renderTabs();
+      }
+      // Prefer contentWindow.location.href so single-page navigations
+      // (e.g. clicking a DuckDuckGo result, pushState, hashchange) update
+      // the URL bar even when the iframe's src attribute hasn't changed.
+      let rawHref = "";
+      try { rawHref = tab.frame.frame.contentWindow?.location?.href || ""; } catch {}
+      const real =
+        (rawHref && rawHref !== "about:blank" ? decodeUrl(rawHref) : "") ||
+        decodeUrl(tab.frame.frame.src);
+      if (real && real !== tab.url) {
+        tab.url = real;
+        if (tab.id === activeId) {
+          // Don't overwrite if the user is actively typing in the omnibox
+          if (document.activeElement !== urlInput) urlInput.value = real;
+          updateSecIcon(real); updateBmStar();
+        }
+        renderTabs();
+      }
+    } catch {}
+  });
+}, 250);
+
+
+// --- hook a single frame window ------------------------------------ //
+function hookFrameNewTabs(fw, tab) {
+  if (!fw) return;
+  try {
+    // 1. Override window.open so pop-ups become new proxy tabs
+    fw.open = function(url, target, features) {
+      if (!url || url === 'about:blank') return null;
+      // Decode the scramjet-encoded URL back to the real one
+      let real = url;
+      try { real = scramjet.decodeUrl(url) || url; } catch {}
+      // _self / named frames: navigate the active tab instead of popping
+      if (target && target !== '_blank' && target !== '_new' && target !== '') {
+        navigateActive(real);
+        return null;
+      }
+      createTab(real);
+      return null; // signals "popup blocked" to the calling page
+    };
+
+    // 2. Intercept target="_blank" anchor clicks before the browser acts
+    fw.document.addEventListener('click', function(e) {
+      const a = e.target.closest('a');
+      if (!a) return;
+      const t = (a.getAttribute('target') || '').toLowerCase();
+      if (t !== '_blank' && t !== '_new') return;
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('javascript:') || href === '#') return;
+      e.preventDefault();
+      let real = href;
+      try { real = scramjet.decodeUrl(a.href) || a.href || href; } catch {}
+      createTab(real || href);
+    }, true);
+
+    // 3. Hook pushState / replaceState / popstate / hashchange so SPA
+    //    navigation (e.g. clicking a DuckDuckGo result) updates the URL bar
+    //    immediately rather than waiting for the poll interval.
+    const syncUrl = () => {
+      if (!tab) return;
+      try {
+        const raw  = fw.location?.href || "";
+        const real = (raw && raw !== "about:blank") ? decodeUrl(raw) : "";
+        if (real && real !== tab.url) {
+          tab.url = real;
+          if (tab.id === activeId && document.activeElement !== urlInput) {
+            urlInput.value = real;
+            updateSecIcon(real);
+            updateBmStar();
+          }
+          renderTabs();
+        }
+      } catch {}
+    };
+
+    fw.addEventListener("popstate",   syncUrl);
+    fw.addEventListener("hashchange", syncUrl);
+
+    // Wrap history.pushState / replaceState
+    try {
+      const origPush    = fw.history.pushState.bind(fw.history);
+      const origReplace = fw.history.replaceState.bind(fw.history);
+      fw.history.pushState = function(...a)    { origPush(...a);    setTimeout(syncUrl, 0); };
+      fw.history.replaceState = function(...a) { origReplace(...a); setTimeout(syncUrl, 0); };
+    } catch {}
+  } catch (_) {}
+}
+
+// --- hook every proxy tab frame when it loads ---------------------- //
+// Uses capture on the document so we catch load events on all iframes
+document.addEventListener('load', function(e) {
+  const el = e.target;
+  if (el && el.tagName === 'IFRAME' && el.classList.contains('tab-frame')) {
+    const tabId = parseInt(el.dataset.tabId);
+    const tab   = tabs.find(t => t.id === tabId) || null;
+    hookFrameNewTabs(el.contentWindow, tab);
+  }
+}, true /* capture phase */);
+
+// --- also guard the proxy page's own window.open ------------------- //
+// (catches any cases scramjet surfaces at the host-page level)
+window.open = (function(_orig) {
+  return function(url, target, features) {
+    if (!url || url === 'about:blank') return null;
+    let real = url;
+    try { real = scramjet.decodeUrl(url) || url; } catch {}
+    if (target && target !== '_blank' && target !== '_new' && target !== '') {
+      navigateActive(real);
+      return null;
+    }
+    createTab(real || url);
+    return null;
+  };
+}(window.open));
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  postMessage API (for parent site)                               ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+function notifyParent(type, data = {}) {
+  try { window.parent.postMessage({ source: "ludus-proxy", type, ...data }, "*"); } catch {}
+}
+
+window.addEventListener("message", e => {
+  const d = e.data;
+  if (!d || typeof d !== "object") return;
+  switch (d.type) {
+    case "ludus:navigate":   navigateActive(d.url); break;
+    case "ludus:newTab":     createTab(d.url || ""); break;
+    case "ludus:closeTab":   closeTab(activeId); break;
+    case "ludus:setZoom":    applyZoom(getActive(), Math.max(0.5, Math.min(2, parseFloat(d.level) || 1))); break;
+    case "ludus:getState":
+      e.source?.postMessage({
+        source: "ludus-proxy", type: "ludus:state",
+        tabs: tabs.map(t => ({ id: t.id, url: t.url, title: t.title, active: t.id === activeId, pinned: t.pinned })),
+        activeUrl: getActive()?.url || "",
+      }, e.origin || "*");
+      break;
+  }
+});
+
+// Expose a global API for same-origin parent usage too
+window.ludusProxy = {
+  navigate:  url   => navigateActive(url),
+  newTab:    url   => createTab(url || ""),
+  closeTab:  ()    => closeTab(activeId),
+  setZoom:   level => applyZoom(getActive(), level),
+  getState:  ()    => ({ tabs: tabs.map(t => ({ id: t.id, url: t.url, title: t.title })), activeUrl: getActive()?.url }),
+  openSettings: () => { syncSettingsUI(); openPanel(settPanel); },
+};
+// Listen for the intercept bypass
+window.addEventListener("message", e => {
+  if (e.data?.type === "ludus:ytBypass" && e.data.url) {
+    navigateActive(e.data.url, true);
+  }
+});
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  BOOT                                                            ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+renderBmBar();
+
+(async () => {
+  const msg = $("init-msg");
+  if (!("serviceWorker" in navigator)) {
+    msg.textContent = "Service Workers not supported in this browser.";
+    setTimeout(() => { initScr.classList.add("gone"); createTab(); }, 2000);
+    return;
+  }
+  try {
+    msg.textContent = "Registering service worker…";
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    msg.textContent = "Waiting for service worker…";
+    await navigator.serviceWorker.ready;
+    msg.textContent = "Initialising proxy…";
+    await scramjet.init();
+    scramjetReady = true;
+    notifyParent("ready");
+  } catch (err) {
+    console.error("[ludus] init error:", err);
+    msg.textContent = "Init failed: " + err.message;
+    await new Promise(r => setTimeout(r, 2500));
+  }
+  initScr.classList.add("gone");
+  createTab(CFG.homepage || "");
+})();
+</script>
+</body>
+</html>
