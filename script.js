@@ -177,10 +177,68 @@ window.handlePremiumUpgradeClick = function() {
     }
 };
 
+// Default content for the premium banner — restored after any custom message
+const _bannerDefaults = {
+    title: 'Premium Content Locked',
+    subtitle: 'Upgrade to unlock all premium games, proxies, and the chatbot.',
+    btnText: 'Upgrade Now',
+    btnAction: 'handlePremiumUpgradeClick()'
+};
+
+// Show the premium banner with a "not available on this build" message instead
+window.openAppUnavailable = function(appName) {
+    const titleEl   = document.getElementById('premiumBannerTitle');
+    const subEl     = document.getElementById('premiumBannerSubtitle');
+    const btnEl     = document.getElementById('premiumBannerAction');
+
+    if (titleEl) titleEl.textContent = 'Unavailable on This Build';
+    if (subEl)   subEl.textContent   = `${appName} isn't available here. Visit the Domains Hub to access the full experience.`;
+    if (btnEl) {
+        btnEl.textContent = 'Go to Domains Hub';
+        btnEl.setAttribute('onclick', "window.open('https://sites.google.com/view/mathmaster-tx/domains', '_blank')");
+    }
+
+    window.showPremiumBanner();
+};
+
+// Show info modal explaining which build this is
+window.showBuildInfo = function(type) {
+    const modal    = document.getElementById('buildInfoModal');
+    const backdrop = document.getElementById('buildInfoBackdrop');
+    const iconEl   = document.getElementById('buildInfoIcon');
+    const titleEl  = document.getElementById('buildInfoTitle');
+    const bodyEl   = document.getElementById('buildInfoBody');
+    if (!modal) return;
+
+    if (type === 'local') {
+        if (iconEl) iconEl.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(0,201,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`;
+        if (titleEl) titleEl.textContent = 'Local Build (Beta)';
+        if (bodyEl)  bodyEl.textContent  = 'This build was created using CDN jsDelivr to serve assets and libraries. Because of that, some features may behave unexpectedly or not work at all.';
+    } else {
+        if (iconEl) iconEl.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(0,201,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`;
+        if (titleEl) titleEl.textContent = 'Official Build';
+        if (bodyEl)  bodyEl.textContent  = "This site's build comes directly from the official developer. It receives regular maintenance, has more features enabled, and is the most stable version of Ludus.";
+    }
+
+    if (backdrop) backdrop.style.display = 'block';
+    modal.style.display = 'block';
+};
+
 // I noticed your HTML calls closePremiumBanner() on the 'X' button, but the function was missing!
 window.closePremiumBanner = function() {
     const banner = document.getElementById('premiumUpgradeBanner');
     if (banner) banner.style.display = 'none';
+
+    // Restore original banner text in case openAppUnavailable modified it
+    const titleEl = document.getElementById('premiumBannerTitle');
+    const subEl   = document.getElementById('premiumBannerSubtitle');
+    const btnEl   = document.getElementById('premiumBannerAction');
+    if (titleEl) titleEl.textContent = _bannerDefaults.title;
+    if (subEl)   subEl.textContent   = _bannerDefaults.subtitle;
+    if (btnEl) {
+        btnEl.textContent = _bannerDefaults.btnText;
+        btnEl.setAttribute('onclick', _bannerDefaults.btnAction);
+    }
 };
 
 window.completeSignup = function() {
@@ -233,14 +291,17 @@ document.addEventListener('DOMContentLoaded', checkDevAndPremiumUI);
 // === Unified Settings & Canvas System ===
 let viewerControlsConfig = JSON.parse(localStorage.getItem('mathmaster_controls')) || [
     { id: 'dashboard', label: '← Dashboard', action: 'goHome()', key: 'h' },
-    { id: 'reload', label: 'Reload', action: 'reloadGame()', key: 'r' },
-    { id: 'fullscreen', label: 'Fullscreen', action: 'toggleFullscreen()', key: 'f' },
-    { id: 'newtab', label: 'Open New Tab', action: 'openInNewTab()', key: 'n' }
+    { id: 'reload', label: 'Reload', action: 'reloadGame()', key: 'r' }
 ];
+// Remove legacy fullscreen/newtab entries if present from a saved config
+viewerControlsConfig = viewerControlsConfig.filter(c => c.id !== 'fullscreen' && c.id !== 'newtab');
 
 let viewerControlsVisibility = JSON.parse(localStorage.getItem('mathmaster_controls_vis')) || {
-    'dashboard': true, 'reload': true, 'fullscreen': true, 'newtab': true
+    'dashboard': true, 'reload': true
 };
+// Clean up legacy keys from saved visibility state
+delete viewerControlsVisibility['fullscreen'];
+delete viewerControlsVisibility['newtab'];
 
 let favControl = viewerControlsConfig.find(c => c.id === 'favorite');
 if (!favControl) {
@@ -278,12 +339,10 @@ function toggleFavorite() {
 const _VIEWER_ICONS = {
     dashboard: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`,
     reload:     `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
-    fullscreen: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`,
-    newtab:     `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`,
 };
 
 // These button ids go in the top-bar (quickControlsContainer); all others go in the dropdown
-const _QUICK_CTRL_IDS = ['dashboard', 'fullscreen'];
+const _QUICK_CTRL_IDS = ['dashboard'];
 
 function _makeViewerBtn(ctrl, index, isFav) {
     const btn = document.createElement('button');
@@ -867,9 +926,19 @@ async function loadGame(p) {
     // Save scroll position so we can restore it when returning to the game grid
     try { localStorage.setItem('mathmaster_scroll_pos', window.scrollY); } catch(e) {}
 
-    grid.style.display = "none"; viewer.style.display = "flex";
-    document.querySelector('.dock-container').style.transform = "translate(-50%, 200%)"; 
-    window.scrollTo({ top: viewer.offsetTop - 20, behavior: "smooth" });
+    grid.style.display = "none";
+    viewer.style.display = "flex";
+    viewer.style.position = "fixed";
+    viewer.style.top = "0";
+    viewer.style.left = "0";
+    viewer.style.width = "100vw";
+    viewer.style.height = "100vh";
+    viewer.style.zIndex = "9999";
+    frame.style.width = "100%";
+    frame.style.height = "100%";
+    frame.style.border = "none";
+    frame.style.flex = "1";
+    document.querySelector('.dock-container').style.transform = "translate(-50%, 200%)";
 
     let recentlyPlayed = JSON.parse(localStorage.getItem('mathmaster_recent')) || [];
     recentlyPlayed = recentlyPlayed.filter(src => src !== p);
@@ -904,6 +973,16 @@ async function loadGame(p) {
 function goHome() {
     if (document.fullscreenElement) document.exitFullscreen();
     viewer.style.display = "none";
+    viewer.style.position = "";
+    viewer.style.top = "";
+    viewer.style.left = "";
+    viewer.style.width = "";
+    viewer.style.height = "";
+    viewer.style.zIndex = "";
+    frame.style.width = "";
+    frame.style.height = "";
+    frame.style.border = "";
+    frame.style.flex = "";
     grid.style.display = "grid";
     frame.src = "";
     document.querySelector('.dock-container').style.transform = "translateX(-50%)";
@@ -1015,7 +1094,6 @@ function openInNewTab() {
 // === PASTE YOUR ENTIRE GAMES ARRAY HERE! ======
 // ==============================================
 const games = [
- 
   {name:"Your Mom's House", path:"Versions/Assets/Game Data/Five Nights at Epsteins.html", logo:"Versions/Assets/Pictures/Non-edited/FNAE.webp", secret: true},
   {name:"Your Mom's House 2", path:"Versions/Assets/Game Data/Five Nights at Last Breath.html", logo:"Versions/Assets/Pictures/Non-edited/Mom21-n.webp", secret: true},
   {name:"Your Mom's Basics", path:"./Versions/Assets/Game Data/751.html", logo:"./Versions/Assets/Pictures/Non-edited/Basics-n.webp", secret: true},
@@ -1036,8 +1114,8 @@ const games = [
 {name:"OMORI", path:"./Versions/Assets/Game Data/427-z.html", logo:"./Versions/Assets/Pictures/Non-edited/427.webp", secret: true},
 {name:"Milk Inside a Bag of Milk Inside a Bag of Milk", path:"./Versions/Assets/Game Data/650-f.html", logo:"./Versions/Assets/Pictures/Non-edited/650.webp", secret: true},
   {name:"Yume Nikki", path:"./Versions/Assets/Game Data/433.html", logo:"./Versions/Assets/Pictures/Non-edited/433.webp", secret: true},
-  {name:"Tiktok",path:"tiktok.html", logo:"Versions/Assets/Pictures/Non-edited/tok-n.webp", isApp: true, appColor: "#fe00fe"},
-  {name:"Youtube",path:"youtube.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
+  {name:"Tiktok",path:"tiktok.html", logo:"Versions/Assets/Pictures/Non-edited/tok-n.webp", isApp: true, appColor: "#fe00fe", unavailable: true},
+  {name:"Youtube",path:"youtube.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000", unavailable: true},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
   {name:"1v1.lol", path:"Versions/Assets/Game Data/1v1.LoL.html", logo:"Versions/Assets/Pictures/Non-edited/1v1.lol-n.webp"},
@@ -2311,12 +2389,18 @@ if (isLocked) {
                 <h3 style="color: rgba(255,255,255,0.5);">${g.name}</h3>
                 <button class="btn" onclick="handlePremiumUpgradeClick(event)" style="background: rgba(255,215,0,0.2); color: #FFD700; border: 1px solid rgba(255,215,0,0.4);">Unlock</button>
             `;
+        } else if (g.unavailable) {
+            // Unavailable App Render
+            c.style.position = 'relative';
+            c.innerHTML = `
+                <div style="position:absolute;top:8px;right:8px;background:rgba(255,60,40,0.88);color:white;font-size:9px;font-weight:800;padding:3px 8px;border-radius:5px;letter-spacing:0.8px;z-index:5;text-transform:uppercase;backdrop-filter:blur(4px);">Unavailable</div>
+                <img src="${g.logo}" loading="lazy" decoding="async" style="opacity:0.45;filter:grayscale(0.4);">
+                <h3 style="opacity:0.55;">${g.name}</h3>
+                <button class="btn" onclick="openAppUnavailable('${g.name}')" style="background:rgba(255,60,40,0.12);color:rgba(255,80,50,0.85);border:1px solid rgba(255,60,40,0.28);">Unavailable</button>`;
         } else {
             // Normal Render
             c.innerHTML = `<img src="${g.logo}" loading="lazy" decoding="async"><h3>${g.name}</h3>`;
-            c.innerHTML += g.external 
-                ? `<button class="btn" onclick="window.open('${g.path}','_blank')">Open</button>`
-                : g.newtab
+            c.innerHTML += g.newtab
                     ? `<button class="btn" onclick="window.open('${g.path}','_blank')" title="Opens in a new tab">Open in Tab</button>`
                     : `<button class="btn" onclick="loadGameSafe('${g.path}')">Play</button>`;
         }

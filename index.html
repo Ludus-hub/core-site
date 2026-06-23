@@ -16,12 +16,12 @@
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
         </svg>
         <div style="display: flex; flex-direction: column; text-align: left;">
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 600;">Premium Content Locked</span>
-            <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: rgba(255, 255, 255, 0.7);">Upgrade to unlock all premium games, proxies, and the chatbot.</span>
+            <span id="premiumBannerTitle" style="font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 600;">Premium Content Locked</span>
+            <span id="premiumBannerSubtitle" style="font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: rgba(255, 255, 255, 0.7);">Upgrade to unlock all premium games, proxies, and the chatbot.</span>
         </div>
     </div>
     <div style="display: flex; align-items: center; gap: 10px;">
-        <button onclick="handlePremiumUpgradeClick()" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; border: none; padding: 6px 14px; border-radius: 12px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s ease;">Upgrade Now</button>
+        <button id="premiumBannerAction" onclick="handlePremiumUpgradeClick()" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; border: none; padding: 6px 14px; border-radius: 12px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s ease;">Upgrade Now</button>
         <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2);"></div>
         <button onclick="closePremiumBanner()" style="background: transparent; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: 0.2s ease;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">
             <svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
@@ -156,10 +156,32 @@
 <div class="home-layout">
 <header class="header">
 <h1 style="margin-bottom: 0;">Math Master</h1>
-<div style="margin-bottom: 30px; margin-top: 5px; text-align: center;">
+<div style="margin-bottom: 10px; margin-top: 5px; text-align: center;">
 <span class="gradient-title" style="font-size: 1.2rem;">by Ludus</span>
 </div>
+<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 26px;">
+  <button onclick="showBuildInfo('local')" style="display:flex;align-items:center;gap:6px;background:rgba(0,201,255,0.07);border:1px solid rgba(0,201,255,0.22);color:rgba(0,201,255,0.75);font-size:11px;font-weight:700;padding:5px 12px 5px 10px;border-radius:99px;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;font-family:'Inter',system-ui,sans-serif;" onmouseover="this.style.background='rgba(0,201,255,0.14)';this.style.borderColor='rgba(0,201,255,0.42)';this.style.color='#00C9FF';this.style.boxShadow='0 0 12px rgba(0,201,255,0.15)'" onmouseout="this.style.background='rgba(0,201,255,0.07)';this.style.borderColor='rgba(0,201,255,0.22)';this.style.color='rgba(0,201,255,0.75)';this.style.boxShadow='none'">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+    local build
+    <span style="background:rgba(0,201,255,0.18);color:#00C9FF;font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:99px;letter-spacing:0.7px;text-transform:uppercase;">beta</span>
+  </button>
+  <span style="color:rgba(255,255,255,0.12);font-size:10px;user-select:none;">|</span>
+  <button onclick="showBuildInfo('official')" style="display:flex;align-items:center;gap:6px;background:rgba(146,254,157,0.06);border:1px solid rgba(146,254,157,0.22);color:rgba(146,254,157,0.7);font-size:11px;font-weight:700;padding:5px 12px 5px 10px;border-radius:99px;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;font-family:'Inter',system-ui,sans-serif;" onmouseover="this.style.background='rgba(146,254,157,0.12)';this.style.borderColor='rgba(146,254,157,0.38)';this.style.color='#92FE9D';this.style.boxShadow='0 0 12px rgba(146,254,157,0.12)'" onmouseout="this.style.background='rgba(146,254,157,0.06)';this.style.borderColor='rgba(146,254,157,0.22)';this.style.color='rgba(146,254,157,0.7)';this.style.boxShadow='none'">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+    official
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/></svg>
+  </button>
+</div>
 </header>
+
+<!-- Build Info Modal -->
+<div id="buildInfoModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(18,18,18,0.97); border: 1px solid rgba(255,255,255,0.12); color: white; padding: 28px 28px 22px; border-radius: 18px; z-index: 10002; box-shadow: 0 16px 50px rgba(0,0,0,0.85); width: 300px; font-family: 'Inter', system-ui, sans-serif; text-align: center; backdrop-filter: blur(16px);">
+  <div id="buildInfoIcon" style="width:48px;height:48px;border-radius:50%;background:rgba(0,201,255,0.1);border:1px solid rgba(0,201,255,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"></div>
+  <h3 id="buildInfoTitle" style="margin: 0 0 10px; font-size: 16px; font-weight: 700; color: white;"></h3>
+  <p id="buildInfoBody" style="font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.6; margin: 0 0 20px;"></p>
+  <button onclick="document.getElementById('buildInfoModal').style.display='none';document.getElementById('buildInfoBackdrop').style.display='none';" style="width: 100%; padding: 11px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Got it</button>
+</div>
+<div id="buildInfoBackdrop" onclick="document.getElementById('buildInfoModal').style.display='none';document.getElementById('buildInfoBackdrop').style.display='none';" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:10001;"></div>
 <div id="versionRunnerOverlay" style="display: none; position: fixed; inset: 0; z-index: 1000002; background: #000;">
 <div onclick="exitVersion()" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'" onmouseover="this.style.borderColor='var(--accent-color)'" style="position: absolute; top: 20px; left: 20px; background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 20px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; z-index: 1000003;">
 <svg fill="none" height="20" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="20"><line x1="19" x2="5" y1="12" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -492,30 +514,7 @@ Save to Cloud
 <button class="settings-btn" onclick="document.getElementById('saveFileInput').click()">Import</button>
 </div>
 </div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Save to Cloud</span>
-<span class="settings-desc">Manually push your current progress and saves to the cloud right now.</span>
-</div>
-<button class="settings-btn primary" onclick="window.saveDataToCloud()">Save Now</button>
-</div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Allow Cloud Overwrite</span>
-<span class="settings-desc">When off, your existing cloud data is protected and won't be replaced by local progress.</span>
-</div>
-<label class="ios-switch">
-<input id="settingsCloudOverwriteToggle" type="checkbox"/>
-<span class="slider"></span>
-</label>
-</div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Load from Cloud</span>
-<span class="settings-desc">Manually pull your latest game saves and data from the cloud.</span>
-</div>
-<button class="settings-btn" onclick="manualCloudLoad()">Load Data</button>
-</div>
+
 </div>
 </div>
 </div>
@@ -523,26 +522,7 @@ Save to Cloud
 <div class="settings-group">
 <h3 class="settings-group-title">Disguise &amp; Security</h3>
 <div class="settings-card">
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Canvas Mode Disguise</span>
-<span class="settings-desc">Disguise the site as a learning platform.</span>
-</div>
-<label class="ios-switch">
-<input id="settingsCanvasToggle" type="checkbox"/>
-<span class="slider"></span>
-</label>
-</div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Block Tab Closing</span>
-<span class="settings-desc">Show a warning dialog when trying to close or reload the site.</span>
-</div>
-<label class="ios-switch">
-<input id="settingsBlockCloseToggle" type="checkbox"/>
-<span class="slider"></span>
-</label>
-</div>
+
 <div class="settings-row">
 <div class="settings-info">
 <span class="settings-label">Global Panic Key</span>
@@ -557,42 +537,10 @@ Save to Cloud
 </div>
 <input class="settings-input" id="settingsPanicURL" placeholder="https://google.com" style="width: 180px;" type="text"/>
 </div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Tab Title</span>
-<span class="settings-desc">Change the name displayed on the browser tab.</span>
-</div>
-<input class="settings-input" id="settingsTabTitle" placeholder="Math Master" style="width: 180px;" type="text"/>
-</div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">Tab Icon (Upload)</span>
-<span class="settings-desc">Upload a custom image for the tab favicon.</span>
-</div>
-<input accept="image/*" class="settings-input" id="settingsTabIcon" style="width: 200px; padding: 5px;" type="file"/>
-</div>
-<div class="settings-row">
-<div class="settings-info">
-<span class="settings-label">About:Blank Cloaking</span>
-<span class="settings-desc">Launch the site in a hidden tab to bypass history tracking.</span>
-</div>
-<button class="settings-btn primary" onclick="openAboutBlank()">Launch</button>
+
 </div>
 </div>
-</div>
-<div class="settings-group" style="margin-top: 24px;">
-<h3 class="settings-group-title">Tab Disguise Presets</h3>
-<p style="color:rgba(255,255,255,0.45); font-size:13px; margin: -10px 0 14px 5px;">Click a preset to instantly change the tab title and icon.</p>
-<div class="preset-search-wrap">
-<svg fill="none" height="16" stroke="rgba(255,255,255,0.35)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
-<input autocomplete="off" class="preset-search" id="presetSearchInput" oninput="filterPresets(this.value)" placeholder="Search presets..." type="text"/>
-</div>
-<div class="preset-grid" id="disguisePresetGrid" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
-<div class="preset-card" id="preset-hac-orig" onclick="applyDisguisePreset('Home Access Center','Versions/Assets/Pictures/Non-edited/hac.ico')">
-<img alt="" class="preset-icon" src="Versions/Assets/Pictures/Non-edited/hac.ico"/><div class="preset-text"><div class="preset-label">Home Access Center</div><div class="preset-sublabel">Home View Summary</div></div><div class="preset-check"><svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10"><polyline points="2 6 5 9 10 3"></polyline></svg></div>
-</div>
-</div>
-</div>
+
 </div>
 <div class="settings-tab-content" id="tab-app-settings">
 <div class="settings-group">
@@ -813,10 +761,10 @@ function saveProxySettings() {
 <polyline points="8 6 2 12 8 18"></polyline>
 </svg>
 </button>
-<button class="dock-btn" id="proxyBtn" data-app="app-proxy" data-tooltip="Proxy" onclick="openPremiumApp('app-proxy', this)">
+<button class="dock-btn" id="proxyBtn" data-app="app-proxy" data-tooltip="Proxy" onclick="openAppUnavailable('Proxy')">
 <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" x2="22" y1="12" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
 </button>
-<button class="dock-btn" id="chatbotBtn" data-app="app-chatbot" data-tooltip="Chatbot" onclick="openPremiumApp('app-chatbot', this)">
+<button class="dock-btn" id="chatbotBtn" data-app="app-chatbot" data-tooltip="Chatbot" onclick="openAppUnavailable('Chatbot')">
 <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
 </button>
 <div class="dock-sep"></div>

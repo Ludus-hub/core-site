@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Status Tracker</title>
+    <style>
+        /* === BASE LIQUID GLASS THEME === */
+        :root {
+            --glass-bg: rgba(30, 30, 30, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-backdrop: blur(40px) saturate(180%);
+            --accent-color: rgb(0, 174, 255);
+            --text-primary: #ffffff;
+            --text-secondary: #d1d1d6;
+            --radius-lg: 28px;
+            --radius-md: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            margin: 0;
+            color: var(--text-primary);
+            background-color: #000;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(14, 165, 164, 0.25), transparent 40%), 
+                radial-gradient(circle at 85% 30%, rgba(120, 50, 200, 0.15), transparent 40%),
+                linear-gradient(180deg, #050505 0%, #111 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding-bottom: 80px; 
+            overflow-x: hidden;
+        }
+
+        /* === TOP BAR === */
+        .top-bar {
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+        }
+
+        .brand-title {
+            font-size: 24px;
+            font-weight: 800;
+            font-family: 'Trebuchet MS', sans-serif;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        /* === LAYOUT & WIDGETS === */
+        .home-layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .home-widget {
+            background: rgba(30, 30, 30, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .home-section-title {
+            color: white;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .info-text {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .home-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        /* === READ-ONLY DOMAIN LISTS === */
+        .domain-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        /* Custom Scrollbar for lists */
+        .domain-list::-webkit-scrollbar { width: 6px; }
+        .domain-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        .domain-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .domain-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+
+        .domain-item {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-family: monospace;
+            color: white;
+            font-size: 14px;
+            transition: 0.2s;
+            user-select: all; /* Makes it easy for users to double click and copy */
+            word-break: break-all;
+        }
+
+        .domain-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Specific border highlights based on status */
+        .status-unblocked .domain-item:hover { border-color: #92FE9D; }
+        .status-blocked .domain-item:hover { border-color: #ff4757; }
+        .status-pending .domain-item:hover { border-color: #00C9FF; }
+
+        /* === MAINTENANCE SECTION === */
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .settings-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .settings-label {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .settings-desc {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .date-badge {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--accent-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .home-layout { padding: 0 20px; }
+            .top-bar { padding: 20px; }
+            .settings-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <h1 class="brand-title">Domain Tracker</h1>
+    </div>
+
+    <div class="home-layout">
+        
+        <div class="home-widget">
+            <h2 class="home-section-title">Overview</h2>
+            <p class="info-text">
+                Current operational status of our network domains. Users can click any domain below to highlight and easily copy it.
+            </p>
+        </div>
+
+        <div class="home-grid">
+            
+            <div class="home-widget status-unblocked">
+                <h2 class="home-section-title" style="color: #92FE9D;">Unblocked Domains</h2>
+                <ul class="domain-list">
+                    <li class="domain-item">https://sites.google.com/mathmaster-tx</li>
+
+                </ul>
+            </div>
+
+            <div class="home-widget status-blocked">
+                <h2 class="home-section-title" style="color: #ff4757;">Blocked Domains</h2>
+                <ul class="domain-list">
+                    <li class="domain-item">https://mathmaster-tx-27.wasmer.app</li>
+                    <li class="domain-item">https://mathmaster-tx-28.wasmer.app</li>
+                    <li class="domain-item">https://mathmaster-tx-27.wasmer.app</li>
+                </ul>
+            </div>
+
+            <div class="home-widget status-pending">
+                <h2 class="home-section-title" style="color: #00C9FF;">Offline</h2>
+                <ul class="domain-list">
+                    <li class="domain-item">All wasmer.io domains</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div class="home-widget">
+            <h2 class="home-section-title">Maintenance Schedule</h2>
+            
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Google Sites Domains</div>
+                    <div class="settings-desc">Next scheduled update/rotation for Google Sites links.</div>
+                </div>
+                <div class="date-badge">August 15, 2026</div>
+            </div>
+
+            <div class="settings-row">
+                <div>
+                    <div class="settings-label">Other Domains</div>
+                    <div class="settings-desc">Routine check to ensure custom domains haven't been flagged.</div>
+                </div>
+                <div class="date-badge">August 15, 2026</div>
+            </div>
+
+
+
+        </div>
+
+    </div>
+
+</body>
+</html>

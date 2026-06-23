@@ -109,10 +109,13 @@ button:not(.dock-btn):not(.viewer-btn-spot):hover, .btn:not(.dock-btn):hover {
 
 /* === Viewer === */
 .viewer {
-    display: none; flex-direction: column; margin-top: 20px;
-    background: #000; border-radius: var(--radius-lg); overflow: hidden;
-    height: 80vh; border: 1px solid var(--glass-border); position: relative; z-index: 500;
-    box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+    display: none; flex-direction: column;
+    background: #000; overflow: hidden;
+    position: fixed; top: 0; left: 0; margin: 0;
+    width: 100vw; height: 100vh;
+    border: none; border-radius: 0; z-index: 800;
+    box-shadow: none;
+    zoom: 1.25; /* counteracts root zoom: 0.8 (0.8 x 1.25 = 1.0) so it renders true full-screen */
 }
 .viewer iframe { border: 0; flex: 1; width: 100%; height: 100%; }
 
@@ -1079,10 +1082,13 @@ button:not(.dock-btn):not(.viewer-btn-spot):hover, .btn:not(.dock-btn):hover {
 
 /* === Viewer === */
 .viewer {
-    display: none; flex-direction: column; margin-top: 20px;
-    background: #000; border-radius: var(--radius-lg); overflow: hidden;
-    height: 80vh; border: 1px solid var(--glass-border); position: relative; z-index: 500;
-    box-shadow: 0 50px 100px rgba(0,0,0,0.8);
+    display: none; flex-direction: column;
+    background: #000; overflow: hidden;
+    position: fixed; top: 0; left: 0; margin: 0;
+    width: 100vw; height: 100vh;
+    border: none; border-radius: 0; z-index: 800;
+    box-shadow: none;
+    zoom: 1.25; /* counteracts root zoom: 0.8 (0.8 x 1.25 = 1.0) so it renders true full-screen */
 }
 .viewer iframe { border: 0; flex: 1; width: 100%; height: 100%; }
 
@@ -1157,9 +1163,9 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 
 .tour-highlight { position: absolute; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75); border: 2px solid var(--accent-color); border-radius: var(--radius-md); transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; z-index: 100000; }
-.secret-fullscreen-app { display: none; position: fixed; top: 0; left: 0; width: 125vw; height: 125vh; z-index: 9999; background: #000; }
+.secret-fullscreen-app { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; background: #000; zoom: 1.25; }
 .secret-iframe { width: 100% !important; height: 100% !important; border: none !important; margin: 0 !important; padding: 0 !important; }
-.fullscreen-app { position: fixed; top: 0; left: 0; width: 125vw; height: 125vh; z-index: 800; background: #000; display: none; }
+.fullscreen-app { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 800; background: #000; display: none; zoom: 1.25; }
 .fullscreen-app.active-section { display: block; }
 .fullscreen-app .app-frame { width: 100%; height: 100%; border: none; border-radius: 0; display: block; }
 .bottom-dock { z-index: 1000 !important; }
