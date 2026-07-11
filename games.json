@@ -12,7 +12,7 @@
   {
     "id": 201,
     "name": "Slope",
-    "url":      "{GAMES_2}/Slope-Game-main/index.html",
+    "url":      "{GAMES_2}/Slope-Game-main/Slope-Game-main/index.html",
     "cover":    "{PICTURES}/Non-edited/Slope-n.webp",
     "tags":     ["arcade", "3d"],
     "featured": false,
@@ -25,7 +25,8 @@
     "cover":    "{PICTURES}/Non-edited/AmongUs-n.webp",
     "tags":     ["multiplayer", "social"],
     "featured": false,
-    "loadMode": "iframe"
+    "loadMode": "iframe",
+    "directNav": true
   },
   {
     "id": 203,
@@ -64,29 +65,11 @@
     "loadMode": "iframe"
   },
   {
-    "id": 207,
-    "name": "Free Rider Jumps",
-    "url":      "{GAMES_2}/free_rider_jumps/index.html",
-    "cover":    "{PICTURES}/Non-edited/FreeRider-n.webp",
-    "tags":     ["racing", "physics"],
-    "featured": false,
-    "loadMode": "iframe"
-  },
-  {
     "id": 208,
     "name": "Mario",
     "url":      "{GAMES_2}/mario/index.html",
     "cover":    "{PICTURES}/Non-edited/Mario-n.webp",
     "tags":     ["platformer", "classic"],
-    "featured": false,
-    "loadMode": "iframe"
-  },
-  {
-    "id": 209,
-    "name": "Monkey Mart",
-    "url":      "{GAMES_2}/monkeymart/index.html",
-    "cover":    "{PICTURES}/Non-edited/MonkeyMart-n.webp",
-    "tags":     ["casual", "simulation"],
     "featured": false,
     "loadMode": "iframe"
   },
@@ -102,22 +85,14 @@
 
 
   {
-    "id": 300,
-    "name": "Basketball Stars",
-    "url":      "{GAMES_3}/basketball-stars/index.html",
-    "cover":    "{PICTURES}/Non-edited/BasketballStars-n.webp",
-    "tags":     ["sports", "multiplayer"],
-    "featured": false,
-    "loadMode": "iframe"
-  },
-  {
     "id": 301,
     "name": "Basket Random",
     "url":      "{GAMES_3}/basketrandom/index.html",
     "cover":    "{PICTURES}/Non-edited/BasketRandom-n.webp",
     "tags":     ["sports", "casual"],
     "featured": false,
-    "loadMode": "iframe"
+    "loadMode": "iframe",
+    "directNav": true
   },
   {
     "id": 302,
@@ -125,15 +100,6 @@
     "url":      "{GAMES_3}/boxingrandom/index.html",
     "cover":    "{PICTURES}/Non-edited/BoxingRandom-n.webp",
     "tags":     ["sports", "casual"],
-    "featured": false,
-    "loadMode": "iframe"
-  },
-  {
-    "id": 303,
-    "name": "Drive Mad",
-    "url":      "{GAMES_3}/drive-mad/index.html",
-    "cover":    "{PICTURES}/Non-edited/DriveMad-n.webp",
-    "tags":     ["racing", "physics"],
     "featured": false,
     "loadMode": "iframe"
   },
