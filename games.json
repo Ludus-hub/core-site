@@ -1,0 +1,190 @@
+[
+
+  {
+    "id": 200,
+    "name": "2048",
+    "url":      "{GAMES_2}/2048/index.html",
+    "cover":    "{PICTURES}/Non-edited/2048-n.webp",
+    "tags":     ["puzzle", "numbers"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 201,
+    "name": "Slope",
+    "url":      "{GAMES_2}/Slope-Game-main/index.html",
+    "cover":    "{PICTURES}/Non-edited/Slope-n.webp",
+    "tags":     ["arcade", "3d"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 202,
+    "name": "Among Us",
+    "url":      "{GAMES_2}/among-us/index.html",
+    "cover":    "{PICTURES}/Non-edited/AmongUs-n.webp",
+    "tags":     ["multiplayer", "social"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 203,
+    "name": "Breakout",
+    "url":      "{GAMES_2}/breakout/index.html",
+    "cover":    "{PICTURES}/Non-edited/Breakout-n.webp",
+    "tags":     ["arcade", "classic"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 204,
+    "name": "Chess",
+    "url":      "{GAMES_2}/chess/index.html",
+    "cover":    "{PICTURES}/Non-edited/Chess-n.webp",
+    "tags":     ["strategy", "classic"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 205,
+    "name": "Chrome Dino",
+    "url":      "{GAMES_2}/chromedino/index.html",
+    "cover":    "{PICTURES}/Non-edited/Dino-n.webp",
+    "tags":     ["arcade", "runner"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 206,
+    "name": "Crossy Road",
+    "url":      "{GAMES_2}/crossyroad/index.html",
+    "cover":    "{PICTURES}/Non-edited/CrossyRoad-n.webp",
+    "tags":     ["arcade", "casual"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 207,
+    "name": "Free Rider Jumps",
+    "url":      "{GAMES_2}/free_rider_jumps/index.html",
+    "cover":    "{PICTURES}/Non-edited/FreeRider-n.webp",
+    "tags":     ["racing", "physics"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 208,
+    "name": "Mario",
+    "url":      "{GAMES_2}/mario/index.html",
+    "cover":    "{PICTURES}/Non-edited/Mario-n.webp",
+    "tags":     ["platformer", "classic"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 209,
+    "name": "Monkey Mart",
+    "url":      "{GAMES_2}/monkeymart/index.html",
+    "cover":    "{PICTURES}/Non-edited/MonkeyMart-n.webp",
+    "tags":     ["casual", "simulation"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 210,
+    "name": "Pacman",
+    "url":      "{GAMES_2}/pacman/index.html",
+    "cover":    "{PICTURES}/Non-edited/Pacman-n.webp",
+    "tags":     ["arcade", "classic"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+
+
+  {
+    "id": 300,
+    "name": "Basketball Stars",
+    "url":      "{GAMES_3}/basketball-stars/index.html",
+    "cover":    "{PICTURES}/Non-edited/BasketballStars-n.webp",
+    "tags":     ["sports", "multiplayer"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 301,
+    "name": "Basket Random",
+    "url":      "{GAMES_3}/basketrandom/index.html",
+    "cover":    "{PICTURES}/Non-edited/BasketRandom-n.webp",
+    "tags":     ["sports", "casual"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 302,
+    "name": "Boxing Random",
+    "url":      "{GAMES_3}/boxingrandom/index.html",
+    "cover":    "{PICTURES}/Non-edited/BoxingRandom-n.webp",
+    "tags":     ["sports", "casual"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 303,
+    "name": "Drive Mad",
+    "url":      "{GAMES_3}/drive-mad/index.html",
+    "cover":    "{PICTURES}/Non-edited/DriveMad-n.webp",
+    "tags":     ["racing", "physics"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+  {
+    "id": 304,
+    "name": "Moto X3M 2",
+    "url":      "{GAMES_3}/motox3m2/index.html",
+    "cover":    "{PICTURES}/Non-edited/MotoX3M-n.webp",
+    "tags":     ["racing", "physics"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+
+
+  {
+    "id": 100,
+    "name": "YoHoHo.io",
+    "url":      "{GAMES_1}/YoHoHo.io-main/index.html",
+    "cover":    "{PICTURES}/Non-edited/YoHoHo-n.webp",
+    "tags":     ["io", "multiplayer", "action"],
+    "featured": false,
+    "loadMode": "iframe"
+  },
+
+
+  {
+    "id": 1,
+    "name": "Game 1",
+    "url":      "{GAMES_SINGLE}/1.html",
+    "cover":    "{PICTURES}/Non-edited/1.webp",
+    "tags":     [],
+    "featured": false,
+    "loadMode": "inject"
+  },
+  {
+    "id": 10,
+    "name": "Game 10",
+    "url":      "{GAMES_SINGLE}/10.html",
+    "cover":    "{PICTURES}/Non-edited/10.webp",
+    "tags":     [],
+    "featured": false,
+    "loadMode": "inject"
+  },
+  {
+    "id": 101,
+    "name": "Game 101",
+    "url":      "{GAMES_SINGLE}/101.html",
+    "cover":    "{PICTURES}/Non-edited/101.webp",
+    "tags":     [],
+    "featured": false,
+    "loadMode": "inject"
+  }
+
+]
