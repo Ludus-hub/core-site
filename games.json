@@ -10,25 +10,6 @@
     "loadMode": "iframe"
   },
   {
-    "id": 201,
-    "name": "Slope",
-    "url":      "{GAMES_2}/Slope-Game-main/Slope-Game-main/index.html",
-    "cover":    "{PICTURES}/Non-edited/Slope-n.webp",
-    "tags":     ["arcade", "3d"],
-    "featured": false,
-    "loadMode": "iframe"
-  },
-  {
-    "id": 202,
-    "name": "Among Us",
-    "url":      "{GAMES_2}/among-us/index.html",
-    "cover":    "{PICTURES}/Non-edited/AmongUs-n.webp",
-    "tags":     ["multiplayer", "social"],
-    "featured": false,
-    "loadMode": "iframe",
-    "directNav": true
-  },
-  {
     "id": 203,
     "name": "Breakout",
     "url":      "{GAMES_2}/breakout/index.html",
@@ -84,16 +65,6 @@
   },
 
 
-  {
-    "id": 301,
-    "name": "Basket Random",
-    "url":      "{GAMES_3}/basketrandom/index.html",
-    "cover":    "{PICTURES}/Non-edited/BasketRandom-n.webp",
-    "tags":     ["sports", "casual"],
-    "featured": false,
-    "loadMode": "iframe",
-    "directNav": true
-  },
   {
     "id": 302,
     "name": "Boxing Random",
