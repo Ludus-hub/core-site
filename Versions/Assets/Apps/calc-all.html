@@ -338,20 +338,23 @@
                 
                 <div class="grade-section">
                     <h3>Term/Semester Calculator</h3>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Fill in 2 Terms + Exam for a Trimester average, or all 3 Terms + Exam for a Semester average.</p>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Enter Term 1 &amp; 2 (+ Exam) for a Trimester average, and add Term 3 for a Semester average too — both update live from the same fields.</p>
                     <div class="grid-row">
                         <div class="grid-col"><label>Term 1 (%)</label><input type="number" class="form-input" id="term1" placeholder="e.g. 88" oninput="calcTerm()"></div>
                         <div class="grid-col"><label>Term 2 (%)</label><input type="number" class="form-input" id="term2" placeholder="e.g. 92" oninput="calcTerm()"></div>
                         <div class="grid-col"><label>Term 3 (%)</label><input type="number" class="form-input" id="term3" placeholder="If Semester" oninput="calcTerm()"></div>
                         <div class="grid-col"><label>Final Exam (%)</label><input type="number" class="form-input" id="termExam" placeholder="e.g. 85" oninput="calcTerm()"></div>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 8px; margin-left: auto;">
-                            <div class="result-box" style="min-width: 150px; padding: 6px 16px;">
-                                <div class="result-label">Final Avg</div>
-                                <div class="result-value" id="res-term">-</div>
-                            </div>
-                            <button class="btn-action" style="padding: 4px 0; justify-content: center; font-size: 12px; color: var(--accent);" onclick="saveToHistory('Term')">Save</button>
+                    </div>
+                    <div class="grid-row" style="margin-bottom: 0; align-items: center;">
+                        <div class="result-box" style="flex: 1; padding: 6px 16px;">
+                            <div class="result-label">Trimester Avg</div>
+                            <div class="result-value" id="res-term-trimester">-</div>
                         </div>
+                        <div class="result-box" style="flex: 1; padding: 6px 16px;">
+                            <div class="result-label">Semester Avg</div>
+                            <div class="result-value" id="res-term-semester">-</div>
+                        </div>
+                        <button class="btn-action" style="align-self: stretch;" onclick="saveToHistory('Term')">Save</button>
                     </div>
                 </div>
 
@@ -528,16 +531,18 @@
                 item.details = classStrings.join(" • ");
             } 
             else if (type === 'Term') {
-                let res = document.getElementById('res-term').innerText;
-                if (res === "-") return alert("Calculate a term average first!");
+                let resTri = document.getElementById('res-term-trimester').innerText;
+                let resSem = document.getElementById('res-term-semester').innerText;
+                if (resTri === "-" && resSem === "-") return alert("Calculate a term average first!");
                 
                 item.state.t1 = document.getElementById('term1').value;
                 item.state.t2 = document.getElementById('term2').value;
                 item.state.t3 = document.getElementById('term3').value;
                 item.state.exam = document.getElementById('termExam').value;
                 
-                item.title = 'Term Average Calculation'; item.result = `Final Avg: ${res}`;
-                item.details = `T1: ${item.state.t1 || '-'}% • T2: ${item.state.t2 || '-'}% • Exam: ${item.state.exam || '-'}%`;
+                item.title = 'Term Average Calculation';
+                item.result = `Trimester: ${resTri} • Semester: ${resSem}`;
+                item.details = `T1: ${item.state.t1 || '-'}% • T2: ${item.state.t2 || '-'}% • T3: ${item.state.t3 || '-'}% • Exam: ${item.state.exam || '-'}%`;
             }
             else if (type === 'Detailed') {
                 let cur = document.getElementById('res-current-grade').innerText;
@@ -739,14 +744,19 @@
         function calcTerm() {
             let t1 = parseFloat(document.getElementById('term1').value); let t2 = parseFloat(document.getElementById('term2').value);
             let t3 = parseFloat(document.getElementById('term3').value); let exam = parseFloat(document.getElementById('termExam').value);
-            let res = document.getElementById('res-term');
+            let resTri = document.getElementById('res-term-trimester');
+            let resSem = document.getElementById('res-term-semester');
             let hasT1 = !isNaN(t1), hasT2 = !isNaN(t2), hasT3 = !isNaN(t3), hasExam = !isNaN(exam);
 
-            if(hasT1 && hasT2 && hasT3 && hasExam) { res.innerText = ((t1*2 + t2*2 + t3*2 + exam) / 7).toFixed(1) + "%"; } 
-            else if (hasT1 && hasT2 && hasT3) { res.innerText = ((t1 + t2 + t3) / 3).toFixed(1) + "%"; }
-            else if(hasT1 && hasT2 && hasExam) { res.innerText = ((t1*2 + t2*2 + exam) / 5).toFixed(1) + "%"; }
-            else if(hasT1 && hasT2) { res.innerText = ((t1 + t2) / 2).toFixed(1) + "%"; } 
-            else { res.innerText = "-"; }
+            // Trimester average: Term 1 + Term 2 (+ Exam weighted double each term, half the exam)
+            if(hasT1 && hasT2 && hasExam) { resTri.innerText = ((t1*2 + t2*2 + exam) / 5).toFixed(1) + "%"; }
+            else if(hasT1 && hasT2) { resTri.innerText = ((t1 + t2) / 2).toFixed(1) + "%"; }
+            else { resTri.innerText = "-"; }
+
+            // Semester average: Term 1 + Term 2 + Term 3 (+ Exam), same weighting pattern
+            if(hasT1 && hasT2 && hasT3 && hasExam) { resSem.innerText = ((t1*2 + t2*2 + t3*2 + exam) / 7).toFixed(1) + "%"; }
+            else if (hasT1 && hasT2 && hasT3) { resSem.innerText = ((t1 + t2 + t3) / 3).toFixed(1) + "%"; }
+            else { resSem.innerText = "-"; }
         }
 
         function calculateFinal(pctA, pctB, weightA, weightB) {
