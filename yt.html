@@ -4,7 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ludus YouTube</title>
-  <link rel="stylesheet" href="yt/style.css">
+  <link rel="stylesheet" href="yt/style-1.css">
+  <style>
+    /* ── Player loader — shown inside #ludus-player-wrap while the 
+       iframe is connecting; removed on iframe load. ── */
+    .yt-player-loader {
+      position: absolute; inset: 0; z-index: 5;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 13px;
+      background: rgba(0, 0, 0, 0.88);
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .yt-player-loader.yt-fade-out { opacity: 0; }
+    .yt-player-loader-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2.5px solid rgba(0, 201, 255, 0.18);
+      border-top-color: #00C9FF;
+      animation: yt-spin 0.75s linear infinite;
+    }
+    @keyframes yt-spin { to { transform: rotate(360deg); } }
+    .yt-player-loader-label {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+      color: rgba(255, 255, 255, 0.4);
+    }
+  </style>
 </head>
 <body>
 
@@ -125,8 +150,8 @@
         <div id="suggestions" hidden></div>
       </div>
 
-      <!-- Active Invidious instance indicator -->
-      <div class="instance-badge" title="Active Invidious instance">
+      <!-- YouTube Data API status indicator -->
+      <div class="instance-badge" title="YouTube Data API status">
         <span class="status-dot"></span>
         <span id="instance-host">connecting…</span>
       </div>
@@ -159,12 +184,12 @@
     <div class="modal-body">
 
       <div class="field">
-        <span class="field-label">Invidious Instance</span>
-        <select id="instance-select"></select>
-        <span class="field-hint">
-          Used for search, trending and video metadata. Switch if title cards
-          or descriptions won't load. Playback uses separate streaming
-          servers (pick those from the player's server menu).
+        <span class="field-label">Data Source</span>
+        <span class="field-hint" style="margin-top:0">
+          Search, trending, and video info come straight from the official
+          YouTube Data API. Playback still uses the separate streaming
+          servers below (pick those from the player's server menu) — this
+          only affects title cards, search results, and descriptions.
         </span>
       </div>
 
@@ -192,15 +217,8 @@
 </div><!-- /settings-modal -->
 
 
-<script src="yt/api.js"></script>
+<script src="yt/api-1.js"></script>
 
-<!-- Scramjet — same client setup Ludus Stream (movie.html) uses. This is a
-     site-root-relative path (note the leading "/") on purpose — it's shared
-     infrastructure that lives at the true root of the Ludus site regardless
-     of which subfolder this app itself is mounted under. Everything that
-     belongs to *this* app lives under yt/ instead. -->
-<script src="/p/scram/scramjet.all.js"></script>
-
-<script src="yt/app.js"></script>
+<script src="yt/app-1.js"></script>
 </body>
 </html>
