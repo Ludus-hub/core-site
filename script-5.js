@@ -1041,8 +1041,9 @@ const games = [
 {name:"OMORI", path:"./Versions/Assets/Game Data/427-z.html", logo:"./Versions/Assets/Pictures/Non-edited/427.webp", secret: true},
 {name:"Milk Inside a Bag of Milk Inside a Bag of Milk", path:"./Versions/Assets/Game Data/650-f.html", logo:"./Versions/Assets/Pictures/Non-edited/650.webp", secret: true},
   {name:"Yume Nikki", path:"./Versions/Assets/Game Data/433.html", logo:"./Versions/Assets/Pictures/Non-edited/433.webp", secret: true},
-  {name:"Tiktok",path:"tiktok.html", logo:"Versions/Assets/Pictures/Non-edited/tok-n.webp", isApp: true, appColor: "#fe00fe"},
-  {name:"Youtube",path:"youtube.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
+  {name:"Tiktok",path:"tiky.html", logo:"Versions/Assets/Pictures/Non-edited/tok-n.webp", isApp: true, appColor: "#ff0050", unavailable: true, unavailableMsg: "TikTok is not available in this build. Visit the main Ludus domain for full access."},
+  {name:"Youtube",path:"yt.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
+  {name:"Instagram",path:"insta.html",logo:"Versions/Assets/Pictures/Non-edited/insta.avif",isApp: true, appColor: "#E1306C", external:true, unavailable: true, unavailableMsg: "Instagram is not available in this build. Visit the main Ludus domain for full access."},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
   {name:"1v1.lol", path:"Versions/Assets/Game Data/1v1.LoL.html", logo:"Versions/Assets/Pictures/Non-edited/1v1.lol-n.webp"},
@@ -2306,32 +2307,37 @@ async function renderGamesGrid() {
 
     // Render helper
     function appendGameCard(g, isLocked = false) {
+        // If unavailable (TikTok, Instagram), show info card instead
+        if (g.unavailable) {
+            const c = document.createElement("div");
+            c.className = "card";
+            c.style.border = `2px solid ${g.appColor || 'rgba(255,255,255,0.2)'}`;
+            c.style.position = "relative";
+            c.innerHTML = `
+                <img src="${g.logo}" loading="lazy" decoding="async" style="opacity: 0.35;">
+                <h3 style="color: rgba(255,255,255,0.5);">${g.name}</h3>
+                <button class="btn" onclick="alert('${(g.unavailableMsg || 'Not available in this build. Visit the main Ludus domain.').replace(/'/g, "\\'")}');"
+                    style="background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.15); cursor: default; font-size: 11px; padding: 6px 10px;">
+                    Unavailable in Local Build
+                </button>
+            `;
+            gridEl.appendChild(c);
+            return;
+        }
+
         const c = document.createElement("div");
         c.className = "card";
         
         if (g.secret) c.style.border = "1px solid var(--accent-color)"; 
         if (g.isApp) c.style.border = `2px solid ${g.appColor || '#fff'}`;
 
-if (isLocked) {
-            // Render Locked State
-            c.style.position = "relative";
-            c.innerHTML = `
-                <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 5px; border-radius: 6px; backdrop-filter: blur(4px);">
-                    <svg fill="none" height="16" stroke="#FFD700" stroke-width="2" viewBox="0 0 24 24" width="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                </div>
-                <img src="${g.logo}" loading="lazy" decoding="async" style="opacity: 0.4;">
-                <h3 style="color: rgba(255,255,255,0.5);">${g.name}</h3>
-                <button class="btn" onclick="handlePremiumUpgradeClick(event)" style="background: rgba(255,215,0,0.2); color: #FFD700; border: 1px solid rgba(255,215,0,0.4);">Unlock</button>
-            `;
-        } else {
-            // Normal Render
-            c.innerHTML = `<img src="${g.logo}" loading="lazy" decoding="async"><h3>${g.name}</h3>`;
-            c.innerHTML += g.external 
-                ? `<button class="btn" onclick="window.open('${g.path}','_blank')">Open</button>`
-                : g.newtab
-                    ? `<button class="btn" onclick="window.open('${g.path}','_blank')" title="Opens in a new tab">Open in Tab</button>`
-                    : `<button class="btn" onclick="loadGameSafe('${g.path}')">Play</button>`;
-        }
+        // Normal Render
+        c.innerHTML = `<img src="${g.logo}" loading="lazy" decoding="async"><h3>${g.name}</h3>`;
+        c.innerHTML += g.external 
+            ? `<button class="btn" onclick="window.open('${g.path}','_blank')">Open</button>`
+            : g.newtab
+                ? `<button class="btn" onclick="window.open('${g.path}','_blank')" title="Opens in a new tab">Open in Tab</button>`
+                : `<button class="btn" onclick="loadGameSafe('${g.path}')">Play</button>`;
         gridEl.appendChild(c);
     }
     
@@ -2364,12 +2370,14 @@ if (isLocked) {
         }
     }
 
-    // Pass the lock state into the secret games rendering
-    let secretGames = games.filter(g => g.secret);
-    secretGames.forEach(g => {
-        if (searchText && !g.name.toLowerCase().includes(searchText)) return;
-        appendGameCard(g, !unlocked);
-    });
+    // Only render secret/premium games if the user is unlocked; skip entirely otherwise
+    if (unlocked) {
+        let secretGames = games.filter(g => g.secret);
+        secretGames.forEach(g => {
+            if (searchText && !g.name.toLowerCase().includes(searchText)) return;
+            appendGameCard(g, false);
+        });
+    }
 
     let standardGames = games.filter(g => !g.secret);
 
