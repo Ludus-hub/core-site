@@ -21,6 +21,7 @@
   --text3:       #62626a;
   --red:         #ff5d5d;
   --green:       #92FE9D;
+  --amber:       #ffb84d;
   --sidebar-w:   224px;
   --topbar-h:    62px;
   --r:           10px;
@@ -284,8 +285,9 @@ input  { font-family: inherit; }
   flex-shrink: 0;
   transition: background 0.4s;
 }
-.status-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--accent-glow); }
-.status-dot.err { background: var(--red); }
+.status-dot.ok   { background: var(--green); box-shadow: 0 0 6px var(--accent-glow); }
+.status-dot.warn { background: var(--amber); }
+.status-dot.err  { background: var(--red); }
 
 #instance-host {
   overflow: hidden;
@@ -499,6 +501,44 @@ input  { font-family: inherit; }
   text-align: center;
   color: var(--text3);
   font-size: 14px;
+}
+
+/* Lazy-load prompts — shown instead of auto-fetching an expensive call
+   (Watch page's video-info / recommendations buttons) until the person
+   asks for it. */
+.lazy-load-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 22px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.lazy-load-card p {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.home-recs-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.home-recs-prompt span {
+  font-size: 13px;
+  color: var(--text2);
 }
 
 /* ─────────────────────────────────────────────────────────────────────── */
@@ -867,6 +907,26 @@ input  { font-family: inherit; }
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.refresh-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--accent);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.refresh-link:hover { opacity: 0.75; }
+.refresh-link:disabled { opacity: 0.4; cursor: default; }
 .field select {
   background: var(--card);
   border: 1px solid var(--border);
