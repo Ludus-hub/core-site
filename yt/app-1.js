@@ -94,6 +94,29 @@ window.addEventListener('hashchange', dispatch);
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   RENDER GENERATIONS — "close the other page" when a new one opens
+
+   Every render function that makes an API call starts with
+   `const myGen = beginRender();`, which bumps a shared counter AND tells
+   api.js to abort whatever it was still fetching for the previous page.
+   After each await, `if (isStale(myGen)) return;` skips touching the DOM
+   if some other render call (a real navigation, a tab switch, a settings
+   change) has started in the meantime — otherwise a slow response for a
+   page the user already left could still paint over whatever they
+   navigated to. Doesn't need any changes at call sites elsewhere (retry
+   buttons, tab clicks, hashchange) — they just call the render function
+   like normal, and it stamps its own generation.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let _navGen = 0;
+function beginRender() {
+  LudusAPI.cancelPending();
+  return ++_navGen;
+}
+function isStale(gen) { return gen !== _navGen; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
    DOM HELPERS
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -211,51 +234,65 @@ function renderGrid(id, videos) {
 route('/', renderHome);
 
 async function renderHome() {
+  const myGen = beginRender();
   setHTML(`<div id="home-sections">${skeletonGrid(8)}</div>`);
 
   try {
-    const history = getHistory();
-    const sections = [];
-
-    // ── "Because you watched …" — driven by Invidious's own per-video
-    //    recommendations for the 1-2 most recently watched videos.
-    const seeds = history.slice(0, 2);
-    const seedResults = await Promise.all(
-      seeds.map(h => LudusAPI.video(h.videoId).catch(() => null))
-    );
-    seedResults.forEach(data => {
-      if (data?.recommendedVideos?.length) {
-        sections.push({
-          title: `Because you watched "${data.title}"`,
-          videos: data.recommendedVideos,
-        });
-      }
-    });
-
-    // ── Always include trending — primary content for new users with no
-    //    history yet, and a discovery row otherwise.
+    // Trending only, automatically — primary content either way. The
+    // history-based "Because you watched" row below costs a full
+    // search.list call per seed video (100 quota units apiece) inside
+    // LudusAPI.recommendations(), so it's opt-in via a button instead of
+    // firing automatically on every Home visit.
     const region = localStorage.getItem('ludusyt_region') || 'US';
     const trending = await LudusAPI.trending('default', region);
-    sections.push({
-      title: sections.length ? 'Trending' : 'Recommended for you',
-      videos: trending,
-    });
+    if (isStale(myGen)) return;
 
-    if (!sections.some(s => s.videos.length)) {
+    if (!trending.length) {
       setHTML(errState('Nothing to show right now', renderHome));
       return;
     }
 
-    setHTML(sections
-      .filter(s => s.videos.length)
-      .map(s => `
-        <section class="home-section">
-          <h2 class="row-title">${escHTML(s.title)}</h2>
-          <div class="video-grid">${s.videos.slice(0, 12).map(videoCard).join('')}</div>
-        </section>`)
-      .join(''));
+    const history = getHistory();
+    setHTML(`
+      <div id="home-recs-slot"></div>
+      <section class="home-section">
+        <h2 class="row-title">Trending</h2>
+        <div class="video-grid">${trending.slice(0, 12).map(videoCard).join('')}</div>
+      </section>
+    `);
+
+    if (history.length) {
+      const slot = document.getElementById('home-recs-slot');
+      if (slot) slot.innerHTML = `
+        <div class="home-recs-prompt">
+          <span>Personalized picks based on your watch history cost extra API quota to load.</span>
+          <button class="load-more-btn" id="load-home-recs">Show recommendations</button>
+        </div>`;
+
+      document.getElementById('load-home-recs')?.addEventListener('click', async function () {
+        this.disabled = true;
+        this.textContent = 'Loading…';
+        const seeds = history.slice(0, 2);
+        const results = await Promise.all(
+          seeds.map(h => LudusAPI.recommendations(h.videoId).catch(() => null))
+        );
+        if (isStale(myGen)) return;
+
+        const sections = results
+          .filter(r => r?.videos?.length)
+          .map(r => `
+            <section class="home-section">
+              <h2 class="row-title">Because you watched "${escHTML(r.title)}"</h2>
+              <div class="video-grid">${r.videos.slice(0, 12).map(videoCard).join('')}</div>
+            </section>`);
+
+        const slotEl = document.getElementById('home-recs-slot');
+        if (slotEl) slotEl.innerHTML = sections.join('') || '<div class="empty-state">No related videos found</div>';
+      });
+    }
 
   } catch (e) {
+    if (isStale(myGen)) return;
     setHTML(errState(e.message, renderHome));
   }
 }
@@ -263,18 +300,14 @@ async function renderHome() {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TRENDING VIEW — its own page, separate from Home. "All" and "Gaming" hit
-   Invidious's real /trending endpoint with the exact lowercase "type"
-   values it documents; a cache-busting param is added since some public
-   instances are known to cache/ignore "type" and return identical results
-   for every tab (iv-org/invidious#2982). "Music" and "Movies" trending
-   types were dropped — most instances return sparse, stale, or
-   duplicate-of-default results for them.
+   the YouTube Data API's videos.list?chart=mostPopular directly ("Gaming"
+   adds videoCategoryId=20). There's no official "Music"/"Movies" trending
+   chart in the Data API, so those tabs were dropped rather than faked.
 
-   The other tabs (Sports, Cooking & Baking, Technology, Movies & TV) aren't
-   real Invidious trending categories — Invidious only supports
-   default/music/gaming/movies, and "movies" wasn't reliable either — so
-   these are powered by a relevance-sorted search query instead. Same
-   sandboxed-iframe playback either way; only the data source differs.
+   The other tabs (Sports, Cooking & Baking, Technology, Movies & TV) were
+   never real trending categories — they're powered by a relevance-sorted
+   search query instead, same as before. Same sandboxed-iframe playback
+   either way; only the data source differs.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 route('/trending', renderTrending);
@@ -300,6 +333,7 @@ function trendingTabsHTML(activeId) {
 }
 
 async function renderTrending(params = {}) {
+  const myGen = beginRender();
   const tab = TRENDING_TABS.find(t => t.id === params.type) || TRENDING_TABS[0];
 
   setHTML(`
@@ -317,6 +351,7 @@ async function renderTrending(params = {}) {
       const results = await LudusAPI.search(tab.query, { sort_by: 'relevance' });
       videos = results.filter(r => !r.type || r.type === 'video');
     }
+    if (isStale(myGen)) return;
 
     setHTML(`
       <h1 class="page-title">Trending</h1>
@@ -325,6 +360,7 @@ async function renderTrending(params = {}) {
     `);
     renderGrid('vgrid', videos);
   } catch (e) {
+    if (isStale(myGen)) return;
     setHTML(errState(e.message, () => renderTrending(params)));
   }
 }
@@ -436,24 +472,26 @@ function renderHistory() {
 /* ═══════════════════════════════════════════════════════════════════════════
    POPULAR VIEW
 
-   /api/v1/popular is a real, still-supported Invidious endpoint, but each
-   instance admin can disable it (it's expensive to keep fresh), and a lot
-   of public instances do — in which case every instance LudusAPI cycles
-   through can come back empty/erroring no matter what this app does. The
-   retry button re-tries the full instance rotation; "Browse Trending
-   instead" is the honest fallback when that rotation comes up empty.
+   The Data API only exposes one "most popular" chart, so this now hits the
+   same videos.list?chart=mostPopular endpoint Trending → All does — Popular
+   and Trending → All will show essentially the same list. Kept as its own
+   page since the sidebar links here separately; a real failure at this
+   point is a network/quota issue rather than a per-instance opt-out.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 route('/popular', renderPopular);
 
 async function renderPopular(params = {}) {
+  const myGen = beginRender();
   setHTML(`<h1 class="page-title">Popular</h1>${skeletonGrid()}`);
   try {
     const videos = await LudusAPI.popular();
-    if (!videos?.length) throw new Error('Every configured instance returned an empty popular feed.');
+    if (isStale(myGen)) return;
+    if (!videos?.length) throw new Error('The API returned an empty popular feed.');
     setHTML(`<h1 class="page-title">Popular</h1><div id="vgrid" class="video-grid"></div>`);
     renderGrid('vgrid', videos);
   } catch (e) {
+    if (isStale(myGen)) return;
     setHTML(popularErrState(e.message, () => renderPopular(params)));
   }
 }
@@ -471,9 +509,8 @@ function popularErrState(msg, retryFn) {
       <div class="err-title">Popular feed unavailable</div>
       <div class="err-msg">
         ${escHTML(msg)}<br><br>
-        Public Invidious instances can opt out of the Popular feed entirely
-        (it's expensive to keep current) — if every instance you've got
-        configured has it turned off, retrying won't help.
+        This is usually a network hiccup, or the YouTube Data API key has
+        hit its daily quota — quota resets at midnight Pacific time.
       </div>
       <div style="display:flex;gap:10px;margin-top:6px">
         <button class="retry-btn" onclick="_retryFns['${id}']&&_retryFns['${id}']()">Try again</button>
@@ -491,6 +528,7 @@ function popularErrState(msg, retryFn) {
 route('/search', renderSearch);
 
 async function renderSearch(params = {}) {
+  const myGen = beginRender();
   const q = (params.q || '').trim();
   if (!q) { navigate('/'); return; }
 
@@ -505,6 +543,7 @@ async function renderSearch(params = {}) {
 
   try {
     const results = await LudusAPI.search(q, { page, sort_by: params.sort || 'relevance' });
+    if (isStale(myGen)) return;
     const videos  = results.filter(r => !r.type || r.type === 'video');
 
     setHTML(`
@@ -525,18 +564,21 @@ async function renderSearch(params = {}) {
       try {
         page++;
         const more = await LudusAPI.search(q, { page, sort_by: params.sort || 'relevance' });
+        if (isStale(myGen)) return;
         const moreVids = more.filter(r => !r.type || r.type === 'video');
         document.getElementById('vgrid')
           ?.insertAdjacentHTML('beforeend', moreVids.map(videoCard).join(''));
         this.textContent = 'Load more';
         this.disabled = false;
       } catch {
+        if (isStale(myGen)) return;
         this.textContent = 'Failed — try again';
         this.disabled = false;
       }
     });
 
   } catch (e) {
+    if (isStale(myGen)) return;
     setHTML(errState(e.message, () => renderSearch(params)));
   }
 }
@@ -548,7 +590,14 @@ async function renderSearch(params = {}) {
 
 route('/watch', renderWatch);
 
+// Both the title/description/channel row AND the recommendations rail are
+// gated behind their own button (see the lazy-load-card markup below)
+// instead of fetching automatically — recommendations in particular is the
+// single most expensive call this app makes (a 1-unit videos.list lookup
+// plus a 100-unit search.list call on tier 1), so a video page the person
+// only wants for playback now costs 0 API quota by default.
 async function renderWatch(params = {}) {
+  const myGen = beginRender();
   const id = params.v;
   if (!id) { navigate('/'); return; }
 
@@ -558,101 +607,131 @@ async function renderWatch(params = {}) {
         <div class="player-wrap" id="ludus-player-wrap"></div>
         ${playerControlsHTML()}
         <div id="watch-meta">
-          <div class="skel" style="height:22px;width:78%;margin-bottom:10px"></div>
-          <div class="skel" style="height:13px;width:40%;margin-bottom:14px"></div>
-          <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-            <div class="skel" style="width:40px;height:40px;border-radius:50%;flex-shrink:0"></div>
-            <div style="flex:1"><div class="skel" style="height:13px;width:160px"></div></div>
+          <div class="lazy-load-card">
+            <p>Title, description, and channel info aren't loaded automatically, to save API quota.</p>
+            <button class="retry-btn" id="load-info-btn">Load video info</button>
           </div>
         </div>
       </div>
       <div>
         <div class="rec-header">Up Next</div>
-        <div class="rec-list" id="rec-list">${skeletonRecs(8)}</div>
+        <div class="rec-list" id="rec-list">
+          <div class="lazy-load-card">
+            <p>Recommendations cost extra API quota — load them only if you want them.</p>
+            <button class="retry-btn" id="load-recs-btn">Load recommendations</button>
+          </div>
+        </div>
       </div>
     </div>
   `);
 
   // Mount the streaming player right away — playback doesn't depend on the
-  // metadata API call below, so it keeps working even if every Invidious
-  // metadata instance is down.
+  // metadata API at all, so it keeps working even if every key above and
+  // both backup tiers are down.
   mountPlayer(id);
 
   // Log to history immediately (videoId only); upgraded with title/thumbnail
-  // below once metadata arrives, so a watch is never lost even if the
-  // metadata API fails.
+  // once "Load video info" is used, so a watch is never lost even if the
+  // metadata API fails or the person never clicks either button.
   addToHistory({ videoId: id });
 
-  try {
-    const data = await LudusAPI.video(id);
-    const recs  = data.recommendedVideos || [];
+  // Shared with loadRecommendations() below so clicking it after "Load
+  // video info" doesn't re-spend the 1-unit videos.list lookup
+  // recommendations() would otherwise need just to find this video's title/tags.
+  let _seedTitle = null;
 
-    // ── Channel info ──────────────────────────────────────────────────────
-    const avatarUrl = thumb(data.authorThumbnails, 48) || smallThumb(data.authorThumbnails);
-
-    // ── Stats row ─────────────────────────────────────────────────────────
-    const stats = [
-      data.viewCount    ? fmtViews(data.viewCount)           : '',
-      data.likeCount    ? `👍 ${fmtLikes(data.likeCount)}`   : '',
-      data.publishedText ? data.publishedText                : '',
-    ].filter(Boolean).map(s => `<span>${escHTML(s)}</span>`).join('');
-
+  async function loadVideoInfo() {
     const metaEl = document.getElementById('watch-meta');
     if (metaEl) metaEl.innerHTML = `
-      <h1 class="video-title">${escHTML(data.title) || 'Untitled'}</h1>
-      <div class="video-stats">${stats}</div>
+      <div class="skel" style="height:22px;width:78%;margin-bottom:10px"></div>
+      <div class="skel" style="height:13px;width:40%;margin-bottom:14px"></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <div class="skel" style="width:40px;height:40px;border-radius:50%;flex-shrink:0"></div>
+        <div style="flex:1"><div class="skel" style="height:13px;width:160px"></div></div>
+      </div>`;
 
-      ${data.authorId ? `
-        <div class="channel-row" onclick="navigate('#/channel?id=${escHTML(data.authorId)}')">
-          ${avatarUrl
-            ? `<img class="chan-avatar" src="${escHTML(avatarUrl)}" alt="" onerror="this.style.visibility='hidden'">`
-            : `<div class="chan-avatar"></div>`}
-          <div>
-            <div class="chan-name">${escHTML(data.author) || ''}</div>
-            ${data.subCountText ? `<div class="chan-subs">${escHTML(data.subCountText)}</div>` : ''}
-          </div>
-        </div>` : ''}
+    try {
+      const data = await LudusAPI.video(id);
+      if (isStale(myGen)) return;
+      _seedTitle = data.title;
 
-      ${data.description ? `
-        <div class="desc-wrap">
-          <div class="desc-text clamp" id="desc-text">${escHTML(data.description)}</div>
-          <button class="expand-btn" id="expand-btn">Show more</button>
-        </div>` : ''}
-    `;
+      const avatarUrl = thumb(data.authorThumbnails, 48) || smallThumb(data.authorThumbnails);
+      const stats = [
+        data.viewCount     ? fmtViews(data.viewCount)         : '',
+        data.likeCount     ? `👍 ${fmtLikes(data.likeCount)}` : '',
+        data.publishedText ? data.publishedText               : '',
+      ].filter(Boolean).map(s => `<span>${escHTML(s)}</span>`).join('');
 
-    const recEl = document.getElementById('rec-list');
-    if (recEl) recEl.innerHTML = recs.slice(0, 18).map(recCard).join('') || '<div class="empty-state">No recommendations</div>';
+      const el = document.getElementById('watch-meta');
+      if (el) el.innerHTML = `
+        <h1 class="video-title">${escHTML(data.title) || 'Untitled'}</h1>
+        <div class="video-stats">${stats}</div>
 
-    // Upgrade the history stub now that we have title/thumbnail/author.
-    addToHistory({
-      videoId: id,
-      title: data.title,
-      author: data.author,
-      authorId: data.authorId,
-      thumbnail: thumb(data.videoThumbnails, 360) || smallThumb(data.videoThumbnails),
-      lengthSeconds: data.lengthSeconds,
-    });
+        ${data.authorId ? `
+          <div class="channel-row" onclick="navigate('#/channel?id=${escHTML(data.authorId)}')">
+            ${avatarUrl
+              ? `<img class="chan-avatar" src="${escHTML(avatarUrl)}" alt="" onerror="this.style.visibility='hidden'">`
+              : `<div class="chan-avatar"></div>`}
+            <div>
+              <div class="chan-name">${escHTML(data.author) || ''}</div>
+              ${data.subCountText ? `<div class="chan-subs">${escHTML(data.subCountText)}</div>` : ''}
+            </div>
+          </div>` : ''}
 
-    // ── Description expand ────────────────────────────────────────────────
-    const expandBtn = document.getElementById('expand-btn');
-    if (expandBtn) {
-      expandBtn.addEventListener('click', function () {
-        const txt = document.getElementById('desc-text');
-        if (!txt) return;
-        const open = txt.classList.toggle('clamp');
-        this.textContent = open ? 'Show more' : 'Show less';
+        ${data.description ? `
+          <div class="desc-wrap">
+            <div class="desc-text clamp" id="desc-text">${escHTML(data.description)}</div>
+            <button class="expand-btn" id="expand-btn">Show more</button>
+          </div>` : ''}
+      `;
+
+      // Upgrade the history stub now that we have title/thumbnail/author.
+      addToHistory({
+        videoId: id,
+        title: data.title,
+        author: data.author,
+        authorId: data.authorId,
+        thumbnail: thumb(data.videoThumbnails, 360) || smallThumb(data.videoThumbnails),
+        lengthSeconds: data.lengthSeconds,
       });
-      // Start collapsed; toggle to 'clamp' is already applied
-      expandBtn.textContent = 'Show more';
-    }
 
-  } catch (e) {
-    // Metadata failed — the player above keeps playing regardless.
-    const metaEl = document.getElementById('watch-meta');
-    if (metaEl) metaEl.innerHTML = errState(`Title & info unavailable: ${e.message}`, () => renderWatch(params));
-    const recEl = document.getElementById('rec-list');
-    if (recEl) recEl.innerHTML = '';
+      const expandBtn = document.getElementById('expand-btn');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', function () {
+          const txt = document.getElementById('desc-text');
+          if (!txt) return;
+          const open = txt.classList.toggle('clamp');
+          this.textContent = open ? 'Show more' : 'Show less';
+        });
+        // Start collapsed; toggle to 'clamp' is already applied
+        expandBtn.textContent = 'Show more';
+      }
+    } catch (e) {
+      if (isStale(myGen)) return;
+      // Metadata failed — the player above keeps playing regardless.
+      const el = document.getElementById('watch-meta');
+      if (el) el.innerHTML = errState(`Title & info unavailable: ${e.message}`, loadVideoInfo);
+    }
   }
+
+  async function loadRecommendations() {
+    const recEl = document.getElementById('rec-list');
+    if (recEl) recEl.innerHTML = skeletonRecs(8);
+
+    try {
+      const data = await LudusAPI.recommendations(id, { seedTitle: _seedTitle });
+      if (isStale(myGen)) return;
+      const el = document.getElementById('rec-list');
+      if (el) el.innerHTML = (data.videos || []).slice(0, 18).map(recCard).join('') || '<div class="empty-state">No recommendations</div>';
+    } catch (e) {
+      if (isStale(myGen)) return;
+      const el = document.getElementById('rec-list');
+      if (el) el.innerHTML = errState(e.message, loadRecommendations);
+    }
+  }
+
+  document.getElementById('load-info-btn')?.addEventListener('click', loadVideoInfo, { once: true });
+  document.getElementById('load-recs-btn')?.addEventListener('click', loadRecommendations, { once: true });
 }
 
 
@@ -663,6 +742,7 @@ async function renderWatch(params = {}) {
 route('/channel', renderChannel);
 
 async function renderChannel(params = {}) {
+  const myGen = beginRender();
   const id = params.id;
   if (!id) { navigate('/'); return; }
 
@@ -682,6 +762,7 @@ async function renderChannel(params = {}) {
       LudusAPI.channel(id),
       LudusAPI.channelVideos(id),
     ]);
+    if (isStale(myGen)) return;
 
     const avatarUrl = thumb(ch.authorThumbnails, 72) || smallThumb(ch.authorThumbnails);
     const videos    = vdata.videos || vdata || [];
@@ -703,6 +784,7 @@ async function renderChannel(params = {}) {
     renderGrid('vgrid', videos);
 
   } catch (e) {
+    if (isStale(myGen)) return;
     setHTML(errState(e.message, () => renderChannel(params)));
   }
 }
@@ -815,31 +897,15 @@ route('*', () => navigate('/'));
    ═══════════════════════════════════════════════════════════════════════════ */
 
 (function initSettings() {
-  const modal      = document.getElementById('settings-modal');
-  const overlay    = document.getElementById('modal-overlay');
-  const instSelect = document.getElementById('instance-select');
-  const regionSel  = document.getElementById('region-select');
+  const modal     = document.getElementById('settings-modal');
+  const overlay   = document.getElementById('modal-overlay');
+  const regionSel = document.getElementById('region-select');
 
   function open()  { modal.hidden = false; }
   function close() { modal.hidden = true;  }
 
-  // Populate instance list
-  LudusAPI.instances.forEach(inst => {
-    const opt     = document.createElement('option');
-    opt.value     = inst;
-    opt.textContent = new URL(inst).hostname;
-    if (inst === LudusAPI.getInstance()) opt.selected = true;
-    instSelect.appendChild(opt);
-  });
-
   // Load saved region
   regionSel.value = localStorage.getItem('ludusyt_region') || 'US';
-
-  instSelect.addEventListener('change', () => {
-    LudusAPI.setInstance(instSelect.value);
-    // Re-sync the option in case instance rotated
-    instSelect.value = LudusAPI.getInstance();
-  });
 
   regionSel.addEventListener('change', () => {
     localStorage.setItem('ludusyt_region', regionSel.value);
@@ -853,57 +919,36 @@ route('*', () => navigate('/'));
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   INSTANCE STATUS BADGE  (init on load)
+   API STATUS BADGE  (init on load)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 (function initStatus() {
   const host = document.getElementById('instance-host');
-  if (!host) return;
-  try { host.textContent = new URL(LudusAPI.getInstance()).hostname; } catch {}
+  if (host) host.textContent = LudusAPI.getInstance();
 })();
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   STREAMING — proxying 3rd-party embed servers for actual playback
+   STREAMING — 3rd-party embed servers for actual playback
 
-   Three servers only, no extra/fallback tier. Every server (and every
-   switch between them) is routed through Scramjet — the proxy toggle sits
-   right next to the server dropdown and is on by default.
+   Four servers, no extra/fallback tier. Direct embed, no proxy routing.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// 'melmac' (iv.melmac.space) was dropped — TLS handshake EOF on connect,
+// which is an instance-side issue not fixable from this app's code.
+// 'pixora' and 'chocomoo' are out per request. If a future instance proves
+// unreliable, swap it for a different one here.
 const MAIN_SERVERS = [
-  { id: 'pixora', name: 'Pixora', build: id => `https://inv.thepixora.com/embed/${id}?autoplay=1` },
-  { id: 'melmac', name: 'Melmac', build: id => `https://iv.melmac.space/embed/${id}?autoplay=1` },
-  { id: 'f5',     name: 'F5',     build: id => `https://invidious.f5.si/embed/${id}?autoplay=1` },
+  { id: 'f5',         name: 'F5',         build: id => `https://invidious.f5.si/embed/${id}?autoplay=1` },
+  { id: 'nadeko',     name: 'Nadeko',     build: id => `https://inv.nadeko.net/embed/${id}?autoplay=1` },
+  { id: 'tiekoetter', name: 'Tiekoetter', build: id => `https://invidious.tiekoetter.com/embed/${id}?autoplay=1` },
+  { id: 'zoomer',     name: 'Zoomerville',build: id => `https://inv.zoomerville.com/embed/${id}?autoplay=1` },
 ];
 
 // Same locked-down sandbox Ludus Stream uses: the embedded page can run its
 // own scripts and play video, but it cannot navigate this tab or pop new
 // windows/tabs.
 const LOCKED_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-forms';
-
-// Scramjet — identical client config to Ludus Stream (movie.html): same
-// prefix, same wisp endpoint, same file paths. If `$scramjetLoadController`
-// isn't defined (e.g. the /p/scram/scramjet.all.js script tag in index.html
-// 404'd because this app isn't on the same origin as the rest of the Ludus
-// site), the proxy toggle simply has no effect — servers still load fine as
-// plain sandboxed iframes either way.
-let scramjet = null;
-try {
-  const { ScramjetController } = $scramjetLoadController();
-  scramjet = new ScramjetController({
-    prefix: "/scramjet/",
-    wisp: "wss://wisp.mercurywork.shop/",
-    files: {
-      wasm: "/p/scram/scramjet.wasm.wasm",
-      all:  "/p/scram/scramjet.all.js",
-      sync: "/p/scram/scramjet.sync.js",
-    }
-  });
-  scramjet.init();
-} catch (e) {
-  console.warn('[Ludus YouTube] Scramjet failed to init:', e);
-}
 
 let _currentVideoId = null;
 
@@ -921,40 +966,48 @@ function playerControlsHTML() {
                  onclick="selectMainServer('${s.id}', '${escHTML(s.name)}', this)">${escHTML(s.name)}</div>`).join('')}
         </div>
       </div>
-      <div id="proxyToggle" class="proxy-toggle-wrap active">
-        <div class="proxy-switch">
-          <div class="proxy-switch-track"></div>
-          <div class="proxy-switch-thumb"></div>
-        </div>
-        <span class="proxy-toggle-label">Route through Proxy</span>
-      </div>
     </div>
   `;
 }
 
 function buildPlayerIframe(url) {
-  return `<iframe src="${escHTML(url)}" width="100%" height="100%" style="border:none;"
-            sandbox="${LOCKED_SANDBOX}" allowfullscreen
-            allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`;
+  const iframeId = 'yt-iframe-' + Date.now();
+  return {
+    html: `
+      <div class="yt-player-loader" id="yt-player-loader">
+        <div class="yt-player-loader-spinner"></div>
+        <span class="yt-player-loader-label">Connecting…</span>
+      </div>
+      <iframe id="${iframeId}" src="${escHTML(url)}" width="100%" height="100%" style="border:none;"
+              sandbox="${LOCKED_SANDBOX}" allowfullscreen
+              allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`,
+    iframeId,
+  };
 }
 
-// Builds the embed URL for a server and, if the proxy toggle is on, runs it
-// through Scramjet. Every server goes through this — there's no un-proxied
-// path anymore.
+function wirePlayerLoader(wrap) {
+  const loader = wrap.querySelector('#yt-player-loader');
+  const iframe = wrap.querySelector('iframe');
+  if (!loader || !iframe) return;
+  iframe.addEventListener('load', () => {
+    loader.classList.add('yt-fade-out');
+    setTimeout(() => loader.remove(), 320);
+  }, { once: true });
+}
+
 function resolveStreamUrl(server, videoId) {
-  const raw = server.build(videoId);
-  const useProxy = document.getElementById('proxyToggle')?.classList.contains('active');
-  if (useProxy && scramjet) {
-    try { return location.origin + scramjet.encodeUrl(raw); }
-    catch (err) { console.warn('[Ludus YouTube] Proxy encoding failed:', err); }
-  }
-  return raw;
+  return server.build(videoId);
 }
 
 function mountPlayer(videoId) {
   _currentVideoId = videoId;
   const wrap = document.getElementById('ludus-player-wrap');
-  if (wrap) wrap.innerHTML = buildPlayerIframe(resolveStreamUrl(MAIN_SERVERS[0], videoId));
+  if (wrap) {
+    const url = resolveStreamUrl(MAIN_SERVERS[0], videoId);
+    const { html } = buildPlayerIframe(url);
+    wrap.innerHTML = html;
+    wirePlayerLoader(wrap);
+  }
 
   document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
   const first = document.querySelector(`.server-dropdown-item[data-server="${MAIN_SERVERS[0].id}"]`);
@@ -973,7 +1026,12 @@ function selectMainServer(serverId, name, el) {
   const server = MAIN_SERVERS.find(s => s.id === serverId);
   if (!server || !_currentVideoId) return;
   const wrap = document.getElementById('ludus-player-wrap');
-  if (wrap) wrap.innerHTML = buildPlayerIframe(resolveStreamUrl(server, _currentVideoId));
+  if (wrap) {
+    const url = resolveStreamUrl(server, _currentVideoId);
+    const { html } = buildPlayerIframe(url);
+    wrap.innerHTML = html;
+    wirePlayerLoader(wrap);
+  }
 }
 
 function toggleServerDropdown(e) {
@@ -981,21 +1039,9 @@ function toggleServerDropdown(e) {
   document.getElementById('serverDropdownMenu')?.classList.toggle('open');
 }
 
-// Proxy toggle (re-mounts the current server through/around Scramjet) +
-// outside-click handling — registered once via delegation.
+// Outside-click / Escape handling for the server dropdown.
 (function initServerControlsGlobalHandlers() {
   document.addEventListener('click', e => {
-    const proxyTgl = e.target.closest('#proxyToggle');
-    if (proxyTgl) {
-      proxyTgl.classList.toggle('active');
-      if (_currentVideoId) {
-        const activeItem = document.querySelector('.server-dropdown-item.active');
-        const server = MAIN_SERVERS.find(s => s.id === activeItem?.dataset.server) || MAIN_SERVERS[0];
-        const wrap = document.getElementById('ludus-player-wrap');
-        if (wrap) wrap.innerHTML = buildPlayerIframe(resolveStreamUrl(server, _currentVideoId));
-      }
-      return;
-    }
     if (!e.target.closest('#serverControls')) {
       document.getElementById('serverDropdownMenu')?.classList.remove('open');
     }
