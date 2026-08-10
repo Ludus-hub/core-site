@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludus Stream</title>
+
     <style>
         :root {
             --bg-base: #040404;
@@ -395,11 +396,132 @@
             display: flex; align-items: center; gap: 15px;
             background: var(--bg-card); padding: 12px; border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
         }
-        .actor-img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background: #333; }
-        .actor-info { display: flex; flex-direction: column; }
-        .actor-name { font-size: 1.1rem; font-weight: 500; }
-        .actor-char { font-size: 0.9rem; color: var(--text-muted); }
+        .actor-card:hover {
+            border-color: rgba(0,201,255,0.45);
+            box-shadow: 0 4px 18px rgba(0,201,255,0.12);
+            transform: translateY(-2px);
+        }
+        .actor-img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background: #333; flex-shrink: 0; }
+        .actor-info { display: flex; flex-direction: column; min-width: 0; }
+        .actor-name { font-size: 1.1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .actor-char { font-size: 0.9rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .actor-card-hint { font-size: 10px; color: var(--accent); opacity: 0.6; margin-top: 3px; }
+
+        /* ── Actor Profile Modal ── */
+        #actor-modal {
+            display: none;
+            position: fixed; inset: 0;
+            z-index: 1500;
+            background: rgba(0,0,0,0.82);
+            backdrop-filter: blur(10px);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #actor-modal.open { display: flex; }
+        .actor-modal-card {
+            background: #0d0d0d;
+            border: 1px solid rgba(0,201,255,0.18);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 700px;
+            max-height: 88vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.95), 0 0 40px rgba(0,201,255,0.04);
+            animation: dropIn 0.2s ease;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,201,255,0.25) transparent;
+        }
+        .actor-modal-card::-webkit-scrollbar { width: 4px; }
+        .actor-modal-card::-webkit-scrollbar-thumb { background: rgba(0,201,255,0.25); border-radius: 4px; }
+        .actor-modal-header {
+            display: flex; gap: 22px; padding: 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+        }
+        .actor-modal-photo {
+            width: 100px; height: 100px; border-radius: 50%;
+            object-fit: cover; flex-shrink: 0;
+            border: 2px solid rgba(0,201,255,0.28);
+            background: #1a1a1a;
+        }
+        .actor-modal-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+        .actor-modal-name { font-size: 1.55rem; font-weight: 800; }
+        .actor-modal-born { font-size: 12.5px; color: var(--text-muted); }
+        .actor-modal-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .actor-modal-tag {
+            font-size: 10.5px; font-weight: 600;
+            background: rgba(0,201,255,0.07);
+            border: 1px solid rgba(0,201,255,0.22);
+            border-radius: 4px; padding: 2px 9px;
+            color: var(--accent);
+        }
+        .actor-modal-close {
+            position: absolute; top: 14px; right: 14px;
+            width: 30px; height: 30px; border-radius: 50%;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.11);
+            color: white; font-size: 15px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.18s;
+        }
+        .actor-modal-close:hover { background: rgba(255,255,255,0.16); }
+        .actor-modal-bio {
+            padding: 16px 24px;
+            font-size: 13.5px; line-height: 1.7; color: #bbb;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .actor-bio-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .actor-bio-text.expanded { -webkit-line-clamp: unset; display: block; }
+        .actor-bio-toggle {
+            display: inline-block; margin-top: 8px;
+            font-size: 12px; color: var(--accent);
+            cursor: pointer; font-weight: 600;
+        }
+        .actor-modal-section {
+            font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px;
+            text-transform: uppercase; color: var(--text-muted);
+            padding: 14px 24px 6px;
+        }
+        .actor-credits-row {
+            display: flex; gap: 11px; overflow-x: auto;
+            padding: 4px 24px 20px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,201,255,0.18) transparent;
+        }
+        .actor-credits-row::-webkit-scrollbar { height: 3px; }
+        .actor-credits-row::-webkit-scrollbar-thumb { background: rgba(0,201,255,0.2); border-radius: 3px; }
+        .actor-credit-card {
+            flex-shrink: 0; width: 120px; cursor: pointer;
+            transition: transform 0.18s;
+        }
+        .actor-credit-card:hover { transform: translateY(-3px); }
+        .actor-credit-thumb {
+            width: 120px; height: 68px;
+            border-radius: 6px; object-fit: cover;
+            background: #1a1a1a;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: block;
+        }
+        .actor-credit-title {
+            font-size: 11px; font-weight: 600; color: #ddd;
+            margin-top: 5px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .actor-credit-year { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+        .actor-modal-loading {
+            display: flex; align-items: center; justify-content: center;
+            gap: 12px; padding: 52px 24px;
+            color: var(--text-muted); font-size: 14px;
+        }
 
         /* --- Episodes Section --- */
         .episodes-section { margin-bottom: 60px; }
@@ -562,232 +684,176 @@
             flex-direction: column;
         }
         .player-topbar {
-            position: absolute; top: 0; left: 0; width: 100%; padding: 20px 40px;
+            position: absolute; top: 0; left: 0; width: 100%; padding: 16px 24px;
             display: flex; justify-content: space-between; align-items: center; z-index: 1010;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
-            transition: opacity 0.3s;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.92), transparent);
+            transition: opacity 0.5s;
         }
-        #player-view.idle .player-topbar { opacity: 0; pointer-events: none; }
-        /* Invisible strip that captures mouse re-entry when iframe is active */
+        /* When idle, fade to barely-visible — but keep pointer-events so controls stay clickable */
+        #player-view.idle .player-topbar { opacity: 0.12; }
+        #player-view.idle .player-topbar:hover { opacity: 1; transition: opacity 0.15s; }
+        #player-view.idle .servers-panel.open { opacity: 1; pointer-events: all; }
+        #player-view:has(.servers-panel.open) .player-topbar { opacity: 1 !important; }
+        /* Wide strip that captures mouse re-entry when iframe swallows mouse events */
         #player-topbar-trigger {
-            position: absolute; top: 0; left: 0; width: 100%; height: 90px;
+            position: absolute; top: 0; left: 0; width: 100%; height: 200px;
             z-index: 1005; pointer-events: all;
         }
-        .embed-container { width: 100%; height: 100%; }
+        .embed-container { width: 100%; height: 100%; position: relative; }
 
-        /* --- Server Controls Group (vertical stack) --- */
+        /* ── Player Loader ── */
+        .player-loader {
+            position: absolute; inset: 0; z-index: 10;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+            background: rgba(4, 4, 4, 0.92);
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .player-loader.fade-out { opacity: 0; }
+        .player-loader-spinner {
+            width: 38px; height: 38px; border-radius: 50%;
+            border: 2.5px solid rgba(0, 201, 255, 0.18);
+            border-top-color: var(--accent);
+            animation: spin 0.75s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .player-loader-label {
+            font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+
+
+        /* --- Server Controls Group --- */
         .server-controls {
             position: relative;
             display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-            min-width: 200px;
-        }
-
-        /* Custom Server Dropdown (calc.html style) */
-        .server-dropdown-btn {
-            height: 40px;
-            padding: 0 14px;
-            background: rgba(10, 10, 10, 0.85);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 8px;
-            color: white;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            width: 100%;
-            transition: all 0.15s;
-            white-space: nowrap;
+            gap: 6px;
         }
-        .server-dropdown-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: var(--accent);
-            box-shadow: 0 0 10px rgba(0,201,255,0.15);
-        }
-        .server-dropdown-menu {
-            display: none;
-            position: absolute;
-            top: calc(40px + 5px);
-            left: 0; right: 0;
-            background: #111111;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
-            z-index: 300;
-        }
-        .server-dropdown-menu.open { display: block; }
-        .server-dropdown-item {
-            padding: 12px 14px;
-            font-size: 13px;
-            color: #a0a0a0;
-            cursor: pointer;
-            transition: background 0.1s, color 0.1s;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-        .server-dropdown-item:last-child { border-bottom: none; }
-        .server-dropdown-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-        .server-dropdown-item.active { color: var(--accent); background: rgba(0,201,255,0.08); font-weight: 600; }
 
-        /* Show More Servers Button */
+        /* Unified Servers Button */
         .show-more-btn {
-            height: 34px;
-            padding: 0 14px;
-            background: rgba(0, 201, 255, 0.1);
-            border: 1.5px solid rgba(0,201,255,0.5);
+            height: 30px;
+            padding: 0 11px;
+            background: rgba(0, 201, 255, 0.07);
+            border: 1px solid rgba(0,201,255,0.35);
             border-radius: 7px;
             color: var(--accent);
-            font-weight: 700;
-            font-size: 12px;
+            font-weight: 600;
+            font-size: 11.5px;
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s;
-            letter-spacing: 0.5px;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 6px;
-            width: 100%;
+            max-width: 180px;
         }
         .show-more-btn:hover {
-            background: rgba(0, 201, 255, 0.22);
+            background: rgba(0, 201, 255, 0.16);
             border-color: var(--accent);
-            box-shadow: 0 0 10px rgba(0, 201, 255, 0.25);
+            box-shadow: 0 0 8px rgba(0,201,255,0.15);
+        }
+        .show-more-btn .srv-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .show-more-btn .chevron {
-            font-size: 10px;
-            transition: transform 0.25s;
+            font-size: 8px;
+            opacity: 0.7;
+            flex-shrink: 0;
+            transition: transform 0.2s;
             display: inline-block;
         }
         .show-more-btn.open .chevron { transform: rotate(180deg); }
+        /* Active tile highlight in servers panel */
+        .server-tile.active-server {
+            border-color: var(--accent);
+            background: rgba(0,201,255,0.1);
+        }
+        .server-tile.active-server .s-name { color: var(--accent); }
 
-        /* Inline Servers Panel (expands below button) */
+        /* Servers Panel */
         .servers-panel {
             display: none;
-            position: absolute;
-            top: calc(100% + 10px);
-            right: 0;
-            width: 680px;
-            max-height: 70vh;
+            position: fixed;
+            top: 52px;
+            right: 16px;
+            width: 340px;
+            max-height: 52vh;
             background: #0d0d0d;
-            border: 1px solid rgba(0, 201, 255, 0.3);
-            border-radius: 14px;
-            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.85), 0 0 40px rgba(0,201,255,0.08);
+            border: 1px solid rgba(0, 201, 255, 0.22);
+            border-radius: 10px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.95), 0 0 24px rgba(0,201,255,0.05);
             overflow: hidden;
             flex-direction: column;
-            z-index: 1100;
-            animation: panelSlide 0.2s ease;
+            z-index: 2000;
+            animation: panelSlide 0.18s ease;
         }
         .servers-panel.open { display: flex; }
 
         @keyframes panelSlide {
-            from { opacity: 0; transform: translateY(-8px); }
+            from { opacity: 0; transform: translateY(-6px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* Sandbox Controls Section */
+        /* Conduit controls inside panel */
         .sandbox-controls {
-            padding: 14px 18px;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
             background: rgba(255,255,255,0.02);
         }
         .sandbox-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
-            cursor: pointer;
+            cursor: default;
         }
         .sandbox-header h4 {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--text-muted);
         }
         .sandbox-header .sandbox-hint {
-            font-size: 11px;
-            color: rgba(255,255,255,0.3);
+            font-size: 10px;
+            color: #92FE9D;
         }
-        .sandbox-toggles {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .sandbox-chip {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 11.5px;
-            color: var(--text-muted);
-            transition: all 0.15s;
-            user-select: none;
-        }
-        .sandbox-chip.active {
-            background: rgba(0,201,255,0.12);
-            border-color: rgba(0,201,255,0.4);
-            color: var(--accent);
-        }
-        .sandbox-chip input { display: none; }
-        .sandbox-dot {
-            width: 7px; height: 7px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            flex-shrink: 0;
-            transition: background 0.15s;
-        }
-        .sandbox-chip.active .sandbox-dot { background: var(--accent); }
-        .sandbox-apply-btn {
-            margin-top: 10px;
-            padding: 5px 14px;
-            background: rgba(0,201,255,0.12);
-            border: 1px solid rgba(0,201,255,0.4);
-            border-radius: 6px;
-            color: var(--accent);
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .sandbox-apply-btn:hover { background: rgba(0,201,255,0.22); }
+        .sandbox-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .sandbox-chip { display:none; }
+        .sandbox-dot { display:none; }
+        .sandbox-apply-btn { display:none; }
 
-        /* Warning Banner — prominent */
+        /* Warning Banner */
         .servers-warning {
-            background: rgba(220, 50, 20, 0.13);
-            border: 1.5px solid rgba(230, 80, 40, 0.55);
-            border-radius: 10px;
-            margin: 14px 18px 0;
-            padding: 14px 18px;
+            background: rgba(220, 50, 20, 0.08);
+            border-bottom: 1px solid rgba(230, 80, 40, 0.25);
+            padding: 6px 10px;
             display: flex;
             align-items: flex-start;
-            gap: 12px;
+            gap: 6px;
         }
-        .servers-warning svg { flex-shrink: 0; margin-top: 2px; }
-        .servers-warning .warn-body p { font-size: 13.5px; line-height: 1.6; color: #ffb090; }
-        .servers-warning .warn-body p + p { margin-top: 5px; }
+        .servers-warning svg { flex-shrink: 0; margin-top: 1px; width: 12px; height: 12px; }
+        .servers-warning .warn-body p { font-size: 10px; line-height: 1.4; color: #ffb090; }
+        .servers-warning .warn-body p + p { margin-top: 2px; }
         .servers-warning strong { color: #ff7755; }
 
-        /* Modal Header */
+        /* Panel Header */
         .servers-header {
-            padding: 20px 22px 14px;
+            padding: 8px 10px 6px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         .servers-header h3 {
-            font-size: 1.15rem;
+            font-size: 11px;
             font-weight: 700;
             background: var(--gradient);
             -webkit-background-clip: text;
@@ -797,27 +863,23 @@
         .servers-search {
             flex: 1;
             background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px;
-            padding: 8px 14px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 5px;
+            padding: 4px 8px;
             color: white;
-            font-size: 14px;
+            font-size: 11px;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            max-width: 280px;
+            transition: border-color 0.2s;
         }
-        .servers-search::placeholder { color: rgba(255,255,255,0.35); }
-        .servers-search:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 10px rgba(0,201,255,0.2);
-        }
+        .servers-search::placeholder { color: rgba(255,255,255,0.3); }
+        .servers-search:focus { border-color: var(--accent); }
         .modal-close-btn {
-            width: 34px; height: 34px;
+            width: 22px; height: 22px;
             border-radius: 50%;
             background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.1);
             color: white;
-            font-size: 18px;
+            font-size: 12px;
             cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
@@ -828,52 +890,62 @@
         /* Server Grid */
         .servers-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-            gap: 12px;
-            padding: 6px 22px 22px;
+            grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+            gap: 5px;
+            padding: 6px 8px 8px;
             overflow-y: auto;
         }
-        .servers-grid::-webkit-scrollbar { width: 5px; }
+        .servers-grid::-webkit-scrollbar { width: 3px; }
         .servers-grid::-webkit-scrollbar-track { background: transparent; }
-        .servers-grid::-webkit-scrollbar-thumb { background: rgba(0,201,255,0.3); border-radius: 4px; }
+        .servers-grid::-webkit-scrollbar-thumb { background: rgba(0,201,255,0.3); border-radius: 3px; }
 
         .server-tile {
             background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 10px;
-            padding: 14px 16px;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 6px;
+            padding: 6px 8px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.12s;
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 1px;
         }
         .server-tile:hover {
             background: rgba(0, 201, 255, 0.08);
             border-color: var(--accent);
-            box-shadow: 0 0 14px rgba(0,201,255,0.15);
-            transform: translateY(-2px);
+            box-shadow: 0 0 6px rgba(0,201,255,0.1);
         }
         .server-tile .s-name {
-            font-weight: 700;
-            font-size: 15px;
+            font-weight: 600;
+            font-size: 11px;
             color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .server-tile .s-domain {
-            font-size: 12px;
+            font-size: 9px;
             color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .server-tile .s-badge {
-            font-size: 11px;
-            color: #ffb347;
-            margin-top: 2px;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-top: 1px;
         }
+        .server-tile .s-badge-big3    { color: var(--accent); }
+        .server-tile .s-badge-rec     { color: #92FE9D; }
+        .server-tile .s-badge-notreq  { color: #ff7755; }
         .server-no-results {
             grid-column: 1/-1;
             text-align: center;
             color: var(--text-muted);
-            padding: 30px 0;
-            font-size: 15px;
+            padding: 16px 0;
+            font-size: 12px;
         }
 
         /* --- Continue Watching --- */
@@ -1043,6 +1115,15 @@
         </div>
     </div>
 
+    <!-- Actor Profile Modal -->
+    <div id="actor-modal" onclick="if(event.target===this)closeActorProfile()">
+        <div class="actor-modal-card" id="actor-modal-card">
+            <div class="actor-modal-loading">
+                <div class="ep-spinner"></div> Loading profile…
+            </div>
+        </div>
+    </div>
+
     <div id="player-view">
         <div id="player-topbar-trigger"></div>
         <div class="player-topbar">
@@ -1051,60 +1132,37 @@
             </button>
             <h3 id="player-title" style="color: white; font-weight: 600; font-size: 1.5rem; text-shadow: 1px 1px 3px black;"></h3>
             
-            <div style="display:flex; align-items:center; gap:12px; margin-left:auto;">
-                <div style="position:relative;">
-                    <button class="server-dropdown-btn" id="serverDropdownBtn" onclick="toggleServerDropdown(event)">
-                        <span id="currentServerName">Server 1 — VidSrc.pm</span>
-                        <span style="font-size:10px;opacity:0.5;flex-shrink:0;">▼</span>
-                    </button>
-                    <div class="server-dropdown-menu" id="serverDropdownMenu">
-                        <div class="server-dropdown-item active" data-server="vidsrc_pm" onclick="selectMainServer('vidsrc_pm','Server 1 — VidSrc.pm',this)">Server 1 — VidSrc.pm</div>
-                        <div class="server-dropdown-item" data-server="vidrock" onclick="selectMainServer('vidrock','Server 2 — VidRock',this)">Server 2 — VidRock</div>
-                        <div class="server-dropdown-item" data-server="flixy" onclick="selectMainServer('flixy','Server 3 — Flixy',this)">Server 3 — Flixy</div>
-                    </div>
-                </div>
+            <div id="serverControls" class="server-controls" style="margin-left:auto;">
                 <button class="show-more-btn" id="showMoreBtn" onclick="toggleServersPanel()">
-                    More Servers <span class="chevron">▼</span>
+                    <span class="srv-label" id="currentServerName">YapGrid</span>
+                    <span class="chevron">&#9660;</span>
                 </button>
+            </div>
 
-                <!-- ===== Inline Servers Panel ===== -->
+                <!-- ===== Servers Panel (fixed position) ===== -->
                 <div class="servers-panel" id="serversPanel">
+
+                    <!-- Header + Search -->
+                    <div class="servers-header">
+                        <h3>Servers</h3>
+                        <input class="servers-search" id="serverSearch" type="text" placeholder="Search…" oninput="filterServers(this.value)">
+                        <button class="modal-close-btn" onclick="closeServersPanel()">&#x2715;</button>
+                    </div>
 
                     <!-- Warning -->
                     <div class="servers-warning">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff7755" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ff7755" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                             <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                         </svg>
                         <div class="warn-body">
-                            <p><strong>Popup Warning — Read Before Selecting</strong></p>
-                            <p>These are third-party servers that may open popup ads or redirect tabs. <strong>Install uBlock Origin</strong> before using them. The 4 main servers above are cleaner alternatives.</p>
+                            <p>Third-party servers may show popup ads. <strong>Use uBlock Origin.</strong></p>
                         </div>
-                    </div>
-
-                    <!-- Header + Search -->
-                    <div class="servers-header">
-                        <h3>Additional Servers</h3>
-                        <input class="servers-search" id="serverSearch" type="text" placeholder="Search servers…" oninput="filterServers(this.value)">
-                        <button class="modal-close-btn" onclick="closeServersPanel()">✕</button>
-                    </div>
-
-                    <!-- Security + Proxy Controls -->
-                    <div class="sandbox-controls">
-                        <div class="sandbox-header" style="cursor:default; margin-bottom: 8px;">
-                            <h4>Security</h4>
-                            <span class="sandbox-hint" style="color:#92FE9D; font-size:11px;">🔒 Locked — no redirects or popups</span>
-                        </div>
-                        <div style="font-size:11.5px; color:var(--text-muted); line-height:1.6; margin-bottom:12px;">
-                            All player frames are sandboxed. Links cannot redirect this tab or open new windows.
-                        </div>
-
                     </div>
 
                     <!-- Server Grid -->
                     <div class="servers-grid" id="serversGrid"></div>
                 </div>
-            </div>
         </div>
         <div class="embed-container" id="player-container"></div>
     </div>
@@ -1112,11 +1170,14 @@
     <script>
         
         const TMDB_KEY = 'e55425032d3d0f371fc776f302e7c09b';
-        const BASE_IMG = 'https://image.tmdb.org/t/p/original';
-        const W500_IMG = 'https://image.tmdb.org/t/p/w500';
+        const BASE_IMG  = 'https://image.tmdb.org/t/p/original';
+        const W1280_IMG = 'https://image.tmdb.org/t/p/w1280';
+        const W500_IMG  = 'https://image.tmdb.org/t/p/w500';
+
         
         let currentItem = null;
         let currentNav = 'home';
+        let currentActiveServerId = 'yapgrid';
 
         // --- Continue Watching ---
         const CW_KEY = 'ludus_continue';
@@ -1124,8 +1185,6 @@
         let _cwSessionStart = null;
         let _cwSessionSeconds = 0;
 
-        // Hardcoded safe sandbox — no top-navigation, no popups
-        const LOCKED_SANDBOX = 'sandbox="allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-forms"';
 
         // --- UI Interactions ---
         window.addEventListener('scroll', () => {
@@ -1181,7 +1240,7 @@
                             <div class="search-dropdown-item" onclick="loadDetails(${item.id},'${item.media_type}'); closeSearchDropdown(); document.getElementById('searchInput').value='${title.replace(/'/g,"\\'")}'; ">
                                 ${thumb
                                     ? `<img class="search-drop-thumb" src="${thumb}" alt="${title}" onerror="this.style.display='none'">`
-                                    : `<div class="search-drop-placeholder">🎬</div>`}
+                                    : `<div class="search-drop-placeholder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M17 7h5M2 17h5M17 17h5"/></svg></div>`}
                                 <div class="search-item-info">
                                     <div class="search-item-title">${title}</div>
                                     <div class="search-item-meta">
@@ -1211,7 +1270,7 @@
                 const img = item.backdrop_path ? W500_IMG+item.backdrop_path : W500_IMG+item.poster_path;
                 return `
                 <div class="movie-card" style="width:100%; height:auto; aspect-ratio:16/9" onclick="loadDetails(${item.id || item.tmdbId}, '${item.media_type || 'movie'}')">
-                    <img src="${img}" alt="img">
+                    <img src="${img}" alt="img" loading="lazy" decoding="async">
                     <div class="card-title">${item.title || item.name}</div>
                 </div>`
             }).join('');
@@ -1247,9 +1306,17 @@
         }
 
         // --- Data Fetching ---
+        const _apiCache = new Map();
+        const _CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
         async function fetchAPI(endpoint) {
-            const res = await fetch(`https://api.themoviedb.org/3${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${TMDB_KEY}`);
-            return await res.json();
+            const url = `https://api.themoviedb.org/3${endpoint}${endpoint.includes('?') ? '&' : '?'}api_key=${TMDB_KEY}`;
+            const hit = _apiCache.get(url);
+            if (hit && (Date.now() - hit.ts < _CACHE_TTL)) return hit.data;
+            const res = await fetch(url);
+            const data = await res.json();
+            _apiCache.set(url, { data, ts: Date.now() });
+            return data;
         }
 
         async function loadHomeData() {
@@ -1275,21 +1342,27 @@
             // Inject Continue Watching at the top if the user has history
             renderContinueWatchingRow();
 
+            // Inject personalised "Because you watched …" rows from history
+            loadPersonalizedRows();
+
             const thisYear = new Date().getFullYear();
             const cutoff = `${thisYear - 1}-01-01`;
 
+            // Critical rows (above the fold) — load immediately
             populateRow('/trending/all/week', 'grid-trending');
             populateRow(`/discover/movie?primary_release_date.gte=${cutoff}&sort_by=popularity.desc`, 'grid-new', 'movie');
-            populateRow(`/discover/movie?sort_by=popularity.desc&vote_count.gte=200`, 'grid-pop-movies', 'movie');
-            populateRow(`/discover/tv?sort_by=popularity.desc&vote_count.gte=100&first_air_date.gte=${cutoff}`, 'grid-pop-tv', 'tv');
-            populateRow(`/discover/movie?with_genres=28,53&sort_by=popularity.desc&primary_release_date.gte=${cutoff}`, 'grid-action', 'movie');
-            populateRow(`/discover/movie?with_genres=878,14&sort_by=popularity.desc&primary_release_date.gte=${cutoff}`, 'grid-scifi', 'movie');
-            populateRow(`/discover/movie?with_genres=18,80&sort_by=popularity.desc&vote_count.gte=200`, 'grid-drama', 'movie');
-            populateRow(`/discover/movie?with_genres=35&sort_by=popularity.desc&vote_count.gte=200`, 'grid-comedy', 'movie');
-            populateRow(`/discover/movie?with_genres=16&sort_by=popularity.desc&vote_count.gte=100`, 'grid-animation', 'movie');
-            populateRow(`/discover/movie?sort_by=vote_average.desc&vote_count.gte=3000`, 'grid-toprated', 'movie');
-            populateRow(`/discover/movie?with_genres=27&sort_by=popularity.desc&vote_count.gte=200`, 'grid-horror', 'movie');
-            populateRow(`/discover/movie?with_genres=99&sort_by=popularity.desc&vote_count.gte=100`, 'grid-docs', 'movie');
+
+            // Below-the-fold rows — defer until scrolled near
+            deferPopulateRow(`/discover/movie?sort_by=popularity.desc&vote_count.gte=200`, 'grid-pop-movies', 'movie');
+            deferPopulateRow(`/discover/tv?sort_by=popularity.desc&vote_count.gte=100&first_air_date.gte=${cutoff}`, 'grid-pop-tv', 'tv');
+            deferPopulateRow(`/discover/movie?with_genres=28,53&sort_by=popularity.desc&primary_release_date.gte=${cutoff}`, 'grid-action', 'movie');
+            deferPopulateRow(`/discover/movie?with_genres=878,14&sort_by=popularity.desc&primary_release_date.gte=${cutoff}`, 'grid-scifi', 'movie');
+            deferPopulateRow(`/discover/movie?with_genres=18,80&sort_by=popularity.desc&vote_count.gte=200`, 'grid-drama', 'movie');
+            deferPopulateRow(`/discover/movie?with_genres=35&sort_by=popularity.desc&vote_count.gte=200`, 'grid-comedy', 'movie');
+            deferPopulateRow(`/discover/movie?with_genres=16&sort_by=popularity.desc&vote_count.gte=100`, 'grid-animation', 'movie');
+            deferPopulateRow(`/discover/movie?sort_by=vote_average.desc&vote_count.gte=3000`, 'grid-toprated', 'movie');
+            deferPopulateRow(`/discover/movie?with_genres=27&sort_by=popularity.desc&vote_count.gte=200`, 'grid-horror', 'movie');
+            deferPopulateRow(`/discover/movie?with_genres=99&sort_by=popularity.desc&vote_count.gte=100`, 'grid-docs', 'movie');
         }
 
         async function loadCategoryData(type) {
@@ -1313,21 +1386,24 @@
                 ${createRowHTML('Top Rated', 'grid-cat-toprated')}
             `;
 
+            // Critical rows — load immediately
             populateRow(`/trending/${type}/week`, 'grid-cat-trending', type);
             populateRow(`/discover/${type}?${dateField}.gte=${cutoff}&sort_by=popularity.desc`, 'grid-cat-new', type);
-            populateRow(`/discover/${type}?sort_by=popularity.desc&vote_count.gte=100`, 'grid-cat-pop', type);
-            populateRow(`/discover/${type}?with_genres=${type==='tv'?'10759':'28,53'}&sort_by=popularity.desc&${dateField}.gte=${cutoff}`, 'grid-cat-action', type);
-            populateRow(`/discover/${type}?with_genres=35&sort_by=popularity.desc&${dateField}.gte=${cutoff}`, 'grid-cat-comedy', type);
-            populateRow(`/discover/${type}?with_genres=${type==='tv'?'9648,80':'27,53'}&sort_by=popularity.desc&${dateField}.gte=${cutoff}`, 'grid-cat-horror', type);
-            populateRow(`/discover/${type}?with_genres=18&sort_by=popularity.desc&vote_count.gte=100`, 'grid-cat-drama', type);
-            populateRow(`/discover/${type}?with_genres=${type==='tv'?'10765':'878,14'}&sort_by=popularity.desc&vote_count.gte=100`, 'grid-cat-scifi', type);
-            populateRow(`/discover/${type}?sort_by=vote_average.desc&vote_count.gte=1000`, 'grid-cat-toprated', type);
+
+            // Below-the-fold — defer
+            deferPopulateRow(`/discover/${type}?sort_by=popularity.desc&vote_count.gte=100`, 'grid-cat-pop', type);
+            deferPopulateRow(`/discover/${type}?with_genres=${type==='tv'?'10759':'28,53'}&sort_by=popularity.desc&${dateField}.gte=${cutoff}`, 'grid-cat-action', type);
+            deferPopulateRow(`/discover/${type}?with_genres=35&sort_by=popularity.desc&${dateField}.gte=${cutoff}`, 'grid-cat-comedy', type);
+            deferPopulateRow(`/discover/${type}?with_genres=${type==='tv'?'9648,80':'27,53'}&sort_by=popularity.desc&${dateField}.gte=${cutoff}`, 'grid-cat-horror', type);
+            deferPopulateRow(`/discover/${type}?with_genres=18&sort_by=popularity.desc&vote_count.gte=100`, 'grid-cat-drama', type);
+            deferPopulateRow(`/discover/${type}?with_genres=${type==='tv'?'10765':'878,14'}&sort_by=popularity.desc&vote_count.gte=100`, 'grid-cat-scifi', type);
+            deferPopulateRow(`/discover/${type}?sort_by=vote_average.desc&vote_count.gte=1000`, 'grid-cat-toprated', type);
         }
 
         function setHero(item, forceType = null) {
             if(!item) return;
             const type = item.media_type || forceType || 'movie';
-            document.getElementById('hero-section').style.backgroundImage = `url(${BASE_IMG}${item.backdrop_path})`;
+            document.getElementById('hero-section').style.backgroundImage = `url(${W1280_IMG}${item.backdrop_path})`;
             document.getElementById('hero-title').innerText = item.title || item.name;
             document.getElementById('hero-desc').innerText = item.overview;
             
@@ -1353,6 +1429,24 @@
             </div>`;
         }
 
+        // Deferred row loader — fires populateRow only when the row scrolls near the viewport.
+        // Falls back to immediate load if IntersectionObserver isn't available.
+        function deferPopulateRow(endpoint, elementId, forceType = null) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (!('IntersectionObserver' in window)) {
+                populateRow(endpoint, elementId, forceType);
+                return;
+            }
+            const observer = new IntersectionObserver((entries, obs) => {
+                if (entries[0].isIntersecting) {
+                    obs.disconnect();
+                    populateRow(endpoint, elementId, forceType);
+                }
+            }, { rootMargin: '300px' }); // start fetching 300px before visible
+            observer.observe(el.closest('.row') || el);
+        }
+
         async function populateRow(endpoint, elementId, forceType = null) {
             const data = await fetchAPI(endpoint);
             const container = document.getElementById(elementId);
@@ -1367,7 +1461,7 @@
                 const title = item.title || item.name;
                 return `
                 <div class="movie-card" onclick="loadDetails(${item.id}, '${type}')">
-                    <img src="${W500_IMG}${item.backdrop_path}" alt="${title}">
+                    <img src="${W500_IMG}${item.backdrop_path}" alt="${title}" loading="lazy" decoding="async">
                     <div class="card-title">${title}</div>
                 </div>`;
             });
@@ -1384,7 +1478,7 @@
             }
             container.innerHTML = list.map(item => `
                 <div class="movie-card" style="width: 100%; height: auto; aspect-ratio: 16/9;" onclick="loadDetails(${item.tmdbId}, '${item.type}')">
-                    <img src="${item.backdrop_path ? W500_IMG+item.backdrop_path : ''}" alt="${item.title}">
+                    <img src="${item.backdrop_path ? W500_IMG+item.backdrop_path : ''}" alt="${item.title}" loading="lazy" decoding="async">
                     <div class="card-title">${item.title}</div>
                 </div>
             `).join('');
@@ -1438,7 +1532,7 @@
             currentSeason = 1;
             currentEpisode = 1;
 
-            document.getElementById('detail-backdrop').style.backgroundImage = `url(${BASE_IMG}${data.backdrop_path})`;
+            document.getElementById('detail-backdrop').style.backgroundImage = `url(${W1280_IMG}${data.backdrop_path})`;
             document.getElementById('detail-title').innerText = data.title || data.name;
             
             const year = (data.release_date || data.first_air_date || '').split('-')[0];
@@ -1479,14 +1573,17 @@
                 epSection.style.display = 'none';
             }
 
-            // Render Cast
-            const actors = data.credits.cast.slice(0, 10);
+            // Render Cast — clickable actor cards
+            const actors = data.credits.cast.slice(0, 12);
             document.getElementById('detail-actors').innerHTML = actors.map(actor => `
-                <div class="actor-card">
-                    <img src="${actor.profile_path ? W500_IMG+actor.profile_path : 'https://via.placeholder.com/60x60/333/fff?text='}" class="actor-img">
+                <div class="actor-card" onclick="openActorProfile(${actor.id})">
+                    <img src="${actor.profile_path ? W500_IMG+actor.profile_path : 'https://placehold.co/60x60/1a1a1a/555?text=?'}"
+                         class="actor-img"
+                         onerror="this.src='https://placehold.co/60x60/1a1a1a/555?text=?'">
                     <div class="actor-info">
-                        <span class="actor-name">${actor.name}</span>
-                        <span class="actor-char">${actor.character}</span>
+                        <span class="actor-name">${escHtml(actor.name)}</span>
+                        <span class="actor-char">${escHtml(actor.character || '')}</span>
+                        <span class="actor-card-hint">View profile</span>
                     </div>
                 </div>
             `).join('');
@@ -1507,7 +1604,7 @@
                     const title = item.title || item.name;
                     return `
                     <div class="movie-card" onclick="loadDetails(${item.id}, '${type}')">
-                        <img src="${W500_IMG}${item.backdrop_path}" alt="${title}">
+                        <img src="${W500_IMG}${item.backdrop_path}" alt="${title}" loading="lazy" decoding="async">
                         <div class="card-title">${title}</div>
                     </div>`;
                 }).join('');
@@ -1597,80 +1694,41 @@
             // Tell the parent frame to minimize the dock, mixer and any other panels
             window.parent.postMessage({ source: 'ludus-movie', action: 'playerOpened' }, '*');
 
-            // Reset dropdown to Server 1
-            document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
-            const first = document.querySelector('.server-dropdown-item[data-server="vidsrc_pm"]');
-            if (first) first.classList.add('active');
-            document.getElementById('currentServerName').innerText = 'Server 1 — VidSrc.pm';
-            
-            changeServer('vidsrc_pm'); // Loads iframe
+            // Default to YapGrid each time player opens
+            currentActiveServerId = 'yapgrid';
+            document.getElementById('currentServerName').innerText = 'YapGrid';
+            loadExtraServer('yapgrid'); // Loads iframe
 
             // Start continue-watching tracking
             startWatchTracking();
 
-            // Idle UI hide logic
+            // Idle UI hide logic — long delay so controls stay accessible
             let timeout;
+            const IDLE_DELAY = 5000;
             playerView.onmousemove = () => {
                 playerView.classList.remove('idle');
                 clearTimeout(timeout);
-                timeout = setTimeout(() => playerView.classList.add('idle'), 3500);
+                timeout = setTimeout(() => playerView.classList.add('idle'), IDLE_DELAY);
             };
-            // Topbar hover trigger — fires in parent doc even when iframe swallows mouse events
+            // Topbar hover trigger — fires in parent doc even when conduit frame swallows mouse events
             const topbarTrigger = document.getElementById('player-topbar-trigger');
             const topbarEl      = document.querySelector('.player-topbar');
+            const serversPanel  = document.getElementById('serversPanel');
             topbarTrigger.onmouseenter = () => { playerView.classList.remove('idle'); clearTimeout(timeout); };
-            topbarEl.onmouseenter      = () => { clearTimeout(timeout); };
-            topbarEl.onmouseleave      = () => { timeout = setTimeout(() => playerView.classList.add('idle'), 3500); };
+            topbarEl.onmouseenter      = () => { playerView.classList.remove('idle'); clearTimeout(timeout); };
+            topbarEl.onmouseleave      = () => {
+                // Don't hide if the servers panel is open
+                if (!serversPanel.classList.contains('open')) {
+                    timeout = setTimeout(() => playerView.classList.add('idle'), IDLE_DELAY);
+                }
+            };
         }
 
-        // ===== Custom Server Dropdown Logic =====
-        function toggleServerDropdown(e) {
-            e.stopPropagation();
-            document.getElementById('serverDropdownMenu').classList.toggle('open');
-        }
-
-        function selectMainServer(serverId, name, el) {
-            document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
-            document.getElementById('currentServerName').innerText = name;
-            document.getElementById('serverDropdownMenu').classList.remove('open');
-            changeServer(serverId);
-        }
-
-        function changeServer(serverId) {
-            if(!currentItem) return;
-            if (!serverId) {
-                const active = document.querySelector('.server-dropdown-item.active[data-server]');
-                serverId = active ? active.dataset.server : 'vidsrc_pm';
-            }
-            const isTV = currentItem.media_type === 'tv';
-            const id = currentItem.tmdbId;
-            const s = currentSeason || 1;
-            const e = currentEpisode || 1;
-            let streamUrl = '';
-
-            if (serverId === 'vidsrc_pm') {
-                streamUrl = isTV
-                    ? `https://vidsrc.pm/embed/tv/${id}/${s}/${e}`
-                    : `https://vidsrc.pm/embed/movie/${id}`;
-            } else if (serverId === 'vidrock') {
-                streamUrl = isTV
-                    ? `https://vidrock.ru/embed/tv/${id}/${s}/${e}`
-                    : `https://vidrock.ru/embed/movie/${id}`;
-            } else if (serverId === 'flixy') {
-                streamUrl = isTV
-                    ? `https://flicky.host/embed/tv/?id=${id}&s=${s}&e=${e}`
-                    : `https://flicky.host/embed/movie/?id=${id}`;
-            }
-
-            const sandboxAttr = (serverId === 'vidsrc_pm') ? LOCKED_SANDBOX : '';
-            const iframeId = 'player-iframe-' + Date.now();
-            document.getElementById('player-container').innerHTML = `
-                <iframe id="${iframeId}" src="${streamUrl}"
-                        width="100%" height="100%" style="border:none;"
-                        ${sandboxAttr}
-                        allowfullscreen
-                        allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`;
+        // changeServer delegates to loadExtraServer — single code path for all servers
+        async function changeServer(serverId) {
+            if (!currentItem) return;
+            if (!serverId) serverId = currentActiveServerId || 'yapgrid';
+            await loadExtraServer(serverId);
         }
 
         function closePlayer() {
@@ -1868,7 +1926,7 @@ const videoEl = document.getElementById('movie-player');
             return "JSON.parse(decodeURIComponent('" + encodeURIComponent(JSON.stringify(item)) + "'))";
         }
 
-        // Listen for postMessage progress updates from embedded players (e.g. vidlink.pro)
+        // Listen for postMessage progress updates from embedded players
         window.addEventListener('message', (event) => {
             const d = event.data;
             if (!d || !currentItem) return;
@@ -1891,6 +1949,208 @@ const videoEl = document.getElementById('movie-player');
             }
         });
 
+        // ===== Actor Profile Modal =====
+        async function openActorProfile(actorId) {
+            const modal = document.getElementById('actor-modal');
+            const card  = document.getElementById('actor-modal-card');
+            modal.classList.add('open');
+            card.innerHTML = `<div class="actor-modal-loading"><div class="ep-spinner"></div> Loading profile…</div>`;
+            document.body.style.overflow = 'hidden';
+
+            try {
+                const [person, credits] = await Promise.all([
+                    fetchAPI(`/person/${actorId}`),
+                    fetchAPI(`/person/${actorId}/combined_credits`)
+                ]);
+
+                const photo = person.profile_path ? `${W500_IMG}${person.profile_path}` : '';
+                const bornParts = [];
+                if (person.birthday) bornParts.push(new Date(person.birthday + 'T00:00:00').toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }));
+                if (person.place_of_birth) bornParts.push(person.place_of_birth);
+                const bornLine = bornParts.join(' · ');
+
+                // Deduplicate and sort credits by vote_count descending
+                const seen = new Set();
+                const creditList = [...(credits.cast || [])]
+                    .filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return (c.backdrop_path || c.poster_path); })
+                    .sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
+                    .slice(0, 24);
+
+                card.innerHTML = `
+                    <div class="actor-modal-header">
+                        ${photo
+                            ? `<img class="actor-modal-photo" src="${photo}" alt="${escHtml(person.name)}" onerror="this.src='https://placehold.co/100x100/1a1a1a/555?text=?'">`
+                            : `<div class="actor-modal-photo" style="display:flex;align-items:center;justify-content:center;font-size:2rem;color:#555;">?</div>`
+                        }
+                        <div class="actor-modal-meta">
+                            <div class="actor-modal-name">${escHtml(person.name)}</div>
+                            ${bornLine ? `<div class="actor-modal-born">${escHtml(bornLine)}</div>` : ''}
+                            <div class="actor-modal-tags">
+                                ${person.known_for_department ? `<span class="actor-modal-tag">${escHtml(person.known_for_department)}</span>` : ''}
+                                ${creditList.length ? `<span class="actor-modal-tag" style="color:var(--text-muted);border-color:rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);">${creditList.length} credits</span>` : ''}
+                            </div>
+                        </div>
+                        <button class="actor-modal-close" onclick="closeActorProfile()">✕</button>
+                    </div>
+
+                    ${person.biography ? `
+                    <div class="actor-modal-bio">
+                        <div class="actor-bio-text" id="actor-bio-text">${escHtml(person.biography)}</div>
+                        <span class="actor-bio-toggle" id="actor-bio-toggle" onclick="toggleActorBio()">Show more</span>
+                    </div>` : ''}
+
+                    ${creditList.length ? `
+                    <div class="actor-modal-section">Known For</div>
+                    <div class="actor-credits-row">
+                        ${creditList.map(c => {
+                            const title  = escHtml(c.title || c.name || '');
+                            const type   = c.media_type || 'movie';
+                            const year   = (c.release_date || c.first_air_date || '').split('-')[0];
+                            const thumb  = c.backdrop_path
+                                ? `${W500_IMG}${c.backdrop_path}`
+                                : (c.poster_path ? `${W500_IMG}${c.poster_path}` : '');
+                            return `
+                            <div class="actor-credit-card" onclick="closeActorProfile();loadDetails(${c.id},'${type}')">
+                                ${thumb
+                                    ? `<img class="actor-credit-thumb" src="${thumb}" alt="${title}" onerror="this.style.opacity=0.3">`
+                                    : `<div class="actor-credit-thumb"></div>`}
+                                <div class="actor-credit-title">${title}</div>
+                                ${year ? `<div class="actor-credit-year">${year}</div>` : ''}
+                            </div>`;
+                        }).join('')}
+                    </div>` : ''}
+                `;
+            } catch(err) {
+                card.innerHTML = `
+                    <div style="padding:44px;text-align:center;color:var(--text-muted);position:relative;">
+                        <button class="actor-modal-close" onclick="closeActorProfile()">✕</button>
+                        <p>Could not load profile.</p>
+                    </div>`;
+            }
+        }
+
+        function closeActorProfile() {
+            document.getElementById('actor-modal').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        function toggleActorBio() {
+            const bio    = document.getElementById('actor-bio-text');
+            const toggle = document.getElementById('actor-bio-toggle');
+            const expanded = bio.classList.toggle('expanded');
+            toggle.textContent = expanded ? 'Show less' : 'Show more';
+        }
+
+        // Escape key closes actor modal too
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { closeActorProfile(); }
+        });
+
+        // ===== Personalised Recommendations =====
+        async function loadPersonalizedRows() {
+            const cwList = JSON.parse(localStorage.getItem(CW_KEY) || '[]');
+            if (cwList.length === 0) return;
+
+            // Pick up to 3 distinct recently-watched titles
+            const seen = new Set();
+            const picks = cwList.filter(item => {
+                if (seen.has(item.tmdbId)) return false;
+                seen.add(item.tmdbId);
+                return true;
+            }).slice(0, 3);
+
+            const dynamicRows = document.getElementById('dynamic-rows');
+            if (!dynamicRows) return;
+
+            // Collect watched genres from CW items to build a genre-weighted "For You" row
+            const genreCount = {};
+            const fetchedRecs = new Map(); // tmdbId -> rec results
+
+            for (const item of picks) {
+                try {
+                    const type = item.type || 'movie';
+                    const [details, recs] = await Promise.all([
+                        fetchAPI(`/${type}/${item.tmdbId}`),
+                        fetchAPI(`/${type}/${item.tmdbId}/recommendations`)
+                    ]);
+
+                    // Tally genres
+                    (details.genres || []).forEach(g => { genreCount[g.id] = (genreCount[g.id] || 0) + 1; });
+
+                    const recItems = (recs.results || [])
+                        .filter(r => r.backdrop_path && !seenItemIds.has(r.id))
+                        .slice(0, 14);
+
+                    if (recItems.length >= 3) fetchedRecs.set(item.tmdbId, { item, type, recItems });
+                } catch(e) { /* skip silently */ }
+            }
+
+            // Insert "Because you watched X" rows right after Continue Watching
+            const cwRow = document.getElementById('continue-watching-row');
+            const insertAfter = cwRow || dynamicRows.firstElementChild;
+
+            for (const [, { item, type, recItems }] of fetchedRecs) {
+                recItems.forEach(r => seenItemIds.add(r.id));
+                const rowId  = `grid-because-${item.tmdbId}`;
+                const label  = `Because you watched: ${item.title}`;
+                const rowHtml = createRowHTML(label, rowId);
+
+                if (insertAfter) {
+                    insertAfter.insertAdjacentHTML('afterend', rowHtml);
+                } else {
+                    dynamicRows.insertAdjacentHTML('afterbegin', rowHtml);
+                }
+
+                const container = document.getElementById(rowId);
+                if (container) {
+                    container.innerHTML = recItems.map(r => {
+                        const rType = r.media_type || type;
+                        return `
+                        <div class="movie-card" onclick="loadDetails(${r.id},'${rType}')">
+                            <img src="${W500_IMG}${r.backdrop_path}" alt="${escHtml(r.title || r.name)}" loading="lazy" decoding="async">
+                            <div class="card-title">${escHtml(r.title || r.name)}</div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // Build a genre-weighted "For You" row using the top 2 genres
+            const topGenres = Object.entries(genreCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 2)
+                .map(([id]) => id);
+
+            if (topGenres.length > 0) {
+                try {
+                    const forYouRowId = 'grid-for-you';
+                    const forYouHtml  = createRowHTML('Picked For You', forYouRowId);
+                    const cwRowNow = document.getElementById('continue-watching-row');
+                    if (cwRowNow) {
+                        cwRowNow.insertAdjacentHTML('afterend', forYouHtml);
+                    } else {
+                        dynamicRows.insertAdjacentHTML('afterbegin', forYouHtml);
+                    }
+                    const forYouData = await fetchAPI(
+                        `/discover/movie?with_genres=${topGenres.join(',')}&sort_by=popularity.desc&vote_count.gte=200`
+                    );
+                    const forYouItems = (forYouData.results || [])
+                        .filter(r => r.backdrop_path && !seenItemIds.has(r.id))
+                        .slice(0, 14);
+                    forYouItems.forEach(r => seenItemIds.add(r.id));
+                    const fyContainer = document.getElementById(forYouRowId);
+                    if (fyContainer && forYouItems.length >= 3) {
+                        fyContainer.innerHTML = forYouItems.map(r => `
+                        <div class="movie-card" onclick="loadDetails(${r.id},'movie')">
+                            <img src="${W500_IMG}${r.backdrop_path}" alt="${escHtml(r.title || r.name)}" loading="lazy" decoding="async">
+                            <div class="card-title">${escHtml(r.title || r.name)}</div>
+                        </div>`).join('');
+                    } else if (fyContainer) {
+                        fyContainer.closest('.row')?.remove();
+                    }
+                } catch(e) { /* skip */ }
+            }
+        }
+
         // Init
         navigate('home');
    
@@ -1899,59 +2159,20 @@ const videoEl = document.getElementById('movie-player');
 
 
 
+
     <script>
 
-        // ===== Extra Servers Data =====
+        // ===== Servers Data =====
+        // Only non-proxy servers are available in this local build.
         const EXTRA_SERVERS = [
 
-            // ── Recommended ─────────────────────────────────────────────────────────
-            { id: 'videasy',        name: 'Videasy',             domain: 'player.videasy.net',    badge: '⭐ Recommended',
-              sandbox: '',
-              movieUrl: id => `https://player.videasy.net/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://player.videasy.net/tv/${id}/${s}/${e}` },
+            { id: 'yapgrid',   name: 'YapGrid',    domain: 'yapgrid.com',  badge: 'Recommended',
+              movieUrl: id => `https://yapgrid.com/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://yapgrid.com/embed/tv/${id}/${s}/${e}` },
 
-            { id: 'vidlink',        name: 'VidLink.pro',         domain: 'vidlink.pro',           badge: '⭐ Recommended',
-              sandbox: '',
-              movieUrl: id => `https://vidlink.pro/movie/${id}?autoplay=true`,
-              tvUrl:    (id,s,e) => `https://vidlink.pro/tv/${id}/${s}/${e}?autoplay=true` },
-
-
-            // ── Confirmed working ────────────────────────────────────────────────
-            { id: 'nontongo',       name: 'NontonGo',           domain: 'nontongo.win',          badge: '',
-              sandbox: '',
-              movieUrl: id => `https://www.nontongo.win/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://www.nontongo.win/embed/tv/${id}/${s}/${e}` },
-
-
-            { id: 'twoembed',       name: '2Embed',              domain: '2embed.stream',         badge: '',
-              sandbox: '',
-              movieUrl: id => `https://www.2embed.stream/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://www.2embed.stream/embed/tv/${id}/${s}/${e}` },
-
-
-            { id: 'vidsrc_cc',      name: 'VidSrc.cc',           domain: 'vidsrc.cc',             badge: '',
-              sandbox: '',
-              movieUrl: id => `https://vidsrc.cc/v2/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://vidsrc.cc/v2/embed/tv/${id}/${s}/${e}` },
-
-            { id: 'twoembed_cc',    name: '2Embed.cc',           domain: '2embed.cc',             badge: '',
-              sandbox: '',
-              movieUrl: id => `https://www.2embed.cc/embed/${id}`,
-              tvUrl:    (id,s,e) => `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}` },
-            { id: 'vidfast',        name: 'VidFast',             domain: 'vidfast.pro',           badge: '',
-              sandbox: '',
-              movieUrl: id => `https://vidfast.pro/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://vidfast.pro/tv/${id}/${s}/${e}` },
-
-
-
-            { id: 'vaplayer',       name: 'VaPlayer',            domain: 'vaplayer.ru',           badge: '',
-              sandbox: '',
-              movieUrl: id => `https://vaplayer.ru/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://vaplayer.ru/embed/tv/${id}/${s}/${e}` },
-
-
-
+            { id: 'movienigh', name: 'Movie Night', domain: 'movienig.ht', badge: '', useImdb: true,
+              movieUrl: id => `https://movienig.ht/watch/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://movienig.ht/watch/tv/${id}/${s}/${e}` },
 
         ];
 
@@ -1963,24 +2184,33 @@ const videoEl = document.getElementById('movie-player');
                 grid.innerHTML = '<div class="server-no-results">No servers match your search.</div>';
                 return;
             }
-            grid.innerHTML = list.map(s => `
-                <div class="server-tile" onclick="loadExtraServer('${s.id}')">
+            grid.innerHTML = list.map(s => {
+                const badgeHtml = s.badge === 'Recommended'
+                    ? `<div class="s-badge s-badge-rec">Rec</div>`
+                    : s.badge === 'Not Recommended'
+                    ? `<div class="s-badge s-badge-notreq">Not Rec</div>`
+                    : '';
+                const isActive = s.id === currentActiveServerId ? ' active-server' : '';
+                return `
+                <div class="server-tile${isActive}" data-id="${s.id}" onclick="loadExtraServer('${s.id}')">
                     <div class="s-name">${s.name}</div>
                     <div class="s-domain">${s.domain}</div>
-                    ${s.badge ? `<div class="s-badge">${s.badge}</div>` : ''}
-                </div>
-            `).join('');
+                    ${badgeHtml}
+                </div>`;
+            }).join('');
         }
 
         function filterServers(query) {
             const q = query.toLowerCase().trim();
-            filteredServers = q
-                ? EXTRA_SERVERS.filter(s =>
+            let base = [...EXTRA_SERVERS];
+            if (q) {
+                base = base.filter(s =>
                     s.name.toLowerCase().includes(q) ||
                     s.domain.toLowerCase().includes(q) ||
                     (s.badge && s.badge.toLowerCase().includes(q))
-                  )
-                : [...EXTRA_SERVERS];
+                );
+            }
+            filteredServers = base;
             renderServersGrid(filteredServers);
         }
 
@@ -2005,6 +2235,8 @@ const videoEl = document.getElementById('movie-player');
                 renderServersGrid(filteredServers);
                 panel.classList.add('open');
                 btn.classList.add('open');
+                // Keep topbar visible while panel is open
+                document.getElementById('player-view').classList.remove('idle');
             }
         }
 
@@ -2013,36 +2245,58 @@ const videoEl = document.getElementById('movie-player');
             document.getElementById('showMoreBtn').classList.remove('open');
         }
 
-        // Close panel and dropdown when clicking outside server-controls
-        document.addEventListener('click', e => {
-            const ctrl = document.getElementById('serverControls');
-            if (ctrl && !ctrl.contains(e.target)) {
-                closeServersPanel();
-                document.getElementById('serverDropdownMenu').classList.remove('open');
-            }
-        });
+        // Panel stays open until user clicks X or presses Escape — no auto-dismiss on outside click
 
-function loadExtraServer(serverId) {
+async function loadExtraServer(serverId) {
             if (!currentItem) return;
             const server = EXTRA_SERVERS.find(s => s.id === serverId);
             if (!server) return;
 
-            document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
+            // Track active server and update button label
+            currentActiveServerId = serverId;
             document.getElementById('currentServerName').innerText = server.name;
+            // Highlight active tile in the panel
+            document.querySelectorAll('.server-tile').forEach(t => t.classList.remove('active-server'));
+            const activeTile = document.querySelector(`.server-tile[data-id="${serverId}"]`);
+            if (activeTile) activeTile.classList.add('active-server');
 
             const isTV = currentItem.media_type === 'tv';
             const id = currentItem.tmdbId;
             const s = currentSeason || 1;
             const e = currentEpisode || 1;
-            
-            let streamUrl = isTV ? server.tvUrl(id, s, e) : server.movieUrl(id);
 
-            document.getElementById('player-container').innerHTML = `
-                <iframe src="${streamUrl}"
+            // For servers that need an IMDB ID (e.g. Movie Night), fetch it from TMDB first
+            let contentId = id;
+            if (server.useImdb) {
+                try {
+                    const extData = await fetchAPI(`/${isTV ? 'tv' : 'movie'}/${id}/external_ids`);
+                    if (extData.imdb_id) contentId = extData.imdb_id;
+                } catch(err) {
+                    console.warn('[Ludus] ID lookup failed:', err);
+                }
+            }
+            const streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
+
+            // Show loader
+            const extraIframeId = 'player-iframe-' + Date.now();
+            const extraContainer = document.getElementById('player-container');
+            extraContainer.innerHTML = `
+                <div class="player-loader" id="player-loader">
+                    <div class="player-loader-spinner"></div>
+                    <span class="player-loader-label" id="player-loader-label">Loading…</span>
+                </div>`;
+
+            extraContainer.insertAdjacentHTML('beforeend', `
+                <iframe id="${extraIframeId}" src="${streamUrl}"
                         width="100%" height="100%" style="border:none;"
-                        allowfullscreen allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`;
+                        allowfullscreen allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`);
+            const extraLoaderEl = document.getElementById('player-loader');
+            document.getElementById(extraIframeId).addEventListener('load', () => {
+                extraLoaderEl.classList.add('fade-out');
+                setTimeout(() => extraLoaderEl.remove(), 320);
+            }, { once: true });
 
-            closeServersPanel();
+            // Panel stays open so user can quickly switch again
         }
         // Close panel on Escape key
         document.addEventListener('keydown', e => {
