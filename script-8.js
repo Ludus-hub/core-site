@@ -125,6 +125,12 @@ const frame = document.getElementById("gameFrame");
 const viewer = document.getElementById("viewer");
 const grid = document.getElementById("gameGrid");
 
+// Sandbox tokens applied to the game iframe on every load.
+// allow-same-origin is required for localStorage (game saves), IndexedDB, and
+// same-origin resource requests. The _nativeOpen capture at the top of this
+// file neutralises the known allow-scripts + allow-same-origin escape vector.
+const GAME_SANDBOX = 'allow-scripts allow-same-origin allow-pointer-lock allow-popups allow-forms allow-modals allow-downloads';
+
 // === PREMIUM & DEV UI CONTROL ===
 
 window.checkDevAndPremiumUI = function() {
@@ -878,6 +884,10 @@ async function loadGame(p) {
     recentlyPlayed.unshift(p); 
     if (recentlyPlayed.length > 50) recentlyPlayed.pop(); 
     localStorage.setItem('mathmaster_recent', JSON.stringify(recentlyPlayed));
+
+    // Enforce sandbox on every game load — must be set before src/srcdoc so the
+    // attribute is in place when the browser first navigates the frame.
+    frame.setAttribute('sandbox', GAME_SANDBOX);
 
     // Attempt srcdoc injection for ytgame/Pixi games so patches run before those libs.
     // Falls back to direct src= if the file can't be fetched (e.g. cross-origin blob URLs).
@@ -1873,6 +1883,7 @@ document.addEventListener("keydown", (e) => {
         if (viewerElement && viewerElement.style.display === "flex" && typeof currentSrc !== 'undefined') {
             const mappings = JSON.parse(localStorage.getItem("mathmaster_game_panic_maps") || "{}");
             if (mappings[currentSrc]) {
+                gameFrameElement.setAttribute('sandbox', GAME_SANDBOX);
                 gameFrameElement.src = mappings[currentSrc];
             }
         }
@@ -1978,6 +1989,7 @@ if (gameIframe) {
                 if (e.key === inGamePanicKey) {
                     const mappings = JSON.parse(localStorage.getItem("mathmaster_game_panic_maps") || "{}");
                     if (typeof currentSrc !== 'undefined' && mappings[currentSrc]) {
+                        gameIframe.setAttribute('sandbox', GAME_SANDBOX);
                         gameIframe.src = mappings[currentSrc]; 
                     }
                 }
