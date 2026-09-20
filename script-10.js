@@ -48,6 +48,94 @@
     }, { once: true });
 })();
 
+// ── In-app dialogs ──────────────────────────────────────────────────────────
+// Google Sites often suppresses native browser dialogs from embedded content.
+// Keep alerts inside the app instead, while exposing promise-based confirm and
+// prompt APIs for flows that need an actual user response.
+(function () {
+    let closeActiveDialog = null;
+    function createDialog(kind, message, options = {}) {
+        return new Promise(resolve => {
+            const previous = document.getElementById('ludusAppDialog');
+            if (previous && closeActiveDialog) closeActiveDialog(kind === 'prompt' ? null : false);
+
+            const overlay = document.createElement('div');
+            overlay.id = 'ludusAppDialog';
+            Object.assign(overlay.style, {
+                position: 'fixed', inset: '0', zIndex: '1000020', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', padding: '20px',
+                background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)'
+            });
+            const dialog = document.createElement('div');
+            Object.assign(dialog.style, {
+                width: 'min(420px, 100%)', borderRadius: '16px', padding: '24px',
+                color: '#fff', background: '#171717', border: '1px solid rgba(255,255,255,0.16)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.65)', fontFamily: 'Inter, system-ui, sans-serif'
+            });
+            const heading = document.createElement('div');
+            heading.textContent = options.title || (kind === 'error' ? 'Something went wrong' : 'Math Master');
+            heading.style.cssText = 'font-weight:700;font-size:16px;margin-bottom:12px;';
+            const body = document.createElement('div');
+            body.textContent = String(message == null ? '' : message);
+            body.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:rgba(255,255,255,.8);line-height:1.5;font-size:14px;';
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:10px;margin-top:20px;justify-content:flex-end;';
+            const close = value => {
+                overlay.remove();
+                if (closeActiveDialog === close) closeActiveDialog = null;
+                resolve(value);
+            };
+            closeActiveDialog = close;
+            const button = (label, primary, value) => {
+                const element = document.createElement('button');
+                element.type = 'button';
+                element.textContent = label;
+                element.onclick = () => close(value);
+                element.style.cssText = `padding:10px 16px;border:0;border-radius:9px;cursor:pointer;font-weight:700;${primary ? 'background:#00c9ff;color:#031419;' : 'background:rgba(255,255,255,.1);color:#fff;'}`;
+                actions.appendChild(element);
+                return element;
+            };
+
+            let primary;
+            let input = null;
+            if (kind === 'confirm') {
+                button(options.cancelLabel || 'Cancel', false, false);
+                primary = button(options.confirmLabel || 'Continue', true, true);
+            } else if (kind === 'prompt') {
+                input = document.createElement('input');
+                input.type = 'text';
+                input.value = options.defaultValue || '';
+                input.style.cssText = 'box-sizing:border-box;width:100%;margin-top:16px;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:#0d0d0d;color:#fff;';
+                button(options.cancelLabel || 'Cancel', false, null);
+                primary = button(options.confirmLabel || 'Continue', true, input.value);
+                primary.onclick = () => close(input.value);
+                input.addEventListener('keydown', event => { if (event.key === 'Enter') close(input.value); });
+                setTimeout(() => input.focus(), 0);
+            } else {
+                primary = button('OK', true, true);
+            }
+            dialog.append(heading, body);
+            if (input) dialog.appendChild(input);
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            overlay.addEventListener('click', event => { if (event.target === overlay && kind !== 'confirm') close(kind === 'prompt' ? null : true); });
+            document.body.appendChild(overlay);
+            if (kind !== 'prompt') setTimeout(() => primary.focus(), 0);
+        });
+    }
+
+    window.LudusDialog = {
+        alert(message, options) { return createDialog('alert', message, options); },
+        error(message, options) { return createDialog('error', message, options); },
+        confirm(message, options) { return createDialog('confirm', message, options); },
+        prompt(message, options) { return createDialog('prompt', message, options); }
+    };
+
+    // Existing inline code and external site code can continue calling alert;
+    // it is now rendered by the app instead of the browser.
+    window.alert = function (message) { window.LudusDialog.alert(message); };
+})();
+
 (function() {
     const consoleOutput = document.getElementById('console-output');
     if (!consoleOutput) return;
@@ -501,7 +589,7 @@ renderViewerButtons();
 
 async function exportSave() {
     if (typeof window.createLudusBackup !== "function") {
-        alert("Save tools are still loading. Please try again in a moment.");
+        await window.LudusDialog.alert("Save tools are still loading. Please try again in a moment.");
         return;
     }
 
@@ -519,9 +607,42 @@ async function exportSave() {
         setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
     } catch (error) {
         console.error("Could not create complete backup:", error);
-        alert("Could not create the full backup. Please try again.");
+        await window.LudusDialog.error("Could not create the full backup. Please try again.");
     }
 }
+
+async function waitForBackupTools() {
+    if (typeof window.restoreLudusBackup === 'function') return true;
+    return new Promise(resolve => {
+        const timeout = setTimeout(() => resolve(false), 5000);
+        window.addEventListener('ludus:backup-tools-ready', () => {
+            clearTimeout(timeout);
+            resolve(typeof window.restoreLudusBackup === 'function');
+        }, { once: true });
+    });
+}
+
+async function refreshLoadedContentAfterSaveImport() {
+    if (typeof window.renderGamesGrid === 'function') window.renderGamesGrid();
+
+    // Reload the running game document, not the Google Sites host page.
+    const activeViewer = document.getElementById('viewer');
+    if (currentSrc && activeViewer?.style.display === 'flex') {
+        await loadGame(currentSrc);
+        return;
+    }
+
+    // If a built-in app (including Files) is currently open, reload just that
+    // iframe so it sees the restored IndexedDB and local storage immediately.
+    const activeFrame = document.querySelector('.app-section.active-section .app-frame');
+    if (!activeFrame || activeFrame.tagName !== 'IFRAME') return;
+    const source = activeFrame.getAttribute('data-src');
+    if (!source || source === 'about:blank') return;
+    activeFrame.removeAttribute('srcdoc');
+    activeFrame.src = 'about:blank';
+    requestAnimationFrame(() => { activeFrame.src = source; });
+}
+window.refreshLoadedContentAfterSaveImport = refreshLoadedContentAfterSaveImport;
 
 function importSave(event) {
     const file = event.target.files[0];
@@ -533,7 +654,10 @@ function importSave(event) {
             const data = JSON.parse(e.target.result);
             if (!data.storage) throw new Error("Invalid Backup Format");
 
-            if (confirm("This will restore your saved games and settings, then reload. Continue?")) {
+            const approved = await window.LudusDialog.confirm("This will restore your saved games and settings, then refresh the loaded content. Continue?", {
+                title: 'Import saved data', confirmLabel: 'Import'
+            });
+            if (approved) {
                 // Stash the full backup in sessionStorage *before* writing to
                 // localStorage and reloading. Google Sites wipes localStorage on
                 // reload; the guard at the top of this file reads sessionStorage on
@@ -541,20 +665,20 @@ function importSave(event) {
                 // always lands even on hostile hosting environments.
                 try { sessionStorage.setItem('ludus_pending_restore', JSON.stringify(data)); } catch (se) { /* storage full — continue without it */ }
 
-                if (typeof window.restoreLudusBackup === "function") {
+                if (await waitForBackupTools()) {
                     await window.restoreLudusBackup(data, false, true);
-                    alert("Restore successful! Reloading site...");
-                    window.location.reload();
+                    // The restore has already landed in this page, so do not
+                    // reload the Google Sites container. Refresh only the
+                    // loaded game/app files and clear the recovery copy.
+                    sessionStorage.removeItem('ludus_pending_restore');
+                    await refreshLoadedContentAfterSaveImport();
+                    await window.LudusDialog.alert("Save loaded. The open game or app has been refreshed.", { title: 'Import complete' });
                     return;
                 }
-                // The session copy above will be consumed during startup once
-                // auth.js is ready. Reload now so this also works when a user
-                // selects a save immediately after opening the page.
-                alert("Save queued. Reloading site...");
-                window.location.reload();
+                throw new Error("Save tools are still loading. Please try again in a moment.");
             }
         } catch (err) {
-            alert("Error: Invalid .json backup file.");
+            await window.LudusDialog.error(err.message === 'Invalid Backup Format' ? "Error: Invalid .json backup file." : err.message || "Could not import this save file.", { title: 'Import failed' });
             console.error(err);
         }
     };
@@ -1570,199 +1694,34 @@ const games = [
   {name:"Youtube",path:"yt.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
-  {name:"1v1.lol", path:"Versions/Assets/Game Data/1v1.LoL.html", logo:"Versions/Assets/Pictures/Non-edited/1v1.lol-n.webp"},
-  {name:"2048", path:"Versions/Assets/Game Data/2048/index.html", logo:"Versions/Assets/Pictures/Non-edited/2048-n.webp"},
-  {name:"Among Us", path:"Versions/Assets/Game Data/among-us/index.html", logo:"Versions/Assets/Pictures/Non-edited/AmongUs-n.webp"},
-  {name:"Arthur's Nightmare", path:"Versions/Assets/Game Data/Arthur Nightmare.html", logo:"Versions/Assets/Pictures/Non-edited/Arthur-Nightmare-n.webp"},
-  {name:"Backrooms", path:"Versions/Assets/Game Data/Backrooms.html", logo:"Versions/Assets/Pictures/Non-edited/Backrooms-n.webp"},
-  {name:"Brawl Stars", path:"Versions/Assets/Game Data/Brawl Simulator 3D.html", logo:"Versions/Assets/Pictures/Non-edited/Brawl-n.webp"},
-  {name:"Bad Ice Cream", path:"Versions/Assets/Game Data/Bad Ice Cream.html", logo:"Versions/Assets/Pictures/Non-edited/BadIceCream-n.webp"},
   {name:"Baseball Bros", path:"Versions/Assets/Game Data/Baseball Bros.html", logo:"Versions/Assets/Pictures/Non-edited/Baseball-n.webp"},
-  {name: "Basket Bros", path: "Versions/Assets/Game Data/Basket Bros.html", logo: "Versions/Assets/Pictures/Non-edited/Basket-n.webp"},
-  {name:"Basketball Stars", path:"Versions/Assets/Game Data/basketball-stars/index.html", logo:"Versions/Assets/Pictures/Non-edited/BasketballStars-n.webp"},
-  {name:"Block Blast", path:"Versions/Assets/Game Data/Block Blast.html", logo:"Versions/Assets/Pictures/Non-edited/BlockBlast-n.webp"},
-  {name:"Bridge Race", path:"Versions/Assets/Game Data/Bridge Race.html", logo:"Versions/Assets/Pictures/Non-edited/BridgeRace-n.webp"},
   {name:"Candy Crush", path: "Versions/Assets/Game Data/Candy Crush.html", logo: "Versions/Assets/Pictures/Non-edited/CandyCrush-n.webp"},
   {name:"Cluster Rush", path:"Versions/Assets/Game Data/Cluster Rush.html", logo:"Versions/Assets/Pictures/Non-edited/ClusterTruck-n.webp"},
-  {name:"Cookie Clicker", path:"Versions/Assets/Game Data/Cookie Clicker.html", logo:"Versions/Assets/Pictures/Non-edited/CookieClicker-n.ico"},
-  {name:"Coreball",path:"Versions/Assets/Game Data/Coreball.html", logo:"Versions/Assets/Pictures/Non-edited/Core-n.webp"},
-  {name:"Crossyroad", path:"Versions/Assets/Game Data/crossyroad/index.html", logo:"Versions/Assets/Pictures/Non-edited/CrossyRoad-n.webp"},
   {name:"Drift Hunters",path:"Versions/Assets/Game Data/Drift Hunters.html", logo:"Versions/Assets/Pictures/Non-edited/Drift-Hunters-n.webp"},
-  {name:"Drive Mad", path:"Versions/Assets/Game Data/drive-mad/index.html", logo:"Versions/Assets/Pictures/Non-edited/DriveMad-n.webp"},
-  {name:"Duck Life 4", path:"Versions/Assets/Game Data/Duck Life 4.html", logo:"Versions/Assets/Pictures/Non-edited/DuckLife4-n.webp"},
-  {name:"Five Nights at Freddy's", path:"Versions/Assets/Game Data/Five Nights at Freddys.html", logo:"Versions/Assets/Pictures/Non-edited/FNAF-n.webp"},
-  {name:"Five Nights at Freddy's 2", path:"Versions/Assets/Game Data/Five Nights at Freddys 2.html", logo:"Versions/Assets/Pictures/Non-edited/FNAF2-n.webp"},
-  {name:"Five Nights at Freddy's 3", path:"Versions/Assets/Game Data/Five Nights at Freddys 3.html", logo:"Versions/Assets/Pictures/Non-edited/FNAF3-n.webp"},
-  {name:"Five Nights at Freddy's 4", path:"Versions/Assets/Game Data/Five Nights at Freddys 4.html", logo:"Versions/Assets/Pictures/Non-edited/FNAF4-n.webp"},
-  {name:"Five Nights at Freddy's Sister Location", path:"Versions/Assets/Game Data/Five Nights at Freddys Sister Location.html", logo: "Versions/Assets/Pictures/Non-edited/Sister-Location-n.webp"},
-  {name:"Five Nights at Freddy's Ultimate Customs Night", path:"Versions/Assets/Game Data/Five Nights at Freddys Ultimate Custom Night.html", logo: "Versions/Assets/Pictures/Non-edited/Customs-Night-n.webp"},
-  {name: "Five Nights at Winston's", path: "Versions/Assets/Game Data/Five Nights at Winstons.html", logo: "Versions/Assets/Pictures/Non-edited/Winston-n.webp"},
-  {name:"FNAF World", path:"Versions/Assets/Game Data/FNAF World.html", logo:"Versions/Assets/Pictures/Non-edited/FNAF-World.webp"},
-  {name: "Free Rider Jumps", path: "Versions/Assets/Game Data/free_rider_jumps/index.html", logo: "Versions/Assets/Pictures/Non-edited/Free-n.webp"},
   {name:"Fruit Ninja", path:"Versions/Assets/Game Data/Fruit Ninja.html", logo:"Versions/Assets/Pictures/Non-edited/FruitNinja-n.webp"},
-  {name:"Football Bros", path:"Versions/Assets/Game Data/Football Bros (1).html", logo:"Versions/Assets/Pictures/Non-edited/Football-n.webp"},
   {name:"Granny", path:"Versions/Assets/Game Data/Granny.html", logo:"Versions/Assets/Pictures/Non-edited/Granny-n.webp"},
-  {name:"Granny 2", path:"Versions/Assets/Game Data/Granny 2.html", logo:"Versions/Assets/Pictures/Non-edited/Granny-2-n.webp"},
-  {name:"Granny 3", path:"Versions/Assets/Game Data/Granny 3.html", logo:"Versions/Assets/Pictures/Non-edited/Granny-3-n.webp"},
-  {name:"Hill Climb Racing Lite", path:"Versions/Assets/Game Data/Hill Climb Racing Lite.html", logo:"Versions/Assets/Pictures/Non-edited/Hill-n.webp"},
-  {name:"Idle Lumber Inc.", path:"Versions/Assets/Game Data/Idle Lumber Inc.html", logo:"Versions/Assets/Pictures/Non-edited/Lumber-n.webp"},
-  {name:"Line Rider", path:"Versions/Assets/Game Data/Line Rider.html", logo: "Versions/Assets/Pictures/Non-edited/Line-Rider-n.webp"},
-  {name:"Minecraft", path:"Versions/Assets/Game Data/Minecraft 1.8.8.html", logo:"Versions/Assets/Pictures/Non-edited/Minecraft-n.webp"},
-  {name:"Moto X3M 2", path:"Versions/Assets/Game Data/motox3m2/index.html", logo:"Versions/Assets/Pictures/Non-edited/Motox3m2-n.webp"},
-  {name:"Moto X3M Pool Party", path:"Versions/Assets/Game Data/Moto X3M Pool Party.html", logo:"Versions/Assets/Pictures/Non-edited/Motox3mPool-n.webp"},
   {name:"Moto X3M Spooky", path:"Versions/Assets/Game Data/Moto X3M Spooky.html", logo:"Versions/Assets/Pictures/Non-edited/Motox3mSpooky-n.webp"},
   {name:"Moto X3M Winter", path:"Versions/Assets/Game Data/Moto X3M Winter.html", logo:"Versions/Assets/Pictures/Non-edited/Motox3mWinter-n.webp"},
   {name:"Ovo 2", path:"Versions/Assets/Game Data/OvO 2.html", logo:"Versions/Assets/Pictures/Non-edited/OvO-2-n.webp"},
-  {name:"Plants Vs Zombies", path:"Versions/Assets/Game Data/Plants vs Zombies.html", logo:"Versions/Assets/Pictures/Non-edited/PlantsVsZombies-n.webp"},
-  {name: "Poly Track", path: "Versions/Assets/Game Data/Poly Track Real.html", logo: "Versions/Assets/Pictures/Non-edited/Poly-n.webp"},
-  {name:"Red Ball 4", path:"Versions/Assets/Game Data/Red Ball 4.html", logo:"Versions/Assets/Pictures/Non-edited/RedBall4-n.webp"},
-  {name:"Red Ball 4 Vol. 2", path:"Versions/Assets/Game Data/Red Ball 4 Vol. 2.html", logo:"Versions/Assets/Pictures/Non-edited/RedBall4-2-n.webp"},
-  {name:"Red Ball 4 Vol. 3", path:"Versions/Assets/Game Data/Red Ball 4 Vol. 3.html", logo:"Versions/Assets/Pictures/Non-edited/RedBall4-3-n.webp"},
-  {name:"Retro Bowl", path:"Versions/Assets/Game Data/Retro Bowl.html", logo:"Versions/Assets/Pictures/Non-edited/Retrobowl-n.webp"},
-  {name:"Riddle School", path:"Versions/Assets/Game Data/Riddle School.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-n.webp"},
-  {name:"Riddle School 2", path:"Versions/Assets/Game Data/Riddle School 2.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-2-n.webp"},
-  {name:"Riddle School 3", path:"Versions/Assets/Game Data/Riddle School 3.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-3-n.webp"},
-  {name:"Riddle School 4", path:"Versions/Assets/Game Data/Riddle School 4.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-4-n.webp"},
-  {name:"Riddle School 5", path:"Versions/Assets/Game Data/Riddle School 5.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-5-n.webp"},
-  {name:"Riddle School 6", path:"Versions/Assets/Game Data/Riddle Transfer.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-6-n.webp"},
-  {name:"Riddle School 7", path:"Versions/Assets/Game Data/Riddle Transfer 2.html", logo:"Versions/Assets/Pictures/Non-edited/Riddle-7-n.webp"},
-  {name:"Rolly Vortex", path:"Versions/Assets/Game Data/Rolly Vortex.html", logo:"Versions/Assets/Pictures/Non-edited/RollyVortex-n.webp"},
-  {name:"Rooftop Snipers", path:"Versions/Assets/Game Data/Rooftop Snipers.html", logo:"Versions/Assets/Pictures/Non-edited/RooftopSnipers-n.webp"},
-  {name:"Run", path:"Versions/Assets/Game Data/Run 1.html", logo:" Versions/Assets/Pictures/Non-edited/Run1-n.webp"},
-  {name: "Run 2", path: "Versions/Assets/Game Data/Run 2.html", logo: "Versions/Assets/Pictures/Non-edited/Run-2-n.webp"},
-  {name:"Run 3", path:"Versions/Assets/Game Data/Run 3.html", logo:"Versions/Assets/Pictures/Non-edited/Run3-n.webp"},
-  {name: "Schoolboy Runaway", path: "Versions/Assets/Game Data/Schoolboy Runaway.html", logo: "Versions/Assets/Pictures/Non-edited/Runaway-n.webp"},
   {name: "Soccer Random", path: "Versions/Assets/Game Data/Soccer Random.html", logo: "Versions/Assets/Pictures/Non-edited/SoccerRandom-n.webp"},
-  {name: "Soundboard", path: "Versions/Assets/Game Data/Soundboard.html", logo: "Versions/Assets/Pictures/Non-edited/Soundboard-n.webp"},
-  {name:"Slope 2", path:"Versions/Assets/Game Data/Slope 2.html", logo:"Versions/Assets/Pictures/Non-edited/Slope2-n.webp"},
-  {name:"Solar Smash", path:"Versions/Assets/Game Data/Solar Smash.html", logo:"Versions/Assets/Pictures/Non-edited/SolarSmash-n.webp"},
-  {name:"Station Saturn", path:"Versions/Assets/Game Data/Station Saturn.html", logo:"Versions/Assets/Pictures/Non-edited/StationSaturn-n.webp"},
-  {name:"Steal A Brainrot", path:"Versions/Assets/Game Data/Steal A Brainrot.html", logo:"Versions/Assets/Pictures/Non-edited/StealABrainrot-n.webp"},
-  {name:"Subway Surfers", path:"Versions/Assets/Game Data/subway-surfers/index.html", logo:"Versions/Assets/Pictures/Non-edited/SubwaySurfers-n.webp"},
-  {name:"Stickman Hook", path:"Versions/Assets/Game Data/Stickman Hook.html", logo:"Versions/Assets/Pictures/Non-edited/Stickman-n.webp"},
-  {name:"Space Waves", path:"Versions/Assets/Game Data/Space Waves.html", logo:"Versions/Assets/Pictures/Non-edited/Space-Waves-n.webp"},
-  {name:"Temple Run 2", path:"Versions/Assets/Game Data/Temple Run 2.html", logo:"Versions/Assets/Pictures/Non-edited/TempleRun2-n.webp"},
-  {name:"Tunnel Rush", path: "Versions/Assets/Game Data/Tunnel Rush.html", logo: "Versions/Assets/Pictures/Non-edited/TunnelRush-n.webp"},
-  {name:"The Impossible Quiz", path:"Versions/Assets/Game Data/The Impossible Quiz.html", logo:"Versions/Assets/Pictures/Non-edited/ImpossibleQuiz-n.webp"},
-  {name:"The Man In The Window", path:"Versions/Assets/Game Data/The Man In The Window.html", logo:"Versions/Assets/Pictures/Non-edited/ManFromWindow-n.webp"},
-  {name:"Tomb of the Mask", path:"Versions/Assets/Game Data/Tomb Of The Mask.html", logo:"Versions/Assets/Pictures/Non-edited/TombOfMask-n.webp"},
   {name:"Volleyball Random", path:"Versions/Assets/Game Data/Volley Random.html", logo:"Versions/Assets/Pictures/Non-edited/VolleyRandom-n.webp"},
-  {name:"Wrestle Bros", path:"Versions/Assets/Game Data/wrestle-bros-io-main/wrestle-bros-io-main/index.html", logo:"Versions/Assets/Pictures/Non-edited/wrestle-n.webp"},
-  {name:"Wordle", path:"Versions/Assets/Game Data/Wordle.html", logo:"Versions/Assets/Pictures/Non-edited/Wordle-n.webp"},
-  {name:"Yohoho.io", path:"Versions/Assets/Game Data/YoHoHo.io-main/index.html", logo: "Versions/Assets/Pictures/Non-edited/yohoho-n.webp"},
-  {name:"Bowmasters", path:"./Versions/Assets/Game Data/0.html", logo:"./Versions/Assets/Pictures/Non-edited/0.webp"},
-  {name:"OvO", path:"./Versions/Assets/Game Data/1-fde.html", logo:"./Versions/Assets/Pictures/Non-edited/1.webp"},
-  {name:"Gladihoppers", path:"./Versions/Assets/Game Data/4.html", logo:"./Versions/Assets/Pictures/Non-edited/4.webp"},
-  {name:"Ice Dodo", path:"./Versions/Assets/Game Data/5.html", logo:"./Versions/Assets/Pictures/Non-edited/5.webp"},
-  {name:"Jetpack Joyride", path:"./Versions/Assets/Game Data/7.html", logo:"./Versions/Assets/Pictures/Non-edited/7.webp"},
-  {name:"Friday Night Funkin", path:"./Versions/Assets/Game Data/8-wow.html", logo:"./Versions/Assets/Pictures/Non-edited/8.webp"},
-  {name:"Sprunki", path:"./Versions/Assets/Game Data/9.html", logo:"./Versions/Assets/Pictures/Non-edited/9.webp"},
-  {name:"Attack Hole", path:"./Versions/Assets/Game Data/13.html", logo:"./Versions/Assets/Pictures/Non-edited/13.webp"},
-  {name:"Color Water Sort 3D", path:"./Versions/Assets/Game Data/15.html", logo:"./Versions/Assets/Pictures/Non-edited/15.webp"},
-  {name:"Magic Tiles 3", path:"./Versions/Assets/Game Data/17.html", logo:"./Versions/Assets/Pictures/Non-edited/17.webp"},
-  {name:"Stacky Dash", path:"./Versions/Assets/Game Data/18.html", logo:"./Versions/Assets/Pictures/Non-edited/18.webp"},
-  {name:"Turbo Stars", path:"./Versions/Assets/Game Data/21.html", logo:"./Versions/Assets/Pictures/Non-edited/21.webp"},
-  {name:"Basket Battle", path:"./Versions/Assets/Game Data/25.html", logo:"./Versions/Assets/Pictures/Non-edited/25.webp"},
-  {name:"Amaze", path:"./Versions/Assets/Game Data/26.html", logo:"./Versions/Assets/Pictures/Non-edited/26.webp"},
-  {name:"Basketball Frvr", path:"./Versions/Assets/Game Data/28.html", logo:"./Versions/Assets/Pictures/Non-edited/28.webp"},
-  {name:"Bazooka Boy", path:"./Versions/Assets/Game Data/29.html", logo:"./Versions/Assets/Pictures/Non-edited/29.webp"},
-  {name:"Bottle Jump 3D", path:"./Versions/Assets/Game Data/30.html", logo:"./Versions/Assets/Pictures/Non-edited/30.webp"},
-  {name:"Color Match", path:"./Versions/Assets/Game Data/31.html", logo:"./Versions/Assets/Pictures/Non-edited/31.webp"},
-  {name:"Retro Bowl College", path:"./Versions/Assets/Game Data/Retro Bowl College.html", logo:"./Versions/Assets/Pictures/Non-edited/34.webp"},
-  {name:"Monster Tracks", path:"./Versions/Assets/Game Data/36.html", logo:"./Versions/Assets/Pictures/Non-edited/36.webp"},
-  {name:"Gobble", path:"./Versions/Assets/Game Data/37.html", logo:"./Versions/Assets/Pictures/Non-edited/37.webp"},
-  {name:"Road of Fury", path:"./Versions/Assets/Game Data/42.html", logo:"./Versions/Assets/Pictures/Non-edited/42.webp"},
-  {name:"Driven Wild", path:"./Versions/Assets/Game Data/43.html", logo:"./Versions/Assets/Pictures/Non-edited/43.webp"},
-  {name:"Ragdoll Hit", path:"./Versions/Assets/Game Data/44-fix.html", logo:"./Versions/Assets/Pictures/Non-edited/44.webp"},
-  {name:"Vex 1", path:"./Versions/Assets/Game Data/45.html", logo:"./Versions/Assets/Pictures/Non-edited/45.webp"},
-  {name:"Vex 2", path:"./Versions/Assets/Game Data/46.html", logo:"./Versions/Assets/Pictures/Non-edited/46.webp"},
-  {name:"Vex 3", path:"./Versions/Assets/Game Data/47.html", logo:"./Versions/Assets/Pictures/Non-edited/47.webp"},
-  {name:"Vex 3 XMAS", path:"./Versions/Assets/Game Data/48.html", logo:"./Versions/Assets/Pictures/Non-edited/48.webp"},
-  {name:"Vex 5", path:"./Versions/Assets/Game Data/50.html", logo:"./Versions/Assets/Pictures/Non-edited/50.webp"},
-  {name:"Vex 6", path:"./Versions/Assets/Game Data/51.html", logo:"./Versions/Assets/Pictures/Non-edited/51.webp"},
-  {name:"Vex 7", path:"./Versions/Assets/Game Data/52.html", logo:"./Versions/Assets/Pictures/Non-edited/52.webp"},
-  {name:"Vex 8", path:"./Versions/Assets/Game Data/53.html", logo:"./Versions/Assets/Pictures/Non-edited/53.webp"},
-  {name:"Vex Challenges", path:"./Versions/Assets/Game Data/54.html", logo:"./Versions/Assets/Pictures/Non-edited/54.webp"},
-  {name:"Vex X3M", path:"./Versions/Assets/Game Data/55.html", logo:"./Versions/Assets/Pictures/Non-edited/55.webp"},
-  {name:"Vex X3M 2", path:"./Versions/Assets/Game Data/56.html", logo:"./Versions/Assets/Pictures/Non-edited/56.webp"},
   {name:"A Dance of Fire and Ice", path:"./Versions/Assets/Game Data/59.html", logo:"./Versions/Assets/Pictures/Non-edited/59.webp"},
-  {name:"Achievement Unlocked", path:"./Versions/Assets/Game Data/60.html", logo:"./Versions/Assets/Pictures/Non-edited/60.webp"},
-  {name:"Achievement Unlocked 2", path:"./Versions/Assets/Game Data/61.html", logo:"./Versions/Assets/Pictures/Non-edited/61.webp"},
-  {name:"Achievement Unlocked 3", path:"./Versions/Assets/Game Data/62.html", logo:"./Versions/Assets/Pictures/Non-edited/62.webp"},
-  {name:"Baldi's Basics", path:"./Versions/Assets/Game Data/65-fixed.html", logo:"./Versions/Assets/Pictures/Non-edited/65.webp"},
-  {name:"Basket Random", path:"./Versions/Assets/Game Data/66.html", logo:"./Versions/Assets/Pictures/Non-edited/66.webp"},
   {name:"Big NEON Tower Tiny Square", path:"./Versions/Assets/Game Data/68.html", logo:"./Versions/Assets/Pictures/Non-edited/68.webp"},
   {name:"Big ICE Tower Tiny Square", path:"./Versions/Assets/Game Data/69.html", logo:"./Versions/Assets/Pictures/Non-edited/69.webp"},
-  {name:"BitLife", path:"./Versions/Assets/Game Data/70.html", logo:"./Versions/Assets/Pictures/Non-edited/70.webp"},
-  {name:"Bloons TD 2", path:"./Versions/Assets/Game Data/72.html", logo:"./Versions/Assets/Pictures/Non-edited/72.webp"},
-  {name:"Bloons TD 4", path:"./Versions/Assets/Game Data/74.html", logo:"./Versions/Assets/Pictures/Non-edited/74.webp"},
-  {name:"Bloons TD 5", path:"./Versions/Assets/Game Data/75-fix.html", logo:"./Versions/Assets/Pictures/Non-edited/75.webp"},
-  {name:"Bob The Robber 2", path:"./Versions/Assets/Game Data/76-fix.html", logo:"./Versions/Assets/Pictures/Non-edited/76.webp"},
-  {name:"Boxing Random", path:"./Versions/Assets/Game Data/77.html", logo:"./Versions/Assets/Pictures/Non-edited/77.webp"},
-  {name:"Burrito Bison: Launcha Libre", path:"./Versions/Assets/Game Data/78.html", logo:"./Versions/Assets/Pictures/Non-edited/78.webp"},
-  {name:"Cannon Basketball", path:"./Versions/Assets/Game Data/79.html", logo:"./Versions/Assets/Pictures/Non-edited/79.webp"},
-  {name:"Cannon Basketball 2", path:"./Versions/Assets/Game Data/80.html", logo:"./Versions/Assets/Pictures/Non-edited/80.webp"},
-  {name:"Cubefield", path:"./Versions/Assets/Game Data/84.html", logo:"./Versions/Assets/Pictures/Non-edited/84.webp"},
-  {name:"Cut the Rope", path:"./Versions/Assets/Game Data/85-f.html", logo:"./Versions/Assets/Pictures/Non-edited/85.webp"},
   {name:"Gunspin", path:"./Versions/Assets/Game Data/91.html", logo:"./Versions/Assets/Pictures/Non-edited/91.webp"},
-  {name:"Highway Racer 2", path:"./Versions/Assets/Game Data/92.html", logo:"./Versions/Assets/Pictures/Non-edited/92.webp"},
   {name:"Johnny Trigger", path:"./Versions/Assets/Game Data/93.html", logo:"./Versions/Assets/Pictures/Non-edited/93.webp"},
   {name:"Moto X3M", path:"./Versions/Assets/Game Data/96.html", logo:"./Versions/Assets/Pictures/Non-edited/96.webp"},
   {name:"Ninja vs EvilCorp", path:"./Versions/Assets/Game Data/101.html", logo:"./Versions/Assets/Pictures/Non-edited/101.webp"},
   {name:"Paper.io 2", path:"./Versions/Assets/Game Data/102.html", logo:"./Versions/Assets/Pictures/Non-edited/102.webp"},
-  {name:"The World's Hardest Game", path:"./Versions/Assets/Game Data/103.html", logo:"./Versions/Assets/Pictures/Non-edited/103.webp"},
-  {name:"The World's Hardest Game 3", path:"./Versions/Assets/Game Data/104.html", logo:"./Versions/Assets/Pictures/Non-edited/104.webp"},
-  {name:"The World's Hardest Game 4", path:"./Versions/Assets/Game Data/105.html", logo:"./Versions/Assets/Pictures/Non-edited/105.webp"},
-  {name:"This Is The Only Level", path:"./Versions/Assets/Game Data/106.html", logo:"./Versions/Assets/Pictures/Non-edited/106.webp"},
-  {name:"This Is The Only Level 2", path:"./Versions/Assets/Game Data/107.html", logo:"./Versions/Assets/Pictures/Non-edited/107.webp"},
   {name:"Tiny Fishing", path:"./Versions/Assets/Game Data/108.html", logo:"./Versions/Assets/Pictures/Non-edited/108.webp"},
-  {name:"Toss The Turtle", path:"./Versions/Assets/Game Data/110-f.html", logo:"./Versions/Assets/Pictures/Non-edited/110.webp"},
   {name:"Tube Jumpers", path:"./Versions/Assets/Game Data/111.html", logo:"./Versions/Assets/Pictures/Non-edited/111.webp"},
-  {name:"Ruffle", path:"./Versions/Assets/Game Data/113.html", logo:"./Versions/Assets/Pictures/Non-edited/113.webp"},
-  {name:"8 Ball Pool", path:"./Versions/Assets/Game Data/115.html", logo:"./Versions/Assets/Pictures/Non-edited/115.webp"},
-  {name:"Snow Rider 3D", path:"./Versions/Assets/Game Data/119.html", logo:"./Versions/Assets/Pictures/Non-edited/119.webp"},
-  {name:"Fashion Battle", path:"./Versions/Assets/Game Data/127.html", logo:"./Versions/Assets/Pictures/Non-edited/127.webp"},
-  {name:"Slice it All", path:"./Versions/Assets/Game Data/128.html", logo:"./Versions/Assets/Pictures/Non-edited/128.webp"},
-  {name:"Flappy Bird", path:"./Versions/Assets/Game Data/129.html", logo:"./Versions/Assets/Pictures/Non-edited/129.webp"},
-  {name:"osu!", path:"./Versions/Assets/Game Data/130.html", logo:"./Versions/Assets/Pictures/Non-edited/130.webp"},
-  {name:"8 Ball Classic", path:"./Versions/Assets/Game Data/146.html", logo:"./Versions/Assets/Pictures/Non-edited/146.webp"},
-  {name:"Angry Birds Showdown", path:"./Versions/Assets/Game Data/147.html", logo:"./Versions/Assets/Pictures/Non-edited/147.webp"},
   {name:"Archery World Tour", path:"./Versions/Assets/Game Data/148.html", logo:"./Versions/Assets/Pictures/Non-edited/148.webp"},
-  {name:"Ball Blast", path:"./Versions/Assets/Game Data/149.html", logo:"./Versions/Assets/Pictures/Non-edited/149.webp"},
   {name:"Cannon Balls 3D", path:"./Versions/Assets/Game Data/150.html", logo:"./Versions/Assets/Pictures/Non-edited/150.webp"},
   {name:"Chess Classic", path:"./Versions/Assets/Game Data/151.html", logo:"./Versions/Assets/Pictures/Non-edited/151.webp"},
-  {name:"Draw the Line", path:"./Versions/Assets/Game Data/152.html", logo:"./Versions/Assets/Pictures/Non-edited/152.webp"},
-  {name:"Flappy Dunk", path:"./Versions/Assets/Game Data/153.html", logo:"./Versions/Assets/Pictures/Non-edited/153.webp"},
-  {name:"Guess Their Answer", path:"./Versions/Assets/Game Data/155.html", logo:"./Versions/Assets/Pictures/Non-edited/155.webp"},
-  {name:"Harvest.io", path:"./Versions/Assets/Game Data/156.html", logo:"./Versions/Assets/Pictures/Non-edited/156.webp"},
-  {name:"State.io", path:"./Versions/Assets/Game Data/161.html", logo:"./Versions/Assets/Pictures/Non-edited/161.webp"},
-  {name:"Tower Crash 3D", path:"./Versions/Assets/Game Data/162.html", logo:"./Versions/Assets/Pictures/Non-edited/162.webp"},
-  {name:"Trivia Crack", path:"./Versions/Assets/Game Data/163.html", logo:"./Versions/Assets/Pictures/Non-edited/163.webp"},
-  {name:"Crazy Cattle 3D", path:"./Versions/Assets/Game Data/164-temp2.html", logo:"./Versions/Assets/Pictures/Non-edited/164.webp"},
-  {name:"Bad Parenting 1", path:"./Versions/Assets/Game Data/166.html", logo:"./Versions/Assets/Pictures/Non-edited/166.webp"},
-  {name:"Blade Ball", path:"./Versions/Assets/Game Data/167.html", logo:"./Versions/Assets/Pictures/Non-edited/167.webp"},
   {name:"Blocky Snakes", path:"./Versions/Assets/Game Data/168.html", logo:"./Versions/Assets/Pictures/Non-edited/168.webp"},
   {name:"Bloxorz", path:"./Versions/Assets/Game Data/169.html", logo:"./Versions/Assets/Pictures/Non-edited/169.webp"},
   {name:"Big Tower Tiny Square 2", path:"./Versions/Assets/Game Data/170.html", logo:"./Versions/Assets/Pictures/Non-edited/170.webp"},
-  {name:"Melon Playground", path:"./Versions/Assets/Game Data/172.html", logo:"./Versions/Assets/Pictures/Non-edited/172.webp"},
-  {name:"World Box", path:"./Versions/Assets/Game Data/174.html", logo:"./Versions/Assets/Pictures/Non-edited/174.webp"},
-  {name:"Run 1", path:"./Versions/Assets/Game Data/175.html", logo:"./Versions/Assets/Pictures/Non-edited/175.webp"},
-  {name:"Swords and Souls", path:"./Versions/Assets/Game Data/178.html", logo:"./Versions/Assets/Pictures/Non-edited/178.webp"},
   {name:"n-gon", path:"./Versions/Assets/Game Data/180.html", logo:"./Versions/Assets/Pictures/Non-edited/180.webp"},
-  {name:"Five Nights at Freddy's: Sister Location", path:"./Versions/Assets/Game Data/185.html", logo:"./Versions/Assets/Pictures/Non-edited/185.webp"},
-  {name:"Ragdoll Archers", path:"./Versions/Assets/Game Data/186.html", logo:"./Versions/Assets/Pictures/Non-edited/186.webp"},
-  {name:"Scrap Metal 3", path:"./Versions/Assets/Game Data/188e.html", logo:"./Versions/Assets/Pictures/Non-edited/188.webp"},
-  {name:"Five Nights at Freddy's: World", path:"./Versions/Assets/Game Data/190.html", logo:"./Versions/Assets/Pictures/Non-edited/190.webp"},
-  {name:"Five Nights at Freddy's: Pizza Simulator", path:"./Versions/Assets/Game Data/191.html", logo:"./Versions/Assets/Pictures/Non-edited/191.webp"},
-  {name:"Do NOT Take This Cat Home", path:"./Versions/Assets/Game Data/193.html", logo:"./Versions/Assets/Pictures/Non-edited/193.webp"},
-  {name:"People Playground", path:"./Versions/Assets/Game Data/194-a.html", logo:"./Versions/Assets/Pictures/Non-edited/194-m.webp"},
-  {name:"R.E.P.O", path:"./Versions/Assets/Game Data/195.html", logo:"./Versions/Assets/Pictures/Non-edited/195.webp"},
-  {name:"ULTRAKILL", path:"./Versions/Assets/Game Data/196-fixed.html", logo:"./Versions/Assets/Pictures/Non-edited/196.webp"},
-  {name:"Elastic Man", path:"./Versions/Assets/Game Data/197.html", logo:"./Versions/Assets/Pictures/Non-edited/197.webp"},
-  {name:"Slope", path:"./Versions/Assets/Game Data/198.html", logo:"./Versions/Assets/Pictures/Non-edited/198.webp"},
-  {name:"Time Shooter 1", path:"./Versions/Assets/Game Data/199.html", logo:"./Versions/Assets/Pictures/Non-edited/199.webp"},
-  {name:"Time Shooter 2", path:"./Versions/Assets/Game Data/200.html", logo:"./Versions/Assets/Pictures/Non-edited/200.webp"},
-  {name:"Time Shooter 3: SWAT", path:"./Versions/Assets/Game Data/201.html", logo:"./Versions/Assets/Pictures/Non-edited/201.webp"},
   {name:"DOOM", path:"./Versions/Assets/Game Data/203-a.html", logo:"./Versions/Assets/Pictures/Non-edited/203.webp"},
   {name:"Snowbattle.io", path:"./Versions/Assets/Game Data/207.html", logo:"./Versions/Assets/Pictures/Non-edited/207.webp"},
   {name:"Dragon vs Bricks", path:"./Versions/Assets/Game Data/210.html", logo:"./Versions/Assets/Pictures/Non-edited/210.webp"},
