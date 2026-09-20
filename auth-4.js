@@ -54,8 +54,8 @@ if (authActionBtn) {
 
         if (isLoginMode) {
             signInWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    alert("Successfully logged in!");
+                .then(async (userCredential) => {
+                    await window.LudusDialog.alert("Successfully logged in!", { title: 'Signed in' });
                     document.getElementById('authModal').style.display = 'none';
                 })
                 .catch((error) => {
@@ -65,8 +65,8 @@ if (authActionBtn) {
                 });
         } else {
             createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    alert("Account created successfully!");
+                .then(async (userCredential) => {
+                    await window.LudusDialog.alert("Account created successfully!", { title: 'Account created' });
                     document.getElementById('authModal').style.display = 'none';
                 })
                 .catch((error) => {
@@ -410,7 +410,7 @@ window.saveDataToCloud = async (silent = false) => {
     const allowOverwrite = window.isCloudOverwriteEnabled();
     
     if (!allowOverwrite) {
-        if (!silent) alert("Cloud saves are paused. Enable 'Allow Cloud Overwrite' in Settings.");
+        if (!silent) await window.LudusDialog.alert("Cloud saves are paused. Enable 'Allow Cloud Overwrite' in Settings.", { title: 'Cloud saves paused' });
         else console.log("Autosave skipped: Cloud Overwrite is disabled in settings.");
         return;
     }
@@ -422,11 +422,11 @@ window.saveDataToCloud = async (silent = false) => {
         // Unlike Firestore, Realtime Database supports SDK write requests up
         // to 16 MiB, so this avoids Firestore's 1 MiB document limit.
         await set(databaseRef(realtimeDb, `users/${user.uid}/backup`), cloudBackup);
-        if (!silent) alert("Progress forcibly saved to cloud!");
+        if (!silent) await window.LudusDialog.alert("Progress saved to cloud!", { title: 'Cloud save complete' });
         console.log(`Cloud save successful (Realtime Database, ${cloudBackup.compression} backup).`);
     } catch (error) {
         console.error("Error saving to cloud:", error);
-        if (!silent) alert(`Cloud save failed: ${error.message || "check Realtime Database rules and try again."}`);
+        if (!silent) await window.LudusDialog.error(`Cloud save failed: ${error.message || "check Realtime Database rules and try again."}`, { title: 'Cloud save failed' });
     }
 };
 
@@ -479,29 +479,40 @@ window.loadDataFromCloud = async (uid, fullLoad = false) => {
     return false;
 };
 
-window.manualCloudLoad = () => {
+window.manualCloudLoad = async () => {
     const user = auth.currentUser;
     if (!user) {
-        alert("You must be signed in to load cloud data.");
+        await window.LudusDialog.alert("You must be signed in to load cloud data.", { title: 'Sign-in required' });
         return;
     }
     
-    if (confirm("This will overwrite your current local saves with your cloud data. Continue?")) {
-        window.loadDataFromCloud(user.uid, true).then((loaded) => {
-            alert(loaded ? "Save data successfully loaded from the cloud!" : "No cloud save was found.");
-        });
+    const approved = await window.LudusDialog.confirm("This will overwrite your current local saves with your cloud data. Continue?", {
+        title: 'Load cloud save', confirmLabel: 'Load'
+    });
+    if (approved) {
+        const loaded = await window.loadDataFromCloud(user.uid, true);
+        if (loaded && typeof window.refreshLoadedContentAfterSaveImport === 'function') {
+            await window.refreshLoadedContentAfterSaveImport();
+        }
+        await window.LudusDialog.alert(loaded ? "Save data successfully loaded from the cloud!" : "No cloud save was found.", { title: 'Cloud save' });
     }
 };
 
-window.logoutUser = () => {
-    signOut(auth).then(() => {
+window.logoutUser = async () => {
+    try {
+        await signOut(auth);
         sessionStorage.removeItem("mathmaster_session_unlocked");
         sessionStorage.removeItem("mathmaster_dev_unlocked");
         localStorage.removeItem("mathmaster_premium");
         localStorage.removeItem("mathmaster_dev");
-        alert("Logged out successfully.");
-        window.location.reload(); 
-    });
+        // Auth state listener updates the profile and gated UI. Reloading the
+        // outer document here would reload Google Sites rather than this app.
+        if (typeof window.renderGamesGrid === 'function') window.renderGamesGrid();
+        await window.LudusDialog.alert("Logged out successfully.", { title: 'Signed out' });
+    } catch (error) {
+        console.error('Could not sign out:', error);
+        await window.LudusDialog.error('Could not sign out. Please try again.', { title: 'Sign-out failed' });
+    }
 };
 
 // 4. Watch for User Login/Logout 
