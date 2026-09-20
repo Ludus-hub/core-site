@@ -1,8 +1,52 @@
-// Capture the native window.open reference before any sandboxed iframe
-// (which has allow-scripts + allow-same-origin) can escape and overwrite it.
-// NOTE: Do NOT use .bind() here — pre-bound wrappers break Chromium's user-gesture
-// popup trust check. Use .call(window, ...) at the call site instead.
-const _nativeOpen = window.open;
+// ── Google Sites save-restore guard ─────────────────────────────────────────
+// Google Sites clears localStorage when its outer page reloads. To survive
+// this, importSave() stashes the raw backup JSON in sessionStorage before
+// triggering the reload. Re-apply the local portion immediately, then let
+// auth.js restore IndexedDB once its backup helpers are ready.
+(function () {
+    var raw = sessionStorage.getItem('ludus_pending_restore');
+    if (!raw) return;
+    var backup;
+    try {
+        backup = JSON.parse(raw);
+        if (backup && backup.storage && typeof backup.storage === 'object') {
+            // Version 2 backups place web storage under storage.local. Older
+            // exports used storage directly, so retain compatibility with both.
+            var local = backup.storage.local || backup.storage;
+            var keys = Object.keys(local);
+            keys.forEach(function (k) {
+                try {
+                    var v = local[k];
+                    localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+                } catch (e) { /* quota / security — skip silently */ }
+            });
+            console.log('[Ludus] Session restore applied (' + keys.length + ' localStorage keys restored).');
+        }
+    } catch (err) {
+        console.warn('[Ludus] Session restore failed to parse backup:', err);
+    }
+
+    // A complete restore includes IndexedDB, which cannot be done until the
+    // module that owns restoreLudusBackup has loaded. Keep the backup until
+    // that succeeds, rather than losing game progress on a Google Sites reload.
+    window.consumePendingLudusRestore = async function () {
+        if (!backup || typeof window.restoreLudusBackup !== 'function') return false;
+        try {
+            await window.restoreLudusBackup(backup, false, true);
+            sessionStorage.removeItem('ludus_pending_restore');
+            if (typeof window.renderGamesGrid === 'function') window.renderGamesGrid();
+            console.log('[Ludus] Complete pending restore applied.');
+            return true;
+        } catch (err) {
+            console.warn('[Ludus] Complete pending restore failed:', err);
+            return false;
+        }
+    };
+
+    window.addEventListener('ludus:backup-tools-ready', function () {
+        window.consumePendingLudusRestore?.();
+    }, { once: true });
+})();
 
 (function() {
     const consoleOutput = document.getElementById('console-output');
@@ -125,19 +169,31 @@ const frame = document.getElementById("gameFrame");
 const viewer = document.getElementById("viewer");
 const grid = document.getElementById("gameGrid");
 
-// Sandbox tokens applied to the game iframe on every load.
-// allow-same-origin is required for localStorage (game saves), IndexedDB, and
-// same-origin resource requests. The _nativeOpen capture at the top of this
-// file neutralises the known allow-scripts + allow-same-origin escape vector.
-const GAME_SANDBOX = 'allow-scripts allow-same-origin allow-pointer-lock allow-popups allow-forms allow-modals allow-downloads';
+// Games run in an opaque-origin sandbox. Do not add allow-same-origin: a game
+// injected through srcdoc would otherwise share this app's origin and could
+// remove its own sandbox. Popups, downloads, browser modals, fullscreen, and
+// top-level navigation are intentionally not permitted.
+const GAME_SANDBOX = 'allow-scripts allow-pointer-lock';
+
+// Sandbox for non-game app iframes (calc, music, movies, files, version runner).
+// Same base tokens as GAME_SANDBOX; pointer-lock is included so any app that
+// embeds a canvas-based tool still works.
+const APP_SANDBOX = 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals allow-downloads allow-pointer-lock';
+
+// The proxy app (Scramjet) opens URLs in-place and may need to push history
+// entries in its own frame; allow-top-navigation-by-user-activation covers
+// that without granting unrestricted top-level navigation.
+const PROXY_SANDBOX = 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals allow-downloads allow-pointer-lock allow-top-navigation-by-user-activation';
 
 // === PREMIUM & DEV UI CONTROL ===
 
 window.checkDevAndPremiumUI = function() {
-    const isPremium = localStorage.getItem("mathmaster_premium") === "true";
+    const isDeveloper = sessionStorage.getItem("mathmaster_dev_unlocked") === "true";
+    // Developers are exempt from the premium/browser entitlement gate.
+    const isPremium = localStorage.getItem("mathmaster_premium") === "true" || isDeveloper;
     // This value is set by auth.js only after the signed-in user's Firestore
     // profile confirms isDev === true. The code app uses the same flag.
-    const isDev = sessionStorage.getItem("mathmaster_dev_unlocked") === "true";
+    const isDev = isDeveloper;
     
     const premiumBanner = document.getElementById('premiumUpgradeBanner');
     const devAppBtn = document.getElementById('devControlsBtn'); // The 'app-files' dock button
@@ -244,14 +300,20 @@ document.addEventListener('DOMContentLoaded', window.checkDevAndPremiumUI);
 // === Unified Settings & Canvas System ===
 let viewerControlsConfig = JSON.parse(localStorage.getItem('mathmaster_controls')) || [
     { id: 'dashboard', label: '← Dashboard', action: 'goHome()', key: 'h' },
-    { id: 'reload', label: 'Reload', action: 'reloadGame()', key: 'r' },
-    { id: 'fullscreen', label: 'Fullscreen', action: 'toggleFullscreen()', key: 'f' },
-    { id: 'newtab', label: 'Open New Tab', action: 'openInNewTab()', key: 'n' }
+    { id: 'reload', label: 'Reload', action: 'reloadGame()', key: 'r' }
 ];
 
 let viewerControlsVisibility = JSON.parse(localStorage.getItem('mathmaster_controls_vis')) || {
-    'dashboard': true, 'reload': true, 'fullscreen': true, 'newtab': true
+    'dashboard': true, 'reload': true
 };
+
+// Remove controls saved by earlier versions as well as the defaults above.
+// The game viewer is intentionally single-tab and cannot enter fullscreen.
+const REMOVED_VIEWER_CONTROL_IDS = new Set(['fullscreen', 'newtab']);
+viewerControlsConfig = viewerControlsConfig.filter(ctrl => !REMOVED_VIEWER_CONTROL_IDS.has(ctrl.id));
+REMOVED_VIEWER_CONTROL_IDS.forEach(id => delete viewerControlsVisibility[id]);
+localStorage.setItem('mathmaster_controls', JSON.stringify(viewerControlsConfig));
+localStorage.setItem('mathmaster_controls_vis', JSON.stringify(viewerControlsVisibility));
 
 let favControl = viewerControlsConfig.find(c => c.id === 'favorite');
 if (!favControl) {
@@ -294,7 +356,7 @@ const _VIEWER_ICONS = {
 };
 
 // These button ids go in the top-bar (quickControlsContainer); all others go in the dropdown
-const _QUICK_CTRL_IDS = ['dashboard', 'fullscreen'];
+const _QUICK_CTRL_IDS = ['dashboard'];
 
 function _makeViewerBtn(ctrl, index, isFav) {
     const btn = document.createElement('button');
@@ -472,13 +534,24 @@ function importSave(event) {
             if (!data.storage) throw new Error("Invalid Backup Format");
 
             if (confirm("This will restore your saved games and settings, then reload. Continue?")) {
+                // Stash the full backup in sessionStorage *before* writing to
+                // localStorage and reloading. Google Sites wipes localStorage on
+                // reload; the guard at the top of this file reads sessionStorage on
+                // the very next execution and re-applies every key, so the restore
+                // always lands even on hostile hosting environments.
+                try { sessionStorage.setItem('ludus_pending_restore', JSON.stringify(data)); } catch (se) { /* storage full — continue without it */ }
+
                 if (typeof window.restoreLudusBackup === "function") {
                     await window.restoreLudusBackup(data, false, true);
                     alert("Restore successful! Reloading site...");
                     window.location.reload();
                     return;
                 }
-                alert("Save tools are still loading. Please try again in a moment.");
+                // The session copy above will be consumed during startup once
+                // auth.js is ready. Reload now so this also works when a user
+                // selects a save immediately after opening the page.
+                alert("Save queued. Reloading site...");
+                window.location.reload();
             }
         } catch (err) {
             alert("Error: Invalid .json backup file.");
@@ -725,6 +798,22 @@ function showTourStep(stepIndex) {
     }, 400); 
 }
 
+// ── Game-initiated exit (sandbox snippet → parent) ────────────────────────────
+// When a game file includes the Ludus sandbox snippet and the player clicks a
+// "Quit" or "Exit" button, the game calls LudusBridge.exit() which posts
+// { type: 'ludus:exit' } here. We call goHome() immediately so the iframe is
+// terminated without any delay.
+window.addEventListener('message', function (e) {
+    const gameFrame = document.getElementById('gameFrame');
+    if (!gameFrame || e.source !== gameFrame.contentWindow || !e.data) return;
+    if (e.data.type === 'ludus:exit') {
+        if (typeof goHome === 'function') goHome();
+    }
+    if (e.data.type === 'ludus:game-message') {
+        showSandboxedGameMessage(e.data.kind, e.data.message);
+    }
+});
+
 // Patch script injected before ytgame.js / PixiJS in srcdoc games.
 // Fixes: (1) /undefined/ in CDN fetch/XHR/script-tag paths, (2) WebGL crash via forceCanvas.
 const GAME_PATCH_SCRIPT = `<script>
@@ -801,6 +890,88 @@ const GAME_PATCH_SCRIPT = `<script>
   });
 })();
 <\/script>`;
+
+// Injected into every fetched game document. Browser alert/confirm/prompt
+// dialogs are disallowed by the strict sandbox, so relay them to the host UI
+// instead of silently losing them on hosts such as Google Sites.
+const GAME_SANDBOX_BRIDGE_SCRIPT = `<script>
+(function () {
+  function relay(kind, value) {
+    try {
+      parent.postMessage({ type: 'ludus:game-message', kind: kind,
+        message: String(value == null ? '' : value).slice(0, 4000) }, '*');
+    } catch (_) {}
+  }
+  window.alert = function (message) { relay('alert', message); };
+  // A cross-origin sandbox cannot synchronously receive a user's response from
+  // its parent. Return the safe default while still making the request visible.
+  window.confirm = function (message) { relay('confirm', message); return false; };
+  window.prompt = function (message) { relay('prompt', message); return null; };
+  window.addEventListener('error', function (event) {
+    relay('error', event.message || 'Game error');
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    relay('error', event.reason && event.reason.message ? event.reason.message : event.reason || 'Unhandled game error');
+  });
+})();
+<\/script>`;
+
+function prepareSandboxedGameHtml(html, url) {
+    let base = '';
+    try { base = new URL('.', url).href; } catch (_) {}
+    const injection = `${base ? `<base href="${base}">` : ''}${GAME_SANDBOX_BRIDGE_SCRIPT}`;
+    let output = String(html);
+
+    if (/<head[^>]*>/i.test(output)) {
+        output = output.replace(/(<head[^>]*>)/i, `$1${injection}`);
+    } else {
+        output = `<!doctype html><html><head><meta charset="utf-8">${injection}</head><body>${output}</body></html>`;
+    }
+    if (output.includes('ytgame.js') || /pixi/i.test(output)) {
+        output = output.replace(/(<head[^>]*>)/i, '$1' + GAME_PATCH_SCRIPT);
+    }
+    return output;
+}
+
+function showSandboxedGameMessage(kind, message) {
+    const previous = document.getElementById('ludusGameMessage');
+    if (previous) previous.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ludusGameMessage';
+    Object.assign(overlay.style, {
+        position: 'fixed', inset: '0', zIndex: '1000020', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: '20px',
+        background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(5px)'
+    });
+    const dialog = document.createElement('div');
+    Object.assign(dialog.style, {
+        width: 'min(420px, 100%)', borderRadius: '16px', padding: '24px',
+        color: '#fff', background: '#171717', border: '1px solid rgba(255,255,255,0.16)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.65)', fontFamily: 'Inter, system-ui, sans-serif'
+    });
+    const heading = document.createElement('div');
+    heading.textContent = kind === 'error' ? 'Game error' : 'Game message';
+    heading.style.cssText = 'font-weight:700;font-size:16px;margin-bottom:12px;';
+    const body = document.createElement('div');
+    body.textContent = message || '(No message provided)';
+    body.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:rgba(255,255,255,.8);line-height:1.5;font-size:14px;';
+    const note = document.createElement('div');
+    if (kind === 'confirm' || kind === 'prompt') {
+        note.textContent = 'This request was safely cancelled because games cannot control this app.';
+        note.style.cssText = 'margin-top:12px;color:rgba(255,255,255,.45);font-size:12px;line-height:1.45;';
+    }
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'OK';
+    close.onclick = () => overlay.remove();
+    close.style.cssText = 'margin-top:20px;width:100%;padding:10px;border:0;border-radius:9px;background:#00c9ff;color:#031419;font-weight:700;cursor:pointer;';
+    dialog.append(heading, body, note, close);
+    overlay.appendChild(dialog);
+    overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+    close.focus();
+}
 
 // ── Content Warning System ─────────────────────────────────────────────────────
 const CONTENT_WARNINGS = (() => {
@@ -885,39 +1056,127 @@ async function loadGame(p) {
     if (recentlyPlayed.length > 50) recentlyPlayed.pop(); 
     localStorage.setItem('mathmaster_recent', JSON.stringify(recentlyPlayed));
 
-    // Enforce sandbox on every game load — must be set before src/srcdoc so the
-    // attribute is in place when the browser first navigates the frame.
+    // Enforce the same strict sandbox on every game, including yt.html. The
+    // attribute must be in place before src/srcdoc so the first navigation
+    // cannot briefly receive broader permissions.
     frame.setAttribute('sandbox', GAME_SANDBOX);
 
-    // Attempt srcdoc injection for ytgame/Pixi games so patches run before those libs.
-    // Falls back to direct src= if the file can't be fetched (e.g. cross-origin blob URLs).
+    // ── Offline cache integration ─────────────────────────────────────────────
+    // Priority matrix:
+    //   1. Cache-first ON  → try IndexedDB first, fall back to network
+    //   2. Network OK      → fetch normally; if auto-caching is on, save result
+    //   3. Network fails   → try IndexedDB as recovery fallback
+    //   4. Both fail       → show offline error card
+    const _offline = window.LudusOffline;
     let usedSrcdoc = false;
-    try {
-        const resp = await fetch(p);
-        if (resp.ok) {
-            let html = await resp.text();
-            if (html.includes('ytgame.js') || html.includes('pixi') || html.includes('PIXI')) {
-                html = html.replace(/(<head[^>]*>)/i, '$1' + GAME_PATCH_SCRIPT);
-                frame.removeAttribute('src');
-                frame.srcdoc = html;
-                usedSrcdoc = true;
+
+    if (_offline && _offline.isEnabled()) {
+        const cacheFirst = _offline.isCacheFirst();
+        const autoCaching = _offline.isAutoCaching();
+
+        // Find game name for labelling
+        const _gameEntry = (typeof games !== 'undefined')
+            ? games.find(g => g.path === p) : null;
+        const _gameName = _gameEntry ? _gameEntry.name : p.split('/').pop();
+
+        let html = null;
+
+        if (cacheFirst) {
+            // Try cache first
+            const cached = await _offline.load(p);
+            if (cached) html = cached.html;
+        }
+
+        if (!html) {
+            // Fetch from network
+            try {
+                const resp = await fetch(p);
+                if (resp.ok) {
+                    html = await resp.text();
+                    // Auto-cache if enabled
+                    if (autoCaching) {
+                        _offline.save(p, html, _gameName).catch(() => {});
+                    }
+                }
+            } catch(e) {
+                // Network failed — try cache as fallback even if cache-first was off
+                if (!cacheFirst) {
+                    const cached = await _offline.load(p);
+                    if (cached) html = cached.html;
+                }
             }
         }
-    } catch(e) { /* fetch failed — fall through to direct src */ }
 
-    if (!usedSrcdoc) {
-        frame.removeAttribute('srcdoc');
-        frame.src = p;
+        if (html) {
+            frame.removeAttribute('src');
+            frame.srcdoc = prepareSandboxedGameHtml(html, p);
+            usedSrcdoc = true;
+        } else if (!navigator.onLine) {
+            // Show offline error card
+            frame.removeAttribute('src');
+            frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0a;color:white;font-family:Inter,system-ui,sans-serif;
+display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:24px;}
+.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+border-radius:20px;padding:32px;max-width:360px;}
+h2{color:#FFA500;font-size:20px;margin-bottom:10px;}
+p{color:rgba(255,255,255,0.6);font-size:14px;line-height:1.6;margin-bottom:18px;}
+.badge{display:inline-block;background:rgba(255,160,0,0.12);border:1px solid rgba(255,160,0,0.3);
+color:#FFA500;font-size:11px;font-weight:700;padding:4px 12px;border-radius:99px;
+letter-spacing:0.8px;text-transform:uppercase;margin-bottom:16px;}
+</style></head><body>
+<div class="card">
+<div class="badge">Offline</div>
+<h2>Game Not Cached</h2>
+<p>You're offline and this game hasn't been saved for offline play yet.<br><br>
+Open <strong>Settings → Offline Mode</strong> while connected to cache games for offline use.</p>
+</div></body></html>`;
+            usedSrcdoc = true;
+        }
     }
 
-    renderViewerButtons(); 
+    // ── Normal (online, offline-mode off) path ────────────────────────────────
+    if (!usedSrcdoc) {
+        try {
+            const resp = await fetch(p);
+            if (resp.ok) {
+                const html = await resp.text();
+                frame.removeAttribute('src');
+                frame.srcdoc = prepareSandboxedGameHtml(html, p);
+                usedSrcdoc = true;
+            }
+        } catch(e) { /* fetch failed — fall through to direct src */ }
+
+        if (!usedSrcdoc) {
+            frame.removeAttribute('srcdoc');
+            frame.src = p;
+        }
+    }
+
+    renderViewerButtons();
+
+    // Start inactivity timer now that the game is running
+    if (window.LudusInactivity) window.LudusInactivity.start();
 }
 
 function goHome() {
     if (document.fullscreenElement) document.exitFullscreen();
+
+    // ── Instant iframe teardown ──────────────────────────────────────────────
+    // Removing srcdoc first is essential — browsers give srcdoc priority over
+    // src, so setting src alone won't navigate away while srcdoc is present.
+    // Navigating to about:blank terminates ALL running JS, audio contexts,
+    // Web Workers, timers, and WebSockets inside the frame immediately.
+    frame.removeAttribute('srcdoc');
+    frame.src = 'about:blank';
+
     viewer.style.display = "none";
     grid.style.display = "grid";
-    frame.src = "";
+
+    // Stop the inactivity timer — game is over
+    if (window.LudusInactivity) window.LudusInactivity.stop();
+
     // Save once a player finishes a game instead of waiting for the next
     // minute-long background sync or an unreliable page-close event.
     window.saveDataToCloud?.(true);
@@ -931,11 +1190,275 @@ function goHome() {
     } catch(e) {}
 }
 
+// ── Inactivity Timer (LudusInactivity) ──────────────────────────────────────
+// Closes the active game/app if the user is idle for a configurable period.
+// Games that include the Ludus sandbox snippet automatically ping
+// 'ludus:activity' via postMessage on every interaction, so mouse/keyboard
+// events inside the iframe also reset the timer without any extra setup here.
+window.LudusInactivity = (function () {
+    var _idleTimer = null;
+    var _countdownTimer = null;
+    var _warnEl = null;
+    var _active = false;
+
+    /* ── config helpers ── */
+    function _cfg() {
+        var enabled = localStorage.getItem('ludus_inactivity_enabled') !== 'false';
+        var raw = parseInt(localStorage.getItem('ludus_inactivity_timeout') || '60', 10);
+        var timeout = (isNaN(raw) || raw < 5) ? 60 : raw;
+        var warn = localStorage.getItem('ludus_inactivity_warn') !== 'false';
+        return { enabled: enabled, timeout: timeout, warn: warn };
+    }
+
+    /* ── warning overlay ── */
+    function _ensureWarnEl() {
+        if (_warnEl) return _warnEl;
+        var el = document.createElement('div');
+        el.id = '_ludus_inact_warn';
+        el.style.cssText = [
+            'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);',
+            'background:rgba(12,12,12,0.97);border:1px solid rgba(255,160,0,0.45);',
+            'border-radius:16px;padding:14px 18px;z-index:2147483645;',
+            'display:none;align-items:center;gap:14px;min-width:320px;',
+            'font-family:Inter,system-ui,sans-serif;backdrop-filter:blur(16px);',
+            'box-shadow:0 10px 40px rgba(0,0,0,0.75);'
+        ].join('');
+        el.innerHTML =
+            '<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;' +
+            'background:rgba(255,160,0,0.12);border:1px solid rgba(255,160,0,0.3);' +
+            'display:flex;align-items:center;justify-content:center;">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" ' +
+            'stroke="#FFA500" stroke-width="2" stroke-linecap="round">' +
+            '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' +
+            '</svg></div>' +
+            '<div style="flex:1;min-width:0;">' +
+            '<div style="color:white;font-size:13px;font-weight:700;margin-bottom:2px;">Inactive</div>' +
+            '<div style="color:rgba(255,255,255,0.55);font-size:12px;">Closing game in ' +
+            '<span id="_ludus_inact_secs" style="color:#FFA500;font-weight:800;">10</span>s</div>' +
+            '</div>' +
+            '<button onclick="window.LudusInactivity.reset()" style="' +
+            'background:rgba(255,160,0,0.14);border:1px solid rgba(255,160,0,0.35);' +
+            'color:#FFA500;padding:8px 16px;border-radius:10px;cursor:pointer;' +
+            'font-size:12px;font-weight:700;white-space:nowrap;transition:background 0.2s;"' +
+            ' onmouseover="this.style.background=\'rgba(255,160,0,0.26)\'"' +
+            ' onmouseout="this.style.background=\'rgba(255,160,0,0.14)\'">Keep Playing</button>';
+        document.body.appendChild(el);
+        _warnEl = el;
+        return el;
+    }
+
+    function _showWarning(onExpire) {
+        var el = _ensureWarnEl();
+        el.style.display = 'flex';
+        var secs = 10;
+        var secsEl = document.getElementById('_ludus_inact_secs');
+        if (secsEl) secsEl.textContent = secs;
+        _countdownTimer = setInterval(function () {
+            secs--;
+            if (secsEl) secsEl.textContent = secs;
+            if (secs <= 0) {
+                clearInterval(_countdownTimer);
+                _countdownTimer = null;
+                _hideWarning();
+                onExpire();
+            }
+        }, 1000);
+    }
+
+    function _hideWarning() {
+        clearInterval(_countdownTimer);
+        _countdownTimer = null;
+        if (_warnEl) _warnEl.style.display = 'none';
+    }
+
+    /* ── timer scheduling ── */
+    function _schedule() {
+        clearTimeout(_idleTimer);
+        var c = _cfg();
+        var warnPad = c.warn ? 10000 : 0;
+        var delay = Math.max(c.timeout * 1000 - warnPad, 3000);
+        _idleTimer = setTimeout(function () {
+            if (!_active) return;
+            if (c.warn) {
+                _showWarning(function () { if (_active) { api.stop(); goHome(); } });
+            } else {
+                api.stop();
+                goHome();
+            }
+        }, delay);
+    }
+
+    /* ── public API ── */
+    var api = {
+        start: function () {
+            var c = _cfg();
+            if (!c.enabled) return;
+            _active = true;
+            _schedule();
+        },
+        stop: function () {
+            _active = false;
+            clearTimeout(_idleTimer);
+            _idleTimer = null;
+            _hideWarning();
+        },
+        reset: function () {
+            if (!_active) return;
+            _hideWarning();
+            _schedule();
+        }
+    };
+
+    // Reset on any parent-page interaction
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'click', 'scroll']
+        .forEach(function (e) {
+            document.addEventListener(e, function () { api.reset(); }, { passive: true });
+        });
+
+    // Reset on activity pings from the game iframe (sandbox snippet)
+    window.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'ludus:activity') api.reset();
+    });
+
+    // If the page is hidden (user switched tabs) the game is still "running" —
+    // start the idle clock when visibility is lost, reset when it returns.
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) { api.reset(); } else { api.reset(); }
+    });
+
+    return api;
+})();
+
+// ── Offline Cache (LudusOffline) ─────────────────────────────────────────────
+// Stores game HTML text in IndexedDB so specific games can run without a
+// network connection. Multi-file games (folder/index.html) are supported but
+// only the entry-point HTML is cached; their sub-assets still require a
+// network unless cached separately by the browser's HTTP cache.
+window.LudusOffline = (function () {
+    var DB_NAME = 'ludus_offline_db';
+    var DB_VER  = 1;
+    var STORE   = 'game_cache';
+    var _db = null;
+
+    function _open() {
+        if (_db) return Promise.resolve(_db);
+        return new Promise(function (res, rej) {
+            var req = indexedDB.open(DB_NAME, DB_VER);
+            req.onupgradeneeded = function (e) {
+                var db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE)) {
+                    db.createObjectStore(STORE, { keyPath: 'path' });
+                }
+            };
+            req.onsuccess = function (e) { _db = e.target.result; res(_db); };
+            req.onerror   = function (e) { rej(e.target.error); };
+        });
+    }
+
+    var api = {
+        /** Save game HTML under the given path key. */
+        save: function (path, html, name) {
+            return _open().then(function (db) {
+                return new Promise(function (res, rej) {
+                    var tx = db.transaction(STORE, 'readwrite');
+                    tx.objectStore(STORE).put({
+                        path: path,
+                        html: html,
+                        name: name || path,
+                        cachedAt: Date.now(),
+                        size: html.length
+                    });
+                    tx.oncomplete = function () { res(true); };
+                    tx.onerror    = function (e) { rej(e.target.error); };
+                });
+            });
+        },
+
+        /** Load cached HTML for a path, or null if not cached. */
+        load: function (path) {
+            return _open().then(function (db) {
+                return new Promise(function (res) {
+                    var tx  = db.transaction(STORE, 'readonly');
+                    var req = tx.objectStore(STORE).get(path);
+                    req.onsuccess = function (e) { res(e.target.result || null); };
+                    req.onerror   = function () { res(null); };
+                });
+            }).catch(function () { return null; });
+        },
+
+        /** Delete a single cached entry. */
+        remove: function (path) {
+            return _open().then(function (db) {
+                return new Promise(function (res, rej) {
+                    var tx = db.transaction(STORE, 'readwrite');
+                    tx.objectStore(STORE).delete(path);
+                    tx.oncomplete = function () { res(true); };
+                    tx.onerror    = function (e) { rej(e.target.error); };
+                });
+            });
+        },
+
+        /** List all cached entry metadata (no html payload). */
+        list: function () {
+            return _open().then(function (db) {
+                return new Promise(function (res) {
+                    var tx  = db.transaction(STORE, 'readonly');
+                    var req = tx.objectStore(STORE).getAll();
+                    req.onsuccess = function (e) {
+                        res((e.target.result || []).map(function (r) {
+                            return { path: r.path, name: r.name, cachedAt: r.cachedAt, size: r.size };
+                        }));
+                    };
+                    req.onerror = function () { res([]); };
+                });
+            }).catch(function () { return []; });
+        },
+
+        /** Wipe every cached game. */
+        clearAll: function () {
+            return _open().then(function (db) {
+                return new Promise(function (res, rej) {
+                    var tx = db.transaction(STORE, 'readwrite');
+                    tx.objectStore(STORE).clear();
+                    tx.oncomplete = function () { res(true); };
+                    tx.onerror    = function (e) { rej(e.target.error); };
+                });
+            });
+        },
+
+        /** Fetch a game from the network and cache it. Returns {ok, error}. */
+        cacheFromNetwork: function (path, name) {
+            return fetch(path)
+                .then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.text();
+                })
+                .then(function (html) {
+                    return api.save(path, html, name).then(function () { return { ok: true }; });
+                })
+                .catch(function (e) { return { ok: false, error: e.message }; });
+        },
+
+        /** Config helpers */
+        isEnabled:      function () { return localStorage.getItem('ludus_offline_enabled') === 'true'; },
+        isCacheFirst:   function () { return localStorage.getItem('ludus_offline_cache_first') !== 'false'; },
+        isAutoCaching:  function () { return localStorage.getItem('ludus_offline_auto_cache') === 'true'; },
+        setEnabled:     function (v) { localStorage.setItem('ludus_offline_enabled', v ? 'true' : 'false'); },
+        setCacheFirst:  function (v) { localStorage.setItem('ludus_offline_cache_first', v ? 'true' : 'false'); },
+        setAutoCaching: function (v) { localStorage.setItem('ludus_offline_auto_cache', v ? 'true' : 'false'); },
+    };
+
+    return api;
+})();
+
 function isSecretUnlocked() {
     const deviceId = localStorage.getItem("mathmaster_device_id");
     const list = JSON.parse(localStorage.getItem("mathmaster_registered_devices") || "[]");
     const sessionUnlocked = sessionStorage.getItem("mathmaster_session_unlocked") === "true";
-    return sessionUnlocked || (deviceId && list.includes(deviceId));
+    // Developer status is auth-derived in auth.js. Developers do not consume a
+    // remembered-browser slot and retain access to premium/secret content.
+    const isDeveloper = sessionStorage.getItem("mathmaster_dev_unlocked") === "true";
+    return isDeveloper || sessionUnlocked || (deviceId && list.includes(deviceId));
 }
 
 function getCustomGames() {
@@ -967,7 +1490,9 @@ const DEVICE_KEY = "mathmaster_device_id";
 const MASTER_LIST_KEY = "mathmaster_registered_devices";
 
 function checkPassword() {
-    const input = document.getElementById("passwordInput").value;
+    const passwordField = document.getElementById("authPasswordInput") || document.getElementById("passwordInput");
+    if (!passwordField) return;
+    const input = passwordField.value;
     const remember = document.getElementById("rememberToggle").checked;
     const error = document.getElementById("loginError");
     const limit = document.getElementById("loginLimit");
@@ -978,9 +1503,10 @@ function checkPassword() {
     let deviceId = localStorage.getItem(DEVICE_KEY);
     let list = JSON.parse(localStorage.getItem(MASTER_LIST_KEY) || "[]");
 
+    const isDeveloper = sessionStorage.getItem("mathmaster_dev_unlocked") === "true";
     if (remember) {
         if (!deviceId || !list.includes(deviceId)) {
-            if (list.length >= MAX_DEVICES) { limit.style.display = "block"; return; }
+            if (list.length >= MAX_DEVICES && !isDeveloper) { limit.style.display = "block"; return; }
             deviceId = crypto.randomUUID();
             list.push(deviceId);
             localStorage.setItem(DEVICE_KEY, deviceId);
@@ -1009,21 +1535,11 @@ function reloadGame() {
 }
 
 function toggleFullscreen() {
-    const viewerElement = document.getElementById("viewer");
-    if (!document.fullscreenElement) viewerElement.requestFullscreen().catch(err => console.error(err));
-    else document.exitFullscreen();
+    console.warn('Fullscreen is disabled for sandboxed games.');
 }
 
 function openInNewTab() {
-    // Resolve the URL from currentSrc (always set by loadGame, works for both
-    // direct-src and srcdoc-injected games where gameFrame.src would be blank).
-    if (!currentSrc) return;
-    const url = new URL(currentSrc, window.location.href).href;
-    // Use .call(window, ...) rather than the pre-bound form so Chromium's
-    // user-gesture popup trust check sees a direct window.open invocation.
-    // _nativeOpen is still the reference captured before any iframe could
-    // clobber window.open, so we keep that protection too.
-    _nativeOpen.call(window, url, '_blank');
+    console.warn('Opening games in a new tab is disabled.');
 }
 
 // ==============================================
@@ -1883,8 +2399,7 @@ document.addEventListener("keydown", (e) => {
         if (viewerElement && viewerElement.style.display === "flex" && typeof currentSrc !== 'undefined') {
             const mappings = JSON.parse(localStorage.getItem("mathmaster_game_panic_maps") || "{}");
             if (mappings[currentSrc]) {
-                gameFrameElement.setAttribute('sandbox', GAME_SANDBOX);
-                gameFrameElement.src = mappings[currentSrc];
+                loadGame(mappings[currentSrc]);
             }
         }
     }
@@ -1901,32 +2416,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 function openAboutBlank() {
-    let win = window.open('about:blank', '_blank');
-    if (!win) return alert("Please allow pop-ups for this site!");
-
-    let currentTitle = document.title;
-    let iconElement = document.getElementById("favicon");
-    let currentIcon = iconElement ? iconElement.href : "";
-
-    win.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${currentTitle}</title>
-            <link rel="icon" type="image/png" href="${currentIcon}">
-            <style>
-                body { margin: 0; overflow: hidden; background: #000; }
-                iframe { width: 100vw; height: 100vh; border: none; margin: 0; display: block; }
-            </style>
-        </head>
-        <body>
-            <iframe src="${window.location.href}"></iframe>
-        </body>
-        </html>
-    `);
-    
-    win.document.close();
-    window.location.replace('https://classroom.google.com'); 
+    console.warn('Opening this app in a new tab is disabled. Games stay inside the sandboxed viewer.');
 }
 
 function resolveGameUrl(rawUrl) {
@@ -1989,8 +2479,7 @@ if (gameIframe) {
                 if (e.key === inGamePanicKey) {
                     const mappings = JSON.parse(localStorage.getItem("mathmaster_game_panic_maps") || "{}");
                     if (typeof currentSrc !== 'undefined' && mappings[currentSrc]) {
-                        gameIframe.setAttribute('sandbox', GAME_SANDBOX);
-                        gameIframe.src = mappings[currentSrc]; 
+                        loadGame(mappings[currentSrc]);
                     }
                 }
             });
@@ -2068,8 +2557,14 @@ function switchSection(targetAppId, clickedBtn) {
         targetSection.classList.add('active-section');
         targetSection.style.display = 'block';
 
-        // LAZY LOAD LOGIC ADDED HERE:
+        // LAZY LOAD LOGIC — apply the appropriate sandbox *before* setting src
+        // so the attribute is present when the browser first navigates the frame.
         const frame = targetSection.querySelector('.app-frame');
+        if (frame && frame.getAttribute('data-src') && frame.tagName === 'IFRAME') {
+            // Proxy gets slightly wider permissions; everything else uses APP_SANDBOX.
+            const sandboxTokens = (targetAppId === 'app-proxy') ? PROXY_SANDBOX : APP_SANDBOX;
+            frame.setAttribute('sandbox', sandboxTokens);
+        }
         if (frame && frame.getAttribute('data-src')) {
             if (frame.tagName === 'OBJECT') {
                 if (frame.data.includes('about:blank')) frame.data = frame.getAttribute('data-src');
@@ -2205,6 +2700,8 @@ function launchDropdownVersion() {
     const overlay = document.getElementById('versionRunnerOverlay');
     const versionFrame = document.getElementById('versionFrame');
     
+    // Sandbox before src so the attribute is set on the first navigation.
+    versionFrame.setAttribute('sandbox', APP_SANDBOX);
     versionFrame.src = url;
     overlay.style.display = 'block';
 }
@@ -2235,6 +2732,8 @@ function launchSelectedVersion() {
     const overlay = document.getElementById('versionRunnerOverlay');
     const versionFrame = document.getElementById('versionFrame');
     
+    // Sandbox before src so the attribute is set on the first navigation.
+    versionFrame.setAttribute('sandbox', APP_SANDBOX);
     versionFrame.src = url;
     overlay.style.display = 'block';
     
@@ -2343,11 +2842,9 @@ async function renderGamesGrid() {
 
         // Normal Render
         c.innerHTML = `<img src="${g.logo}" loading="lazy" decoding="async"><h3>${g.name}</h3>`;
-        c.innerHTML += g.external 
-            ? `<button class="btn" onclick="window.open('${g.path}','_blank')">Open</button>`
-            : g.newtab
-                ? `<button class="btn" onclick="window.open('${g.path}','_blank')" title="Opens in a new tab">Open in Tab</button>`
-                : `<button class="btn" onclick="loadGameSafe('${g.path}')">Play</button>`;
+        // Every playable entry stays in the in-app sandbox. This also covers
+        // dynamically imported entries that previously requested a new tab.
+        c.innerHTML += `<button class="btn" onclick="loadGameSafe('${g.path}')">Play</button>`;
         gridEl.appendChild(c);
     }
     
@@ -2536,6 +3033,15 @@ function switchSettingsTab(event, tabId) {
     // Sync p/app settings UI whenever App Settings tab is opened
     if (tabId === 'tab-app-settings' && typeof syncProxySettingsUI === 'function') {
         syncProxySettingsUI();
+    }
+    // Sync inactivity toggles when Viewing Controls opens
+    if (tabId === 'tab-app-settings') {
+        const inEn = document.getElementById('settingsInactivityEnabled');
+        const inTo = document.getElementById('settingsInactivityTimeout');
+        const inWa = document.getElementById('settingsInactivityWarn');
+        if (inEn) inEn.checked = localStorage.getItem('ludus_inactivity_enabled') !== 'false';
+        if (inTo) { const sv = localStorage.getItem('ludus_inactivity_timeout'); if (sv) inTo.value = sv; }
+        if (inWa) inWa.checked = localStorage.getItem('ludus_inactivity_warn') !== 'false';
     }
 }
 
@@ -3167,20 +3673,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- FULLSCREEN PROXY OVERRIDE ---
-    // Ensure the #viewer goes fullscreen (bringing the dock with it) instead of just the iframe
-    const gameFrame = document.getElementById('gameFrame');
-    const viewer = document.getElementById('viewer');
-    
-    if (gameFrame && viewer) {
-        gameFrame.requestFullscreen = function(options) {
-            return viewer.requestFullscreen ? viewer.requestFullscreen(options) : viewer.webkitRequestFullscreen(options);
-        };
-        gameFrame.webkitRequestFullscreen = function(options) {
-            return viewer.webkitRequestFullscreen ? viewer.webkitRequestFullscreen(options) : viewer.requestFullscreen(options);
-        };
-    }
-    
     // --- INJECTED BUTTON TO ICON CONVERTER ---
     const controlsContainer = document.getElementById('viewerControlsContainer');
     if (controlsContainer) {
