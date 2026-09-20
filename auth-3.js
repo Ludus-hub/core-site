@@ -344,6 +344,10 @@ window.restoreLudusBackup = async (backup, includeSession = true, replaceExistin
     await importAllIndexedDB(backup.indexedDB);
 };
 
+// script.js may have a backup waiting in sessionStorage after a Google Sites
+// reload. Let it finish the IndexedDB portion now that these helpers exist.
+window.dispatchEvent(new Event('ludus:backup-tools-ready'));
+
 async function makeCloudBackupFile(backup) {
     const json = JSON.stringify(backup);
     if (typeof CompressionStream !== "function") {
@@ -521,7 +525,10 @@ onAuthStateChanged(auth, (user) => {
         // Auth persistence can sign a user into a second approved domain
         // without a fresh, explicit login. Restore once per browser session
         // there as well, so account data follows the user between domains.
-        const shouldLoadCloud = isExplicitLogin || sessionStorage.getItem(cloudLoadMarker) !== "true";
+        // A manually imported save must win over the remote backup. It will be
+        // restored after this module loads, then the page can resume normally.
+        const hasPendingLocalRestore = sessionStorage.getItem('ludus_pending_restore') !== null;
+        const shouldLoadCloud = !hasPendingLocalRestore && (isExplicitLogin || sessionStorage.getItem(cloudLoadMarker) !== "true");
         if (shouldLoadCloud) {
             window.loadDataFromCloud(user.uid, true).then((loaded) => {
                 if (loaded) sessionStorage.setItem(cloudLoadMarker, "true");
