@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludus Stream</title>
-
+    <!-- Scramjet proxy assets — preloaded so the browser fetches them while the
+         page is still parsing, long before the conduit init script runs.       -->
+    <link rel="preload" href="/p/scram/scramjet.all.js"   as="script">
+    <link rel="preload" href="/p/scram/scramjet.sync.js"  as="script">
+    <link rel="preload" href="/p/scram/scramjet.wasm.wasm" as="fetch" crossorigin="anonymous">
     <style>
         :root {
             --bg-base: #040404;
@@ -724,7 +728,36 @@
             color: rgba(255, 255, 255, 0.45);
         }
 
-
+        /* ── Conduit Toggle Switch ── */
+        .cduit-toggle-wrap {
+            display: inline-flex; align-items: center; gap: 7px;
+            cursor: pointer; user-select: none; padding: 2px 0;
+        }
+        .cduit-toggle-label {
+            font-size: 11px; font-weight: 700;
+            color: rgba(255,255,255,0.4); transition: color 0.25s;
+        }
+        #conduitToggle.active .cduit-toggle-label { color: #92FE9D; }
+        .cduit-switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+        .cduit-switch-track {
+            width: 34px; height: 18px; border-radius: 9px;
+            background: rgba(255,255,255,0.1);
+            border: 1.5px solid rgba(255,255,255,0.2);
+            transition: background 0.25s, border-color 0.25s;
+        }
+        .cduit-switch-thumb {
+            position: absolute; top: 2px; left: 2px;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: rgba(255,255,255,0.35);
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.25s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+        #conduitToggle.active .cduit-switch-track {
+            background: rgba(146,254,157,0.22); border-color: #92FE9D;
+        }
+        #conduitToggle.active .cduit-switch-thumb {
+            transform: translateX(16px); background: #92FE9D;
+        }
 
         /* --- Server Controls Group --- */
         .server-controls {
@@ -1004,6 +1037,81 @@
         .cw-card:hover .cw-remove-btn { opacity: 1; }
         .cw-remove-btn:hover { color: #ff5555; }
 
+        /* --- Resume Toast --- */
+        .resume-toast {
+            position: fixed;
+            bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(8, 8, 8, 0.97);
+            border: 1px solid rgba(0,201,255,0.35);
+            border-radius: 14px;
+            padding: 14px 18px;
+            color: white;
+            z-index: 2100;
+            display: none;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.9), 0 0 24px rgba(0,201,255,0.07);
+            backdrop-filter: blur(14px);
+            max-width: 500px;
+            min-width: 300px;
+        }
+        .resume-toast.visible {
+            display: flex;
+            animation: toastIn 0.28s ease;
+        }
+        @keyframes toastIn {
+            from { opacity:0; transform:translateX(-50%) translateY(14px); }
+            to   { opacity:1; transform:translateX(-50%) translateY(0); }
+        }
+        .resume-toast-icon { color: var(--accent); flex-shrink:0; }
+        .resume-toast-body { flex:1; min-width:0; }
+        .resume-toast-title { font-size:13px; font-weight:700; margin-bottom:2px; }
+        .resume-toast-meta  { font-size:11.5px; color:var(--text-muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .resume-toast-server-chip {
+            background: rgba(0,201,255,0.12); border:1px solid rgba(0,201,255,0.3);
+            border-radius:4px; padding:1px 7px; font-size:10.5px; color:var(--accent); font-weight:600;
+        }
+        .resume-toast-time-chip {
+            background: rgba(146,254,157,0.1); border:1px solid rgba(146,254,157,0.28);
+            border-radius:4px; padding:1px 7px; font-size:10.5px; color:#92FE9D; font-weight:600;
+        }
+        .resume-toast-hint {
+            font-size:11px; color:rgba(255,255,255,0.35); margin-top:5px; line-height:1.4;
+        }
+        .resume-toast-input-row {
+            display:flex; gap:6px; margin-top:8px; align-items:center;
+        }
+        .resume-toast-input {
+            background:rgba(255,255,255,0.07); border:1px solid rgba(0,201,255,0.3);
+            border-radius:6px; color:white; font-size:13px; padding:5px 10px;
+            width:88px; outline:none; text-align:center;
+        }
+        .resume-toast-input:focus { border-color:var(--accent); }
+        .resume-toast-input::placeholder { color:rgba(255,255,255,0.3); }
+        .resume-toast-dismiss {
+            background:transparent; border:none; color:rgba(255,255,255,0.35);
+            cursor:pointer; font-size:18px; line-height:1; padding:0; flex-shrink:0;
+            transition:color 0.15s;
+        }
+        .resume-toast-dismiss:hover { color:white; }
+        /* Server badge on CW cards */
+        .cw-server-badge {
+            position: absolute;
+            bottom: 22px; left: 8px;
+            background: rgba(0,0,0,0.75);
+            color: var(--accent);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 6;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            max-width: 120px;
+            text-overflow: ellipsis;
+        }
+
     </style>
 </head>
 <body>
@@ -1115,6 +1223,29 @@
         </div>
     </div>
 
+    <!-- Resume Toast -->
+    <div class="resume-toast" id="resumeToast">
+        <div class="resume-toast-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
+        <div class="resume-toast-body">
+            <div class="resume-toast-title">Resume where you left off</div>
+            <div class="resume-toast-meta">
+                <span class="resume-toast-server-chip" id="resumeToastServer">—</span>
+                <span class="resume-toast-time-chip" id="resumeToastTime">—</span>
+            </div>
+            <div class="resume-toast-hint">This server loaded automatically. Seek manually to resume — most servers don't support auto-seek.</div>
+            <div class="resume-toast-input-row">
+                <input class="resume-toast-input" id="resumeTimeInput" type="text" placeholder="e.g. 42:15" maxlength="8"
+                       title="Enter MM:SS or HH:MM:SS to note your spot">
+                <span style="font-size:11.5px; color:rgba(255,255,255,0.4);">← your timestamp</span>
+            </div>
+        </div>
+        <button class="resume-toast-dismiss" id="resumeToastDismiss" onclick="dismissResumeToast()" title="Dismiss">✕</button>
+    </div>
+
     <!-- Actor Profile Modal -->
     <div id="actor-modal" onclick="if(event.target===this)closeActorProfile()">
         <div class="actor-modal-card" id="actor-modal-card">
@@ -1146,6 +1277,13 @@
                     <div class="servers-header">
                         <h3>Servers</h3>
                         <input class="servers-search" id="serverSearch" type="text" placeholder="Search…" oninput="filterServers(this.value)">
+                        <div id="conduitToggle" class="cduit-toggle-wrap active" style="flex-shrink:0;">
+                            <div class="cduit-switch">
+                                <div class="cduit-switch-track"></div>
+                                <div class="cduit-switch-thumb"></div>
+                            </div>
+                            <span class="cduit-toggle-label">Conduit</span>
+                        </div>
                         <button class="modal-close-btn" onclick="closeServersPanel()">&#x2715;</button>
                     </div>
 
@@ -1174,6 +1312,19 @@
         const W1280_IMG = 'https://image.tmdb.org/t/p/w1280';
         const W500_IMG  = 'https://image.tmdb.org/t/p/w500';
 
+        // ── Early service-worker warm-up ─────────────────────────────────────
+        // Start SW registration immediately on first load so it installs in
+        // parallel with content loading. The conduit init (which runs much later,
+        // after scramjet.all.js loads) can then just await this existing promise
+        // instead of starting from scratch.
+        let _swReadyPromise = null;
+        if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+            _swReadyPromise = navigator.serviceWorker
+                .register('/sw.js', { scope: '/' })
+                .then(() => navigator.serviceWorker.ready)
+                .catch(() => null);
+        }
+        // ────────────────────────────────────────────────────────────────────
         
         let currentItem = null;
         let currentNav = 'home';
@@ -1694,13 +1845,34 @@
             // Tell the parent frame to minimize the dock, mixer and any other panels
             window.parent.postMessage({ source: 'ludus-movie', action: 'playerOpened' }, '*');
 
-            // Default to YapGrid each time player opens
-            currentActiveServerId = 'yapgrid';
-            document.getElementById('currentServerName').innerText = 'YapGrid';
-            loadExtraServer('yapgrid'); // Loads iframe
+            // Proxy on by default every time the player opens
+            document.getElementById('conduitToggle')?.classList.add('active');
+
+            // ── Restore saved server & show resume toast ──────────────────
+            const _cwList = JSON.parse(localStorage.getItem(CW_KEY) || '[]');
+            const _cwEntry = _cwList.find(i => {
+                if (i.tmdbId !== currentItem.tmdbId) return false;
+                if (currentItem.media_type === 'tv') return i.season === currentSeason && i.episode === currentEpisode;
+                return true;
+            });
+            const _savedServerId = (_cwEntry && _cwEntry.lastServerId) || 'yapgrid';
+            const _savedSeconds  = (_cwEntry && _cwEntry.watchedSeconds) || 0;
+            // Validate the saved server still exists, fall back to yapgrid
+            const _savedServer   = (typeof EXTRA_SERVERS !== 'undefined' && EXTRA_SERVERS.find(s => s.id === _savedServerId)) || null;
+            const _useServerId   = _savedServer ? _savedServerId : 'yapgrid';
+            const _useServerName = _savedServer ? _savedServer.name : 'YapGrid';
+
+            currentActiveServerId = _useServerId;
+            document.getElementById('currentServerName').innerText = _useServerName;
+            loadExtraServer(_useServerId);
 
             // Start continue-watching tracking
             startWatchTracking();
+
+            // Show resume toast if there's meaningful saved progress
+            if (_savedSeconds > 30) {
+                showResumeToast(_savedSeconds, _cwEntry.totalDuration, _useServerName);
+            }
 
             // Idle UI hide logic — long delay so controls stay accessible
             let timeout;
@@ -1724,6 +1896,29 @@
             };
         }
 
+        // ── Resume Toast ────────────────────────────────────────────────────
+        let _resumeToastTimer = null;
+        function showResumeToast(watchedSeconds, totalDuration, serverName) {
+            const mins = Math.floor(watchedSeconds / 60);
+            const secs = watchedSeconds % 60;
+            const timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+            document.getElementById('resumeToastServer').innerText = serverName;
+            document.getElementById('resumeToastTime').innerText = timeStr;
+            document.getElementById('resumeTimeInput').value = timeStr;
+            document.getElementById('resumeToast').classList.add('visible');
+
+            // Auto-dismiss after 14 s
+            clearTimeout(_resumeToastTimer);
+            _resumeToastTimer = setTimeout(dismissResumeToast, 14000);
+        }
+        function dismissResumeToast() {
+            clearTimeout(_resumeToastTimer);
+            document.getElementById('resumeToast').classList.remove('visible');
+        }
+        // Also dismiss if the player closes
+        // ────────────────────────────────────────────────────────────────────
+
         // changeServer delegates to loadExtraServer — single code path for all servers
         async function changeServer(serverId) {
             if (!currentItem) return;
@@ -1733,6 +1928,7 @@
 
         function closePlayer() {
             stopWatchTracking();
+            dismissResumeToast();
             document.getElementById('player-view').style.display = 'none';
             document.getElementById('player-container').innerHTML = '';
             // Tell the parent frame to restore the dock, mixer and any other panels
@@ -1813,11 +2009,13 @@ const videoEl = document.getElementById('movie-player');
                 watchedAt: Date.now(),
                 watchedSeconds: additionalSeconds,
                 totalDuration: null, // Will be set by postMessage if available
+                lastServerId: currentActiveServerId || 'yapgrid',
             };
-            // Preserve known duration from existing entry
+            // Preserve known duration and server from existing entry
             const existing = list.find(i => i.tmdbId === entry.tmdbId &&
                 (entry.type !== 'tv' || (i.season === entry.season && i.episode === entry.episode)));
             if (existing && existing.totalDuration) entry.totalDuration = existing.totalDuration;
+            // Always use the live currentActiveServerId (already set above), not the stale stored one
 
             // Remove old entry for same item/episode and re-insert at front
             list = list.filter(i => {
@@ -1874,12 +2072,19 @@ const videoEl = document.getElementById('movie-player');
                 const pct = cwProgressPct(item);
                 const ago = cwTimeAgo(item.watchedAt);
                 const removeArgs = `${item.tmdbId}, ${item.season ?? 'null'}, ${item.episode ?? 'null'}, event`;
+                // Resolve server display name for the badge
+                let serverBadgeHtml = '';
+                if (item.lastServerId && typeof EXTRA_SERVERS !== 'undefined') {
+                    const srv = EXTRA_SERVERS.find(s => s.id === item.lastServerId);
+                    if (srv) serverBadgeHtml = `<div class="cw-server-badge" title="Last used server">${escHtml(srv.name)}</div>`;
+                }
                 return `
                 <div class="movie-card cw-card" onclick="resumeWatching(${encodeItemAttr(item)})">
                     <img src="${img}" alt="${escHtml(item.title)}">
                     ${pct > 0 ? `<div class="cw-progress-bar"><div class="cw-progress-fill" style="width:${pct}%"></div></div>` : ''}
                     ${label ? `<div class="cw-ep-badge">${label}</div>` : ''}
                     <div class="cw-time-ago">${ago}</div>
+                    ${serverBadgeHtml}
                     <button class="cw-remove-btn" onclick="removeContinueWatching(${removeArgs})" title="Remove">✕</button>
                     <div class="card-title">${escHtml(item.title)}</div>
                 </div>`;
@@ -2157,16 +2362,81 @@ const videoEl = document.getElementById('movie-player');
 
     </script>
 
+<script src="/p/scram/scramjet.all.js"></script>
+<script>
+        // ── Conduit init ────────────────────────────────────────────────
+        // Self-contained Scramjet init — no parent dependency.
+        // Registers its own service worker and inits its own controller,
+        // same pattern as insta.html, tiky.html, and yt/app.js.
+        // ────────────────────────────────────────────────────────────────
+        let _sc = null;
+        let _scResolve, _scReject;
+        const _conduitReady = new Promise((res, rej) => {
+            _scResolve = res;
+            _scReject  = rej;
+        });
 
+        (async () => {
+            try {
+                if (typeof $scramjetLoadController !== 'function') {
+                    throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
+                }
+                const { ScramjetController } = $scramjetLoadController();
+                _sc = new ScramjetController({
+                    prefix: '/scramjet/',
+                    wisp: 'wss://nebulaproxy.io/wisp/',
+                    files: {
+                        wasm: '/p/scram/scramjet.wasm.wasm',
+                        all:  '/p/scram/scramjet.all.js',
+                        sync: '/p/scram/scramjet.sync.js',
+                    }
+                });
+                if ('serviceWorker' in navigator) {
+                    if (navigator.serviceWorker.controller) {
+                        // SW is already active and controlling this page —
+                        // skip registration and ready-wait entirely.
+                    } else if (_swReadyPromise) {
+                        // Registration was started early in the main script;
+                        // just await the result rather than starting over.
+                        await _swReadyPromise;
+                    } else {
+                        // Fallback: start fresh (shouldn't normally hit this path).
+                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                        await navigator.serviceWorker.ready;
+                    }
+                }
+                await _sc.init();
+                _scResolve(_sc);
+            } catch(e) {
+                console.warn('[Ludus] Conduit failed to init:', e);
+                _scReject(e);
+                const toggle = document.getElementById('conduitToggle');
+                if (toggle && toggle.classList.contains('active')) {
+                    toggle.classList.remove('active');
+                    toggle.title = 'Conduit unavailable — proxy servers will load directly';
+                    const panel = document.getElementById('serversPanel');
+                    if (panel && panel.classList.contains('open') && typeof filterServers === 'function') {
+                        filterServers(document.getElementById('serverSearch')?.value || '');
+                    }
+                    if (typeof EXTRA_SERVERS !== 'undefined' && typeof loadExtraServer === 'function') {
+                        const active = EXTRA_SERVERS.find(s => s.id === currentActiveServerId);
+                        if (active && active.nonProxyHidden) loadExtraServer('yapgrid');
+                    }
+                }
+            }
+        })();
+    </script>
 
 
     <script>
 
         // ===== Servers Data =====
-        // Only non-proxy servers are available in this local build.
+        // proxyHidden: true    = hidden when conduit ON  (shows only when proxy is OFF)
+        // nonProxyHidden: true = hidden when conduit OFF (shows only when proxy is ON)
         const EXTRA_SERVERS = [
 
-            { id: 'yapgrid',   name: 'YapGrid',    domain: 'yapgrid.com',  badge: 'Recommended',
+            // Visible in both modes
+            { id: 'yapgrid',   name: 'YapGrid',    domain: 'yapgrid.com',  badge: 'Recommended', proxyBottom: true,
               movieUrl: id => `https://yapgrid.com/embed/movie/${id}`,
               tvUrl:    (id,s,e) => `https://yapgrid.com/embed/tv/${id}/${s}/${e}` },
 
@@ -2174,20 +2444,54 @@ const videoEl = document.getElementById('movie-player');
               movieUrl: id => `https://movienig.ht/watch/movie/${id}`,
               tvUrl:    (id,s,e) => `https://movienig.ht/watch/series/${id}/${s}/${e}` },
 
+            // Proxy ON only
+            { id: 'moviesapi', name: 'MoviesAPI',  domain: 'moviesapi.to', badge: '', nonProxyHidden: true,
+              movieUrl: id => `https://moviesapi.to/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://moviesapi.to/tv/${id}/${s}/${e}` },
+
+            { id: 'vidspark',  name: 'VidSpark',   domain: 'vidspark.to',  badge: '', nonProxyHidden: true,
+              movieUrl: id => `https://vidspark.to/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidspark.to/tv/${id}/${s}/${e}` },
+
+            { id: 'mycineby',  name: 'MyCineBy',   domain: 'mycineby.cc',  badge: 'Recommended', nonProxyHidden: true,
+              movieUrl: id => `https://mycineby.cc/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://mycineby.cc/embed/tv/${id}/${s}/${e}` },
+
+            // Proxy ON only (nonProxyHidden: shown when conduit is ON)
+            { id: 'vidzy-proxy',       name: 'Vidzy',       domain: 'vidzy.org',            badge: '', nonProxyHidden: true,
+              movieUrl: id => `https://vidzy.org/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidzy.org/tv/${id}/${s}/${e}` },
+
+            { id: 'streamvault-proxy', name: 'StreamVault', domain: 'streamvaultsrc.click', badge: '', nonProxyHidden: true,
+              movieUrl: id => `https://streamvaultsrc.click/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://streamvaultsrc.click/embed/tv/${id}/${s}/${e}` },
+
+            // Proxy OFF only (proxyHidden: shown when conduit is OFF)
+            { id: 'streamvault', name: 'StreamVault', domain: 'streamvaultsrc.click', badge: 'Not Recommended', proxyHidden: true,
+              movieUrl: id => `https://streamvaultsrc.click/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://streamvaultsrc.click/embed/tv/${id}/${s}/${e}` },
+
+            // Proxy ON only
+            { id: 'vidrock', name: 'VidRock', domain: 'vidrock.ru', badge: 'Recommended', nonProxyHidden: true,
+              movieUrl: id => `https://vidrock.ru/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidrock.ru/embed/tv/${id}/${s}/${e}` },
+
         ];
 
         let filteredServers = [...EXTRA_SERVERS];
 
         function renderServersGrid(list) {
             const grid = document.getElementById('serversGrid');
+            const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
             if (list.length === 0) {
                 grid.innerHTML = '<div class="server-no-results">No servers match your search.</div>';
                 return;
             }
             grid.innerHTML = list.map(s => {
-                const badgeHtml = s.badge === 'Recommended'
+                // Only show Rec badge when conduit is OFF; always show Not Recommended
+                const badgeHtml = (!conduitOn && s.badge === 'Recommended')
                     ? `<div class="s-badge s-badge-rec">Rec</div>`
-                    : s.badge === 'Not Recommended'
+                    : (s.badge === 'Not Recommended')
                     ? `<div class="s-badge s-badge-notreq">Not Rec</div>`
                     : '';
                 const isActive = s.id === currentActiveServerId ? ' active-server' : '';
@@ -2201,14 +2505,26 @@ const videoEl = document.getElementById('movie-player');
         }
 
         function filterServers(query) {
+            const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
             const q = query.toLowerCase().trim();
-            let base = [...EXTRA_SERVERS];
+            let base = EXTRA_SERVERS.filter(s => {
+                if (conduitOn  && s.proxyHidden)    return false; // proxy-off-only → hide when ON
+                if (!conduitOn && s.nonProxyHidden) return false; // proxy-on-only  → hide when OFF
+                return true;
+            });
             if (q) {
                 base = base.filter(s =>
                     s.name.toLowerCase().includes(q) ||
                     s.domain.toLowerCase().includes(q) ||
                     (s.badge && s.badge.toLowerCase().includes(q))
                 );
+            }
+            // In conduit mode push unstable servers to the bottom so stable ones lead
+            if (conduitOn) {
+                base = [
+                    ...base.filter(s => !s.proxyBottom),
+                    ...base.filter(s =>  s.proxyBottom),
+                ];
             }
             filteredServers = base;
             renderServersGrid(filteredServers);
@@ -2218,7 +2534,34 @@ const videoEl = document.getElementById('movie-player');
 
         function toggleSandboxSection() {} // kept as no-op for any stale references
 
+        document.addEventListener('click', e => {
+            // Conduit toggle — re-mount stream and refresh server grid instantly
+            const cTgl = e.target.closest('#conduitToggle');
+            if (cTgl) {
+                cTgl.classList.toggle('active');
+                const isNowRoute = cTgl.classList.contains('active');
 
+                // Refresh server panel if open
+                const panel = document.getElementById('serversPanel');
+                if (panel.classList.contains('open')) {
+                    filterServers(document.getElementById('serverSearch').value || '');
+                }
+
+                if (currentItem) {
+                    const activeServer = EXTRA_SERVERS.find(s => s.id === currentActiveServerId);
+                    const nowHidden = activeServer && (
+                        (isNowRoute  && activeServer.proxyHidden)    || // turned ON, server is proxy-off-only
+                        (!isNowRoute && activeServer.nonProxyHidden)    // turned OFF, server is proxy-on-only
+                    );
+                    if (nowHidden) {
+                        loadExtraServer('yapgrid');
+                    } else {
+                        changeServer();
+                    }
+                }
+                return;
+            }
+        });
 
         // applySandboxNow removed — sandbox is hardcoded
 
@@ -2231,7 +2574,19 @@ const videoEl = document.getElementById('movie-player');
                 closeServersPanel();
             } else {
                 document.getElementById('serverSearch').value = '';
-                filteredServers = [...EXTRA_SERVERS];
+                const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
+                let visibleServers = EXTRA_SERVERS.filter(s => {
+                    if (conduitOn  && s.proxyHidden)    return false;
+                    if (!conduitOn && s.nonProxyHidden) return false;
+                    return true;
+                });
+                if (conduitOn) {
+                    visibleServers = [
+                        ...visibleServers.filter(s => !s.proxyBottom),
+                        ...visibleServers.filter(s =>  s.proxyBottom),
+                    ];
+                }
+                filteredServers = visibleServers;
                 renderServersGrid(filteredServers);
                 panel.classList.add('open');
                 btn.classList.add('open');
@@ -2275,9 +2630,9 @@ async function loadExtraServer(serverId) {
                     console.warn('[Ludus] ID lookup failed:', err);
                 }
             }
-            const streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
+            let streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
 
-            // Show loader
+            // Show loader immediately — covers any conduit init wait time
             const extraIframeId = 'player-iframe-' + Date.now();
             const extraContainer = document.getElementById('player-container');
             extraContainer.innerHTML = `
@@ -2285,6 +2640,20 @@ async function loadExtraServer(serverId) {
                     <div class="player-loader-spinner"></div>
                     <span class="player-loader-label" id="player-loader-label">Loading…</span>
                 </div>`;
+
+            // CONDUIT INJECTION — await full init before encoding
+            const useRoute = document.getElementById('conduitToggle')?.classList.contains('active');
+            if (useRoute) {
+                try {
+                    const loaderLabel = document.getElementById('player-loader-label');
+                    if (loaderLabel) loaderLabel.textContent = 'Initialising conduit…';
+                    const sc = await _conduitReady;
+                    streamUrl = location.origin + sc.encodeUrl(streamUrl);
+                    if (loaderLabel) loaderLabel.textContent = 'Connecting via conduit…';
+                } catch(err) {
+                    console.warn('[Ludus] Route encoding failed:', err);
+                }
+            }
 
             extraContainer.insertAdjacentHTML('beforeend', `
                 <iframe id="${extraIframeId}" src="${streamUrl}"
