@@ -736,6 +736,35 @@
             margin-top: 12px;
         }
         .btn-converter:hover { background: rgba(146,254,157,0.1) !important; border-color: #92FE9D !important; }
+
+        .conv-format-tag.compress { background: rgba(255,214,102,0.15); color: #ffd666; }
+        /* Flashcards */
+        #flash-panel { display: none; position: absolute; inset: 0; background: var(--bg-primary); z-index: 200; flex-direction: column; overflow: hidden; }
+        #flash-panel.active { display: flex; }
+        .fc-body { flex: 1; overflow: auto; padding: 24px; display: flex; justify-content: center; }
+        .fc-wrap { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 16px; height: max-content; }
+        .fc-drop { display: block; border: 2px dashed var(--border); border-radius: 16px; padding: 40px; text-align: center; cursor: pointer; color: var(--text-secondary); }
+        .fc-drop:hover { border-color: var(--accent-color); color: #fff; }
+        .fc-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+        .fc-btn { background: var(--glass); border: 1px solid var(--border); color: #fff; border-radius: 10px; padding: 9px 16px; font-size: 13px; cursor: pointer; }
+        .fc-btn:hover { border-color: var(--accent-color); }
+        .fc-btn.on { background: var(--accent-color); color: #000; border-color: transparent; font-weight: 600; }
+        .fc-deck { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--glass); }
+        .fc-card { perspective: 1200px; height: min(72vh, 680px); cursor: pointer; user-select: none; }
+        .fc-in { position: relative; width: 100%; height: 100%; transition: transform .45s; transform-style: preserve-3d; }
+        .fc-card.flip .fc-in { transform: rotateY(180deg); }
+        .fc-face { position: absolute; inset: 0; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; text-align: center; padding: 28px; font-size: 20px; border: 1px solid var(--border); border-radius: 18px; background: #0d0d10; overflow: auto; }
+        .fc-face.back { transform: rotateY(180deg); background: #0b1418; color: var(--accent-color); }
+        .fc-bar { height: 6px; background: var(--glass); border-radius: 3px; overflow: hidden; }
+        .fc-bar i { display: block; height: 100%; background: var(--accent-color); transition: width .25s; }
+        .fc-muted { color: var(--text-tertiary, #777); font-size: 12px; }
+        .fc-hud { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+        .fc-q { font-size: 24px; text-align: center; padding: 22px; background: #0d0d10; border: 1px solid var(--border); border-radius: 16px; }
+        .fc-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .fc-opt { padding: 16px; border-radius: 12px; background: var(--glass); border: 2px solid var(--border); color: #fff; cursor: pointer; font-size: 15px; text-align: left; }
+        .fc-opt:hover { border-color: var(--accent-color); }
+        .fc-opt.ok { border-color: #92FE9D; background: rgba(146,254,157,.15); }
+        .fc-opt.bad { border-color: #ff5c5c; background: rgba(255,92,92,.15); }
     </style>
 </head>
 <body>
@@ -790,6 +819,11 @@
                     <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                 </svg>
                 File Converter
+            </button>
+
+            <button class="btn btn-converter" onclick="openFlash()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"></rect><line x1="7" y1="9" x2="17" y2="9"></line><line x1="7" y1="13" x2="13" y2="13"></line></svg>
+                Flashcards
             </button>
 
             <div id="dev-controls" style="display:none; margin-top: 24px; border-top: 1px solid var(--border); padding-top: 15px;">
@@ -988,6 +1022,19 @@
         </div>
     </div>
 
+    <!-- FLASHCARDS PANEL -->
+    <div id="flash-panel">
+        <div class="conv-topbar">
+            <button class="conv-back-btn" onclick="closeFlash()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                Back
+            </button>
+            <span class="conv-topbar-title" id="fc-title">Flashcards</span>
+            <span style="font-size:11px; color:var(--text-tertiary); margin-left:6px;">upload a CSV · term,definition · nothing leaves your device</span>
+        </div>
+        <div class="fc-body"><div class="fc-wrap" id="fc-main"></div></div>
+    </div>
+
     <script>
         // --- 1. Custom Console Logic (Local DOM + Global iframe Pipe) ---
         const devConsole = document.getElementById('dev-console');
@@ -1164,11 +1211,20 @@
             };
         };
 
+        const syncDeveloperControls = () => {
+            const hasDeveloperAccess = sessionStorage.getItem("mathmaster_dev_unlocked") === "true";
+            const devControls = document.getElementById('dev-controls');
+            if (!devControls) return;
+
+            devControls.style.display = hasDeveloperAccess ? "block" : "none";
+            if (hasDeveloperAccess) openConsole();
+            else closeConsole();
+        };
+
         window.addEventListener('DOMContentLoaded', async () => {
-            if (sessionStorage.getItem("mathmaster_dev_unlocked") === "true") {
-                document.getElementById('dev-controls').style.display = "block";
-                openConsole();
-            }
+            // Auth writes this shared, per-tab flag after confirming isDev.
+            // Revealing this panel enables every developer control in the app.
+            syncDeveloperControls();
             try {
                 await initDB();
                 loadFilesFromDB();
@@ -2517,6 +2573,7 @@
             mov_frame_jpg: { name:'Frame as JPG', tag:'video', mime:'image/jpeg',     ext:'jpg'  },
             // Video resize / re-encode (full video, not just a frame)
             vid_resize: { name:'Resized Video (auto MP4/WebM)', tag:'video', mime:'video/webm', ext:'webm' },
+            compress: { name:'Smaller file', tag:'compress', mime:'application/octet-stream', ext:'compressed', label:'↓ Smaller' },
         };
 
         // ── Which formats each input type can become ───────────────────────
@@ -2744,7 +2801,7 @@
         }
 
         function buildFormatGrid(mime) {
-            const targets = CONV_MAP[mime] || CONV_MAP['__any__'];
+            const targets = (CONV_MAP[mime] || CONV_MAP['__any__']).concat('compress');
             if (!targets || targets.length === 0) {
                 convFormatsContainer.style.display = 'none';
                 convPlaceholder.style.display = 'flex';
@@ -2768,12 +2825,12 @@
                 groups[def.tag].push({ fmt, def });
             });
 
-            const tagOrder = ['image','document','data','spreadsheet','audio','video'];
+            const tagOrder = ['compress','image','document','data','spreadsheet','audio','video'];
             tagOrder.forEach(tag => {
                 if (!groups[tag]) return;
                 const header = document.createElement('div');
                 header.className = 'conv-cat-header';
-                header.textContent = { image:'🖼 Images', document:'📄 Documents', data:'🔣 Data Formats', spreadsheet:'📊 Spreadsheets', audio:'🎵 Audio', video:'🎬 Video' }[tag];
+                header.textContent = { compress:'🗜 Compress', image:'🖼 Images', document:'📄 Documents', data:'🔣 Data Formats', spreadsheet:'📊 Spreadsheets', audio:'🎵 Audio', video:'🎬 Video' }[tag];
                 convFormatsGrid.appendChild(header);
 
                 groups[tag].forEach(({ fmt, def }) => {
@@ -2781,7 +2838,7 @@
                     card.className = 'conv-format-card';
                     card.dataset.fmt = fmt;
                     card.innerHTML = `
-                        <div class="conv-format-ext">.${def.ext}</div>
+                        <div class="conv-format-ext">${def.label || '.' + def.ext}</div>
                         <div class="conv-format-name">${def.name}</div>
                         <div class="conv-format-tag ${def.tag}">${def.tag}</div>`;
                     card.addEventListener('click', () => selectFormat(fmt, card));
@@ -2795,7 +2852,8 @@
             cardEl.classList.add('selected');
             convSelectedFormat = fmt;
             const def = FORMAT_DEFS[fmt];
-            convSelectedLabel.innerHTML = `Convert to <strong>.${def.ext}</strong> — ${def.name}`;
+            if (fmt === 'compress' && convQualitySection.style.display !== 'none') { const q = document.getElementById('conv-quality'); q.value = 65; document.getElementById('conv-qval').textContent = '65%'; }
+            convSelectedLabel.innerHTML = fmt === 'compress' ? 'Compress — make this file smaller' : `Convert to <strong>.${def.ext}</strong> — ${def.name}`;
             convBtnMain.disabled = false;
             if (convBtnBatch) convBtnBatch.disabled = !(convFiles.length > 1 && convSelectedFormat);
             convStatus.textContent = '';
@@ -2837,7 +2895,7 @@
             try {
                 const { blob, filename } = await convertFile(convFile, convSelectedFormat);
                 downloadBlob(blob, filename);
-                convStatus.textContent = '✓ Done! Downloading…';
+                convStatus.textContent = window.__cmpNote ? '✓ ' + window.__cmpNote : '✓ Done! Downloading…'; window.__cmpNote = '';
                 convStatus.className = 'conv-status success';
             } catch(err) {
                 console.error('Conversion error:', err);
@@ -2925,6 +2983,8 @@
             const mime = getMimeAlias(file);
             const baseName = file.name.replace(/\.[^.]+$/, '');
             const def = FORMAT_DEFS[fmt];
+
+            if (fmt === 'compress') return await compressFile(file, baseName, mime);
 
             // ── Base64 / Hex / URL encode ──────────────────────────────
             if (fmt === 'b64') {
@@ -3797,6 +3857,166 @@
         window.batchConvertAll = batchConvertAll;
         window.removeFromQueue = removeFromQueue;
         window.clearConvQueue = clearConvQueue;
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  FILE COMPRESSOR — the "Smaller file" option in the converter
+        // ═══════════════════════════════════════════════════════════════════
+        function minifyText(t, mime) {
+            if (mime === 'application/json') { try { return JSON.stringify(JSON.parse(t)); } catch (e) {} }
+            if (/xml|svg/.test(mime)) t = t.replace(/<!--[\s\S]*?-->/g, '');
+            return t.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n');
+        }
+        async function compressFile(file, baseName, mime) {
+            let r = null;
+            try {
+                if (mime.startsWith('video/')) r = await resizeVideoConvert(file, baseName);
+                else if (mime === 'image/heic' || mime === 'image/heif') r = await heicConvert(file, 'jpg', baseName);
+                else if (mime.startsWith('image/') && mime !== 'image/gif' && mime !== 'image/svg+xml') r = await imageConvert(file, mime === 'image/jpeg' ? 'jpg' : 'webp', baseName, mime);
+            } catch (e) { r = null; }
+            if (!r) { // documents, data, SVG, GIF, audio, anything else: tidy text, then maximum DEFLATE
+                const opt = { compression: 'DEFLATE', compressionOptions: { level: 9 } };
+                const zip = new JSZip();
+                zip.file(file.name, /^text\/|json|xml|svg/.test(mime) ? minifyText(await file.text(), mime) : file, opt);
+                r = { blob: await zip.generateAsync(Object.assign({ type: 'blob' }, opt)), filename: baseName + '.zip' };
+            }
+            const same = r.blob.size >= file.size;
+            window.__cmpNote = same ? `Already as small as it gets (${formatBytes(file.size)}), returned unchanged`
+                : `${formatBytes(file.size)} → ${formatBytes(r.blob.size)} · ${Math.round((1 - r.blob.size / file.size) * 100)}% smaller`;
+            return same ? { blob: file, filename: file.name } : r;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  FLASHCARDS — CSV upload, flip cards, and a quiz game mode
+        // ═══════════════════════════════════════════════════════════════════
+        const fcPanel = document.getElementById('flash-panel'), fcMain = document.getElementById('fc-main');
+        let fcDecks = [], fc = null, fcTimer = null;
+        try { fcDecks = JSON.parse(localStorage.getItem('ludus_flashdecks') || '[]'); } catch (e) {}
+        const fcSave = () => { try { localStorage.setItem('ludus_flashdecks', JSON.stringify(fcDecks)); } catch (e) {} };
+        const fcEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const fcShuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+        const fcUnk = () => fc.cards.filter(x => !fc.know.has(x[0]));
+        function openFlash() { fcPanel.classList.add('active'); fcHome(); }
+        function closeFlash() { fcPanel.classList.remove('active'); clearInterval(fcTimer); }
+
+        function fcParse(text) { // CSV/TSV with quotes; first two columns are term and definition
+            text = text.replace(/^\uFEFF/, '');
+            const d = [',', '\t', ';'].sort((a, b) => text.split(b).length - text.split(a).length)[0];
+            const rows = []; let r = [], f = '', q = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+                else if (c === '"') q = true;
+                else if (c === d) { r.push(f); f = ''; }
+                else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; r.push(f); rows.push(r); r = []; f = ''; }
+                else f += c;
+            }
+            r.push(f); rows.push(r);
+            const cards = rows.map(x => [(x[0] || '').trim(), (x[1] || '').trim()]).filter(x => x[0] && x[1]);
+            if (cards.length > 1 && /^(term|word|front|question|vocab)/i.test(cards[0][0]) && /^(def|back|answer|meaning)/i.test(cards[0][1])) cards.shift();
+            return cards;
+        }
+        function fcLoad(file) {
+            const rd = new FileReader();
+            rd.onload = () => {
+                const cards = fcParse(String(rd.result));
+                if (cards.length < 2) return alert('Need at least 2 rows with a term and a definition (CSV: term,definition).');
+                fcDecks.unshift({ name: file.name.replace(/\.[^.]+$/, ''), cards }); fcSave(); fcStudy(fcDecks[0]);
+            };
+            rd.readAsText(file);
+        }
+        function fcSample() {
+            fcDecks.unshift({ name: 'Sample: Solar System', cards: [['Mercury', 'Closest planet to the Sun'], ['Venus', 'Hottest planet'], ['Earth', 'Only known planet with life'], ['Mars', 'The Red Planet'], ['Jupiter', 'Largest planet'], ['Saturn', 'Planet with prominent rings']] });
+            fcSave(); fcStudy(fcDecks[0]);
+        }
+        function fcHome() {
+            fc = null; clearInterval(fcTimer);
+            document.getElementById('fc-title').textContent = 'Flashcards';
+            fcMain.innerHTML = `
+                <label class="fc-drop"><input type="file" id="fc-file" accept=".csv,.tsv,.txt,text/csv" style="display:none">
+                    <div style="font-size:34px">📇</div><div style="font-size:16px;color:#fff;margin:6px 0">Upload a CSV to make a flashcard set</div>
+                    <div class="fc-muted">One card per row: term,definition · header row optional</div></label>
+                <div class="fc-row"><button class="fc-btn" onclick="fcSample()">Try a sample set</button></div>
+                ${fcDecks.map((d, i) => `<div class="fc-deck"><span><b>${fcEsc(d.name)}</b> <span class="fc-muted">${d.cards.length} cards</span></span><span><button class="fc-btn" onclick="fcStudy(fcDecks[${i}])">Study</button> <button class="fc-btn" onclick="fcDecks.splice(${i},1);fcSave();fcHome()">Delete</button></span></div>`).join('')}`;
+            const dz = fcMain.querySelector('.fc-drop');
+            document.getElementById('fc-file').onchange = e => { if (e.target.files[0]) fcLoad(e.target.files[0]); };
+            dz.ondragover = e => e.preventDefault();
+            dz.ondrop = e => { e.preventDefault(); if (e.dataTransfer.files[0]) fcLoad(e.dataTransfer.files[0]); };
+        }
+
+        // --- Flashcards (flip) mode ---
+        function fcStudy(deck, only) { clearInterval(fcTimer); fc = { deck, cards: only || deck.cards, i: 0, know: new Set(), back: false }; fcRender(); }
+        function fcRender() {
+            const { deck, cards, i, know, back } = fc, c = cards[i], [front, rear] = back ? [c[1], c[0]] : c;
+            document.getElementById('fc-title').textContent = deck.name;
+            fcMain.innerHTML = `
+                <div class="fc-row"><button class="fc-btn on">Flashcards</button><button class="fc-btn" onclick="fcGame()">🎮 Game mode</button><button class="fc-btn" onclick="fcHome()">All sets</button></div>
+                <div class="fc-bar"><i style="width:${(i + 1) / cards.length * 100}%"></i></div>
+                <div class="fc-hud"><span>${i + 1} / ${cards.length}</span><span class="fc-muted">✓ ${know.size} known · ✗ ${cards.length - know.size} still learning</span></div>
+                <div class="fc-card" onclick="this.classList.toggle('flip')"><div class="fc-in"><div class="fc-face">${fcEsc(front)}</div><div class="fc-face back">${fcEsc(rear)}</div></div></div>
+                <div class="fc-row"><button class="fc-btn" onclick="fcGo(-1)">← Prev</button><button class="fc-btn" onclick="fcMark(false)">✗ Still learning</button><button class="fc-btn" onclick="fcMark(true)">✓ Know it</button><button class="fc-btn" onclick="fcGo(1)">Next →</button></div>
+                <div class="fc-row"><button class="fc-btn" onclick="fcStudy(fc.deck, fcShuffle(fc.cards))">🔀 Shuffle</button><button class="fc-btn ${back ? 'on' : ''}" onclick="fc.back=!fc.back;fcRender()">Start with definition</button><button class="fc-btn" onclick="fcUnk().length ? fcStudy(fc.deck, fcUnk()) : alert('You know every card so far!')">Only unknown</button></div>
+                <div class="fc-muted" style="text-align:center">Space = flip · ← → = navigate · 1 = still learning · 2 = know it</div>`;
+        }
+        function fcGo(d) { fc.i = (fc.i + d + fc.cards.length) % fc.cards.length; fcRender(); }
+        function fcMark(k) {
+            const t = fc.cards[fc.i][0]; if (k) fc.know.add(t); else fc.know.delete(t);
+            if (fc.i < fc.cards.length - 1) fcGo(1); else fcDone();
+        }
+        function fcDone() {
+            const u = fcUnk().length;
+            fcMain.innerHTML = `<div class="fc-q">${u ? `You know ${fc.know.size} of ${fc.cards.length}` : '🎉 You know every card!'}</div>
+                <div class="fc-row">${u ? `<button class="fc-btn on" onclick="fcStudy(fc.deck, fcUnk())">Study ${u} unknown</button>` : ''}<button class="fc-btn" onclick="fcStudy(fc.deck)">Restart</button><button class="fc-btn" onclick="fcGame()">🎮 Game mode</button></div>`;
+        }
+        document.addEventListener('keydown', e => {
+            const card = document.querySelector('.fc-card');
+            if (!fcPanel.classList.contains('active') || !fc || !card) return;
+            if (e.key === ' ') { e.preventDefault(); card.click(); }
+            else if (e.key === 'ArrowRight') fcGo(1); else if (e.key === 'ArrowLeft') fcGo(-1);
+            else if (e.key === '1') fcMark(false); else if (e.key === '2') fcMark(true);
+        });
+
+        // --- Game mode: multiple-choice quiz with an optional timer and an accuracy counter ---
+        function fcGame() {
+            const d = fc.deck;
+            const timed = localStorage.getItem('ludus_fc_timed') !== 'false';
+            fc = { deck: d, cards: d.cards, game: { q: fcShuffle(d.cards), n: 0, right: 0, tries: 0, missed: [], again: new Set(), timed } };
+            fcAsk();
+        }
+        function fcToggleTimer() {
+            fc.game.timed = !fc.game.timed;
+            localStorage.setItem('ludus_fc_timed', fc.game.timed);
+            fcAsk();
+        }
+        function fcAsk() {
+            const g = fc.game; clearInterval(fcTimer);
+            if (g.n >= g.q.length) return fcResults();
+            const c = g.q[g.n], others = fcShuffle([...new Set(fc.deck.cards.map(x => x[1]))].filter(x => x !== c[1])).slice(0, 3);
+            g.cur = c; g.opts = fcShuffle([c[1], ...others]); g.lock = false; g.t = 15;
+            const acc = g.tries ? Math.round(g.right / g.tries * 100) : 100;
+            fcMain.innerHTML = `
+                <div class="fc-hud"><span>🎯 ${g.right}/${g.tries} · ${acc}%</span><span>${g.n + 1} / ${g.q.length}</span><button class="fc-btn" style="padding:4px 10px;font-size:12px" onclick="fcToggleTimer()">⏱ Timer: ${g.timed ? 'On' : 'Off'}</button></div>
+                ${g.timed ? '<div class="fc-bar"><i id="fc-t" style="width:100%;transition:none"></i></div>' : ''}
+                <div class="fc-q">${fcEsc(c[0])}</div>
+                <div class="fc-opts">${g.opts.map((o, i) => `<button class="fc-opt" onclick="fcPick(${i})">${fcEsc(o)}</button>`).join('')}</div>
+                <div class="fc-row"><button class="fc-btn" onclick="fcStudy(fc.deck)">Quit to flashcards</button></div>`;
+            if (g.timed) {
+                fcTimer = setInterval(() => { g.t -= 0.1; const b = document.getElementById('fc-t'); if (b) b.style.width = g.t / 15 * 100 + '%'; if (g.t <= 0) fcPick(-1); }, 100);
+            }
+        }
+        function fcPick(i) {
+            const g = fc.game; if (g.lock) return; g.lock = true; clearInterval(fcTimer);
+            const c = g.cur, ok = i >= 0 && g.opts[i] === c[1];
+            document.querySelectorAll('.fc-opt').forEach((b, j) => { if (g.opts[j] === c[1]) b.classList.add('ok'); else if (j === i) b.classList.add('bad'); });
+            g.n++; g.tries++;
+            if (ok) { g.right++; setTimeout(fcAsk, 600); }
+            else { if (!g.missed.includes(c)) g.missed.push(c); if (!g.again.has(c)) { g.again.add(c); g.q.push(c); } setTimeout(fcAsk, 1400); }
+        }
+        function fcResults() {
+            const g = fc.game, acc = Math.round(g.right / Math.max(g.tries, 1) * 100);
+            fcMain.innerHTML = `<div class="fc-q"><b>${acc}%</b> accuracy<div class="fc-muted" style="margin-top:8px">${g.right} / ${g.tries} correct</div></div>
+                ${g.missed.length ? `<div class="fc-deck" style="display:block"><b>Missed (${g.missed.length})</b>${g.missed.map(m => `<div class="fc-muted">${fcEsc(m[0])} — ${fcEsc(m[1])}</div>`).join('')}</div>` : ''}
+                <div class="fc-row"><button class="fc-btn on" onclick="fcGame()">Play again</button>${g.missed.length ? '<button class="fc-btn" onclick="fcStudy(fc.deck, fc.game.missed)">Study missed</button>' : ''}<button class="fc-btn" onclick="fcStudy(fc.deck)">Flashcards</button></div>`;
+        }
     </script>
 </body>
 </html>
