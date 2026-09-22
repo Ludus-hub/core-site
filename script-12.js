@@ -1691,7 +1691,7 @@ const games = [
 {name:"OMORI", path:"./Versions/Assets/Game Data/427-z.html", logo:"./Versions/Assets/Pictures/Non-edited/427.webp", secret: true},
 {name:"Milk Inside a Bag of Milk Inside a Bag of Milk", path:"./Versions/Assets/Game Data/650-f.html", logo:"./Versions/Assets/Pictures/Non-edited/650.webp", secret: true},
   {name:"Yume Nikki", path:"./Versions/Assets/Game Data/433.html", logo:"./Versions/Assets/Pictures/Non-edited/433.webp", secret: true},
-  {name:"Youtube",path:"yt-2.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
+  {name:"Youtube",path:"yt-3.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
   {name:"Baseball Bros", path:"Versions/Assets/Game Data/Baseball Bros.html", logo:"Versions/Assets/Pictures/Non-edited/Baseball-n.webp"},
