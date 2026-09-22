@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ludus Music</title>
+  <link rel="stylesheet" href="music.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">L</span><span>Ludus Music</span></div>
+    <nav>
+      <button class="nav active" data-view="home">⌂ <span>Home</span></button>
+      <button class="nav" data-view="search">⌕ <span>Search</span></button>
+      <button class="nav" data-view="library">♬ <span>Your Library</span></button>
+    </nav>
+    <div class="side-rule"></div>
+    <div class="side-title">PLAYLISTS</div>
+    <button class="new-playlist" id="new-playlist">＋ New playlist</button>
+    <label class="csv-upload">⇧ Import CSV<input id="csv-input" type="file" accept=".csv,text/csv"></label>
+    <div id="playlist-list" class="playlist-list"></div>
+    <div class="resolver-status" id="resolver-status"><i></i> Checking local music relay…</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="round history-nav" id="back" title="Back" disabled>‹</button><button class="round history-nav" id="forward" title="Forward" disabled>›</button>
+      <form id="search-form" class="search"><span>⌕</span><input id="search-input" autocomplete="off" placeholder="Search songs, albums, artists"></form>
+      <button class="settings" id="resolver-settings" title="Relay address">⚙</button>
+    </header>
+    <section id="view" class="view"></section>
+  </main>
+
+  <footer class="player">
+    <div class="now"><img id="now-art" alt="" hidden><div class="art-placeholder" id="now-placeholder">♫</div><div><b id="now-title">Choose a song</b><span id="now-artist">Ludus Music</span></div><button class="heart" id="like" title="Like">♡</button></div>
+    <div class="transport"><div class="transport-buttons"><button id="shuffle" title="Shuffle">⤨</button><button class="seek-jump" id="back-10" title="Back 10 seconds">−10</button><button class="skip" id="previous" title="Previous track">⏮</button><button class="play" id="play" title="Play">▶</button><button class="skip" id="next" title="Next track">⏭</button><button class="seek-jump" id="forward-10" title="Forward 10 seconds">+10</button><button id="repeat" title="Repeat">↻</button></div><div class="timeline"><span id="elapsed">0:00</span><input id="progress" type="range" min="0" max="1000" value="0"><span id="duration">0:00</span></div></div>
+    <div class="sound"><button id="mute" title="Mute">◖</button><input id="volume" type="range" min="0" max="1" value=".9" step=".01"><button id="queue-toggle" title="Queue">☷</button></div>
+  </footer>
+  <audio id="audio" preload="auto"></audio>
+  <aside class="queue" id="queue" hidden><header>Queue <button id="close-queue">×</button></header><div id="queue-items"></div></aside>
+  <dialog id="resolver-dialog"><form method="dialog"><h2>Music relay</h2><p>Use your current Cloudflare resolver URL, ending in <code>/resolve</code>.</p><input id="resolver-input" type="url"><div class="dialog-actions"><button value="cancel">Cancel</button><button id="save-resolver" value="default">Save</button></div></form></dialog>
+  <div class="import-status" id="import-status" aria-live="polite" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="music.js"></script>
+</body>
+</html>
