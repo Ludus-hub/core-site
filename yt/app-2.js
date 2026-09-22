@@ -67,30 +67,32 @@ const _routes = {};
 function route(path, handler) { _routes[path] = handler; }
 
 function navigate(dest) {
-  // dest can be '#/foo' or '/foo' — normalize to hash without '#'
-  const hash = dest.startsWith('#') ? dest.slice(1) : dest;
-  window.location.hash = hash;
+  // dest can be '#/foo' or '/foo' — normalize, then dispatch directly (no URL change)
+  const normalized = dest.startsWith('#') ? dest.slice(1) : dest;
+  const sep    = normalized.indexOf('?');
+  const path   = sep === -1 ? normalized : normalized.slice(0, sep);
+  const qs     = sep === -1 ? '' : normalized.slice(sep + 1);
+  dispatch(path, Object.fromEntries(new URLSearchParams(qs)));
 }
 
-function dispatch() {
-  const raw   = window.location.hash.slice(1) || '/';
-  const sep   = raw.indexOf('?');
-  const path  = sep === -1 ? raw : raw.slice(0, sep);
-  const qs    = sep === -1 ? '' : raw.slice(sep + 1);
-  const params = Object.fromEntries(new URLSearchParams(qs));
+function dispatch(path, params) {
+  if (!path) path = '/';
+  params = params || {};
 
-  // Highlight active sidebar item
+  // Highlight active sidebar item — reads data-path attribute set in yt.html
   document.querySelectorAll('#sidebar-nav .nav-item').forEach(a => {
-    const href = a.getAttribute('href') || '';
-    const aPath = href.startsWith('#') ? href.slice(1).split('?')[0] : href;
+    const aPath = a.dataset.path || '';
     a.classList.toggle('active', aPath === path || (path === '/' && aPath === '/'));
   });
+
+  // Close mobile sidebar on every navigation
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar')?.classList.remove('mobile-open');
+  }
 
   const handler = _routes[path] || _routes['*'];
   if (handler) handler(params);
 }
-
-window.addEventListener('hashchange', dispatch);
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -185,8 +187,8 @@ function videoCard(v) {
         <div class="v-meta">
           ${v.authorId
             ? `<a class="v-chan"
-                 href="#/channel?id=${escHTML(v.authorId)}"
-                 onclick="event.stopPropagation()"
+                 href="javascript:void(0)"
+                 onclick="event.stopPropagation(); navigate('/channel?id=${escHTML(v.authorId)}')"
                >${escHTML(v.author)}</a>`
             : escHTML(v.author) || ''
           }
@@ -885,10 +887,7 @@ route('*', () => navigate('/'));
     }
   });
 
-  // Close mobile sidebar when navigating
-  window.addEventListener('hashchange', () => {
-    if (isMobile()) sidebar.classList.remove('mobile-open');
-  });
+  // Mobile sidebar closes via dispatch() on every navigate call
 })();
 
 
@@ -929,16 +928,30 @@ route('*', () => navigate('/'));
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   STREAMING — 3rd-party embed servers for actual playback
+   STREAMING — routing 3rd-party embed servers for actual playback
 
-   Four servers, no extra/fallback tier. Direct embed, no proxy routing.
+   Four servers, no extra/fallback tier. Every server (and every switch
+   between them) is routed through the conduit — the conduit toggle sits right
+   next to the server dropdown and is on by default.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// 'melmac' (iv.melmac.space) was dropped — TLS handshake EOF on connect,
-// which is an instance-side issue not fixable from this app's code.
-// 'pixora' and 'chocomoo' are out per request. If a future instance proves
-// unreliable, swap it for a different one here.
+// 'melmac' (iv.melmac.space) was dropped — it's TLS-handshaking with a
+// straight EOF through Scramjet (hyper "tls handshake eof"), which means
+// the instance itself is rejecting/dropping Scramjet's connection at the
+// TLS layer. That's not something fixable from this app's code — it's
+// either the instance's TLS config or something about how it's blocking
+// proxied connections — so it's out rather than "fixed". 'pixora' and
+// 'chocomoo' are out per request. Same for any instance here in the
+// future: if Scramjet can't complete a TLS handshake with it, no
+// client-side change here will help; swap it for a different instance
+// instead.
+// The first option is your own Cloudflare-tunnelled resolver. It returns a
+// CORS-safe, proxied M4A URL from the local yt-dlp resolver. The remaining
+// Invidious embeds remain available as automatic and manual fallbacks.
+const RELAY_RESOLVER_URL = localStorage.getItem('ludusyt_stream_relay_url') ||
+  'https://tokyo-suspended-sorts-prot.trycloudflare.com/resolve';
 const MAIN_SERVERS = [
+  { id: 'relay',      name: 'Ludus Relay', type: 'relay' },
   { id: 'f5',         name: 'F5',         build: id => `https://invidious.f5.si/embed/${id}?autoplay=1` },
   { id: 'nadeko',     name: 'Nadeko',     build: id => `https://inv.nadeko.net/embed/${id}?autoplay=1` },
   { id: 'tiekoetter', name: 'Tiekoetter', build: id => `https://invidious.tiekoetter.com/embed/${id}?autoplay=1` },
@@ -950,22 +963,66 @@ const MAIN_SERVERS = [
 // windows/tabs.
 const LOCKED_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-forms';
 
+// Conduit client setup — registers the service worker and inits the
+// client before any URL encoding so tunnelled requests are intercepted correctly.
+let _sc = null;
+let _scResolve, _scReject;
+const _conduitReady = new Promise((res, rej) => {
+  _scResolve = res;
+  _scReject  = rej;
+});
+
+(async () => {
+  try {
+    if (typeof $scramjetLoadController !== 'function') {
+      throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
+    }
+    const { ScramjetController } = $scramjetLoadController();
+    _sc = new ScramjetController({
+      prefix: "/scramjet/",
+      wisp: "wss://nebulaproxy.io/wisp/",
+      files: {
+        wasm: "/p/scram/scramjet.wasm.wasm",
+        all:  "/p/scram/scramjet.all.js",
+        sync: "/p/scram/scramjet.sync.js",
+      }
+    });
+    // Register and await the service worker BEFORE init — it intercepts
+    // all tunnelled requests; without it active first every tunnelled URL returns 404.
+    if ('serviceWorker' in navigator) {
+      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+    }
+    await _sc.init();
+    _scResolve(_sc);
+  } catch (e) {
+    console.warn('[Ludus] Conduit init error:', e);
+    _scReject(e);
+  }
+})();
+
 let _currentVideoId = null;
 
 function playerControlsHTML() {
   return `
     <div class="server-bar" id="serverControls">
       <div class="server-controls">
-        <button class="server-dropdown-btn" id="serverDropdownBtn" onclick="toggleServerDropdown(event)">
+        <button class="server-dropdown-btn" id="serverDropdownBtn" type="button" aria-expanded="false" aria-controls="serverDropdownMenu">
           <span id="currentServerName">${escHTML(MAIN_SERVERS[0].name)}</span>
           <span class="chev">▼</span>
         </button>
-        <div class="server-dropdown-menu" id="serverDropdownMenu">
+        <div class="server-dropdown-menu" id="serverDropdownMenu" role="menu">
           ${MAIN_SERVERS.map((s, i) => `
-            <div class="server-dropdown-item${i === 0 ? ' active' : ''}" data-server="${s.id}"
-                 onclick="selectMainServer('${s.id}', '${escHTML(s.name)}', this)">${escHTML(s.name)}</div>`).join('')}
+            <button class="server-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="menuitem" data-server="${s.id}" data-server-name="${escHTML(s.name)}">${escHTML(s.name)}</button>`).join('')}
         </div>
       </div>
+      <button id="conduitToggle" class="cduit-toggle-wrap active" type="button" aria-pressed="true">
+        <div class="cduit-switch">
+          <div class="cduit-switch-track"></div>
+          <div class="cduit-switch-thumb"></div>
+        </div>
+        <span class="cduit-toggle-label">Route through Conduit</span>
+      </button>
     </div>
   `;
 }
@@ -976,7 +1033,7 @@ function buildPlayerIframe(url) {
     html: `
       <div class="yt-player-loader" id="yt-player-loader">
         <div class="yt-player-loader-spinner"></div>
-        <span class="yt-player-loader-label">Connecting…</span>
+        <span class="yt-player-loader-label">Connecting via conduit…</span>
       </div>
       <iframe id="${iframeId}" src="${escHTML(url)}" width="100%" height="100%" style="border:none;"
               sandbox="${LOCKED_SANDBOX}" allowfullscreen
@@ -985,29 +1042,279 @@ function buildPlayerIframe(url) {
   };
 }
 
+function buildRelayPlayer(videoUrl, audioUrl, title, videoFormats = [], captions = []) {
+  const qualityOptions = videoFormats.map((format, index) =>
+    `<option value="${index}"${format.url === videoUrl ? ' selected' : ''}>${escHTML(format.qualityLabel || 'Auto')} MP4</option>`
+  ).join('');
+  const captionOptions = captions.map((caption, index) =>
+    `<option value="${index}">${escHTML(caption.label || caption.language)}</option>`
+  ).join('');
+  return {
+    html: `
+      <div class="yt-player-loader" id="yt-player-loader">
+        <div class="yt-player-loader-spinner"></div>
+        <span class="yt-player-loader-label">Buffering video through Ludus Relay…</span>
+      </div>
+      <div class="relay-player" id="yt-relay-player">
+        <div class="relay-player-title">${escHTML(title || 'YouTube video')}</div>
+        <video id="yt-relay-video" class="relay-player-video" crossorigin="anonymous" muted playsinline
+               preload="auto" src="${escHTML(videoUrl)}"></video>
+        <audio id="yt-relay-audio" crossorigin="anonymous" preload="auto" src="${escHTML(audioUrl)}"></audio>
+        <div class="relay-controls" aria-label="Video controls">
+          <div class="relay-controls-row">
+            <button type="button" class="relay-control relay-play" data-relay-action="toggle" aria-label="Play">▶</button>
+            <button type="button" class="relay-control relay-skip" data-relay-action="back" aria-label="Back 10 seconds">−10</button>
+            <button type="button" class="relay-control relay-skip" data-relay-action="forward" aria-label="Forward 10 seconds">+10</button>
+            <span class="relay-time" id="yt-relay-time">0:00 / 0:00</span>
+            <input class="relay-seek" id="yt-relay-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+            <label class="relay-volume" title="Volume"><span>VOL</span><input id="yt-relay-volume" type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume"></label>
+            <select class="relay-quality" id="yt-relay-quality" aria-label="Video quality" title="Video quality">${qualityOptions}</select>
+            <select class="relay-captions" id="yt-relay-captions" aria-label="Subtitles" title="Subtitles"><option value="">CC off</option>${captionOptions}</select>
+            <select class="relay-speed" id="yt-relay-speed" aria-label="Playback speed">
+              <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+            </select>
+            <button type="button" class="relay-control" data-relay-action="pip" aria-label="Picture in picture">▣</button>
+            <button type="button" class="relay-control" data-relay-action="fullscreen" aria-label="Fullscreen">⛶</button>
+          </div>
+        </div>
+      </div>`,
+    videoId: 'yt-relay-video',
+  };
+}
+
 function wirePlayerLoader(wrap) {
   const loader = wrap.querySelector('#yt-player-loader');
-  const iframe = wrap.querySelector('iframe');
-  if (!loader || !iframe) return;
-  iframe.addEventListener('load', () => {
+  const media = wrap.querySelector('iframe, video');
+  if (!loader || !media) return;
+  const loadedEvent = media.tagName === 'VIDEO' ? 'canplay' : 'load';
+  media.addEventListener(loadedEvent, () => {
     loader.classList.add('yt-fade-out');
     setTimeout(() => loader.remove(), 320);
   }, { once: true });
 }
 
-function resolveStreamUrl(server, videoId) {
-  return server.build(videoId);
+function relayEndpoint(videoId) {
+  const base = RELAY_RESOLVER_URL.replace(/\/+$/, '');
+  return `${base}?v=${encodeURIComponent(videoId)}&type=video`;
 }
 
-function mountPlayer(videoId) {
-  _currentVideoId = videoId;
-  const wrap = document.getElementById('ludus-player-wrap');
-  if (wrap) {
-    const url = resolveStreamUrl(MAIN_SERVERS[0], videoId);
-    const { html } = buildPlayerIframe(url);
-    wrap.innerHTML = html;
-    wirePlayerLoader(wrap);
+function qualityRank(format) {
+  const match = String(format.qualityLabel || '').match(/(\d+)p/);
+  return Number(match?.[1] || 0) * 10000000 + Number(format.bitrate || 0);
+}
+
+// The relay is always first. It produces a direct, proxied audio stream;
+// every remaining source preserves the existing Invidious + Conduit route.
+async function resolveStreamUrl(server, videoId) {
+  if (server.type === 'relay') {
+    const response = await fetch(relayEndpoint(videoId), { signal: AbortSignal.timeout(30000) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Ludus Relay returned HTTP ${response.status}`);
+    const formats = data.adaptiveFormats || [];
+    const videoFormats = formats
+      .filter(f => f.url && String(f.type || '').startsWith('video/mp4'))
+      .sort((a, b) => qualityRank(b) - qualityRank(a));
+    const video = videoFormats[0];
+    const audio = formats
+      .filter(f => f.url && String(f.type || '').startsWith('audio/mp4'))
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+    if (!video || !audio) throw new Error('Ludus Relay returned no compatible MP4 video and audio streams');
+    return { kind: 'relay', videoUrl: video.url, audioUrl: audio.url, videoFormats, captions: data.captions || [], title: data.title || 'YouTube video' };
   }
+
+  const raw = server.build(videoId);
+  const useRoute = document.getElementById('conduitToggle')?.classList.contains('active');
+  if (useRoute) {
+    try {
+      const sc = await _conduitReady;
+      return { kind: 'iframe', url: location.origin + sc.encodeUrl(raw) };
+    } catch (err) {
+      console.warn('[Ludus] Route encoding failed:', err);
+    }
+  }
+  return { kind: 'iframe', url: raw };
+}
+
+let _activeRelay = null;
+
+function relayTime(seconds) {
+  if (!Number.isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  return `${mins}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+}
+
+async function requestRelayFullscreen(player) {
+  try {
+    await player?.requestFullscreen?.();
+    // Browsers may reject orientation locking; fullscreen still succeeds.
+    await screen.orientation?.lock?.('landscape');
+  } catch (_) { /* keep the regular fullscreen fallback silent */ }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) screen.orientation?.unlock?.();
+});
+
+function postRelayState() {
+  if (!_activeRelay || window.parent === window) return;
+  const { video, audio, title } = _activeRelay;
+  window.parent.postMessage({
+    source: 'youtube',
+    title,
+    paused: video.paused,
+    volume: audio.volume,
+    currentTime: video.currentTime || 0,
+    duration: video.duration || 0,
+  }, '*');
+}
+
+// Parent Ludus mixer commands. The app posts its state above and accepts the
+// same transport actions as the existing Movies player.
+window.addEventListener('message', event => {
+  const data = event.data;
+  if (!data || data.target !== 'youtube' || !_activeRelay) return;
+  const { video, audio, setVolume, seekTo } = _activeRelay;
+  switch (data.action) {
+    case 'setVolume': setVolume(data.volume); break;
+    case 'togglePlay': video.paused ? video.play().catch(() => {}) : video.pause(); break;
+    case 'seekBack': seekTo(video.currentTime - 10); break;
+    case 'seekForward': seekTo(video.currentTime + 10); break;
+    case 'seekTo': seekTo((Number(data.progress) / 100) * video.duration); break;
+    case 'setPlaybackRate':
+      video.playbackRate = Number(data.rate) || 1;
+      audio.playbackRate = video.playbackRate;
+      break;
+  }
+  postRelayState();
+});
+
+function wireRelaySync(wrap, onFailure, title = 'YouTube video', videoFormats = [], captions = []) {
+  const video = wrap.querySelector('#yt-relay-video');
+  const audio = wrap.querySelector('#yt-relay-audio');
+  if (!video || !audio) return;
+  const player = wrap.querySelector('#yt-relay-player');
+  const play = wrap.querySelector('.relay-play');
+  const seek = wrap.querySelector('#yt-relay-seek');
+  const volume = wrap.querySelector('#yt-relay-volume');
+  const quality = wrap.querySelector('#yt-relay-quality');
+  const captionSelect = wrap.querySelector('#yt-relay-captions');
+  const speed = wrap.querySelector('#yt-relay-speed');
+  const time = wrap.querySelector('#yt-relay-time');
+  let failed = false;
+  const fail = () => {
+    if (failed) return;
+    failed = true;
+    onFailure?.();
+  };
+  const syncTime = () => {
+    if (Math.abs(video.currentTime - audio.currentTime) > 0.35) audio.currentTime = video.currentTime;
+  };
+  const updateControls = () => {
+    if (play) { play.textContent = video.paused ? '▶' : '❚❚'; play.setAttribute('aria-label', video.paused ? 'Play' : 'Pause'); }
+    if (seek && Number.isFinite(video.duration) && !seek.matches(':active')) seek.value = String(Math.round((video.currentTime / video.duration) * 1000) || 0);
+    if (time) time.textContent = `${relayTime(video.currentTime)} / ${relayTime(video.duration)}`;
+  };
+  const setVolume = value => {
+    const next = Math.max(0, Math.min(1, Number(value)));
+    audio.volume = next;
+    if (volume) volume.value = String(next);
+    postRelayState();
+  };
+  const seekTo = seconds => {
+    if (Number.isFinite(video.duration)) video.currentTime = Math.max(0, Math.min(video.duration, Number(seconds) || 0));
+  };
+  _activeRelay = { video, audio, title, setVolume, seekTo, videoFormats, captions };
+
+  video.addEventListener('play', () => { audio.play().catch(fail); updateControls(); postRelayState(); });
+  video.addEventListener('pause', () => { audio.pause(); updateControls(); postRelayState(); });
+  video.addEventListener('seeking', syncTime);
+  video.addEventListener('timeupdate', () => { syncTime(); updateControls(); postRelayState(); });
+  video.addEventListener('loadedmetadata', () => { updateControls(); postRelayState(); });
+  video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; if (speed) speed.value = String(video.playbackRate); });
+  video.addEventListener('ended', () => { audio.pause(); audio.currentTime = 0; updateControls(); postRelayState(); });
+  video.addEventListener('error', fail, { once: true });
+  audio.addEventListener('error', fail, { once: true });
+
+  wrap.addEventListener('click', event => {
+    const action = event.target.closest('[data-relay-action]')?.dataset.relayAction;
+    if (!action) return;
+    if (action === 'toggle') video.paused ? video.play().catch(fail) : video.pause();
+    if (action === 'back') seekTo(video.currentTime - 10);
+    if (action === 'forward') seekTo(video.currentTime + 10);
+    if (action === 'fullscreen') requestRelayFullscreen(player || video);
+    if (action === 'pip') video.requestPictureInPicture?.().catch(() => {});
+  });
+  seek?.addEventListener('input', () => seekTo((Number(seek.value) / 1000) * video.duration));
+  volume?.addEventListener('input', () => setVolume(volume.value));
+  speed?.addEventListener('change', () => { video.playbackRate = Number(speed.value); audio.playbackRate = video.playbackRate; });
+  quality?.addEventListener('change', () => {
+    const next = _activeRelay?.videoFormats?.[Number(quality.value)];
+    if (!next?.url || next.url === video.currentSrc) return;
+    const wasPlaying = !video.paused;
+    const position = video.currentTime || 0;
+    video.src = next.url;
+    video.load();
+    video.addEventListener('loadedmetadata', () => {
+      seekTo(position);
+      if (wasPlaying) video.play().catch(fail);
+    }, { once: true });
+  });
+  captionSelect?.addEventListener('change', () => {
+    video.querySelectorAll('track[data-ludus-caption]').forEach(track => track.remove());
+    const caption = captions[Number(captionSelect.value)];
+    if (!caption?.url) return;
+    const track = document.createElement('track');
+    track.dataset.ludusCaption = 'true';
+    track.kind = 'subtitles';
+    track.srclang = caption.language || 'en';
+    track.label = caption.label || caption.language || 'Subtitles';
+    track.src = caption.url;
+    track.default = true;
+    track.addEventListener('load', () => { track.track.mode = 'showing'; }, { once: true });
+    video.appendChild(track);
+  });
+  updateControls();
+}
+
+function loadingPlayerHTML(label = 'Connecting…') {
+  return `<div class="yt-player-loader" id="yt-player-loader">
+    <div class="yt-player-loader-spinner"></div>
+    <span class="yt-player-loader-label" id="yt-player-loader-label">${escHTML(label)}</span>
+  </div>`;
+}
+
+async function mountResolvedPlayer(server, videoId, allowFallback = false) {
+  const wrap = document.getElementById('ludus-player-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = loadingPlayerHTML(server.type === 'relay' ? 'Connecting to Ludus Relay…' : 'Initialising conduit…');
+  try {
+    const resolved = await resolveStreamUrl(server, videoId);
+    const player = resolved.kind === 'relay'
+      ? buildRelayPlayer(resolved.videoUrl, resolved.audioUrl, resolved.title, resolved.videoFormats, resolved.captions)
+      : buildPlayerIframe(resolved.url);
+    wrap.innerHTML = player.html;
+    wirePlayerLoader(wrap);
+
+    if (resolved.kind === 'relay' && allowFallback) {
+      wireRelaySync(wrap, () => {
+        console.warn('[Ludus] Relay stream failed; falling back to Invidious.');
+        mountResolvedPlayer(MAIN_SERVERS[1], videoId, false);
+      }, resolved.title, resolved.videoFormats, resolved.captions);
+    } else if (resolved.kind === 'relay') {
+      wireRelaySync(wrap, undefined, resolved.title, resolved.videoFormats, resolved.captions);
+    }
+  } catch (error) {
+    if (allowFallback) {
+      console.warn('[Ludus] Relay unavailable; falling back to Invidious:', error);
+      return mountResolvedPlayer(MAIN_SERVERS[1], videoId, false);
+    }
+    wrap.innerHTML = `<div class="yt-player-error">${escHTML(error.message || 'Unable to start playback.')}</div>`;
+  }
+}
+
+async function mountPlayer(videoId) {
+  _currentVideoId = videoId;
+  await mountResolvedPlayer(MAIN_SERVERS[0], videoId, true);
 
   document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
   const first = document.querySelector(`.server-dropdown-item[data-server="${MAIN_SERVERS[0].id}"]`);
@@ -1016,7 +1323,7 @@ function mountPlayer(videoId) {
   if (nameEl) nameEl.textContent = MAIN_SERVERS[0].name;
 }
 
-function selectMainServer(serverId, name, el) {
+async function selectMainServer(serverId, name, el) {
   document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
   if (el) el.classList.add('active');
   const nameEl = document.getElementById('currentServerName');
@@ -1025,25 +1332,42 @@ function selectMainServer(serverId, name, el) {
 
   const server = MAIN_SERVERS.find(s => s.id === serverId);
   if (!server || !_currentVideoId) return;
-  const wrap = document.getElementById('ludus-player-wrap');
-  if (wrap) {
-    const url = resolveStreamUrl(server, _currentVideoId);
-    const { html } = buildPlayerIframe(url);
-    wrap.innerHTML = html;
-    wirePlayerLoader(wrap);
-  }
+  await mountResolvedPlayer(server, _currentVideoId, server.type === 'relay');
 }
 
-function toggleServerDropdown(e) {
-  e.stopPropagation();
-  document.getElementById('serverDropdownMenu')?.classList.toggle('open');
-}
-
-// Outside-click / Escape handling for the server dropdown.
+// Conduit toggle (re-mounts the current server through/around Scramjet) +
+// outside-click handling — registered once via delegation.
 (function initServerControlsGlobalHandlers() {
   document.addEventListener('click', e => {
+    const dropdownButton = e.target.closest('#serverDropdownBtn');
+    if (dropdownButton) {
+      const menu = document.getElementById('serverDropdownMenu');
+      const open = !menu?.classList.contains('open');
+      menu?.classList.toggle('open', open);
+      dropdownButton.setAttribute('aria-expanded', String(open));
+      return;
+    }
+    const serverItem = e.target.closest('.server-dropdown-item');
+    if (serverItem) {
+      selectMainServer(serverItem.dataset.server, serverItem.dataset.serverName, serverItem);
+      return;
+    }
+    const cTgl = e.target.closest('#conduitToggle');
+    if (cTgl) {
+      cTgl.classList.toggle('active');
+      cTgl.setAttribute('aria-pressed', String(cTgl.classList.contains('active')));
+      if (_currentVideoId) {
+        const activeItem = document.querySelector('.server-dropdown-item.active');
+        const server = MAIN_SERVERS.find(s => s.id === activeItem?.dataset.server) || MAIN_SERVERS[0];
+        // The relay already proxies audio itself; Conduit only applies to
+        // the retained third-party iframe fallbacks.
+        if (server.type !== 'relay') mountResolvedPlayer(server, _currentVideoId, false);
+      }
+      return;
+    }
     if (!e.target.closest('#serverControls')) {
       document.getElementById('serverDropdownMenu')?.classList.remove('open');
+      document.getElementById('serverDropdownBtn')?.setAttribute('aria-expanded', 'false');
     }
   });
   document.addEventListener('keydown', e => {
@@ -1056,4 +1380,4 @@ function toggleServerDropdown(e) {
    BOOTSTRAP
    ═══════════════════════════════════════════════════════════════════════════ */
 
-dispatch();
+dispatch('/');
