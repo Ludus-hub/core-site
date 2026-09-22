@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ludus YouTube</title>
-  <link rel="stylesheet" href="yt/style-2.css">
+  <link rel="stylesheet" href="yt/style.css">
   <style>
     /* ── Player loader — shown inside #ludus-player-wrap while the 
        iframe is connecting; removed on iframe load. ── */
@@ -54,7 +54,7 @@
 
     <nav id="sidebar-nav">
 
-      <a class="nav-item" href="#/">
+      <a class="nav-item" href="javascript:void(0)" data-path="/" onclick="navigate('/')" >
         <!-- Home -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -64,7 +64,7 @@
         <span class="nav-label">Home</span>
       </a>
 
-      <a class="nav-item" href="#/trending">
+      <a class="nav-item" href="javascript:void(0)" data-path="/trending" onclick="navigate('/trending')">
         <!-- Trending / chart -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -74,7 +74,7 @@
         <span class="nav-label">Trending</span>
       </a>
 
-      <a class="nav-item" href="#/popular">
+      <a class="nav-item" href="javascript:void(0)" data-path="/popular" onclick="navigate('/popular')">
         <!-- Star / popular -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -83,7 +83,7 @@
         <span class="nav-label">Popular</span>
       </a>
 
-      <a class="nav-item" href="#/history">
+      <a class="nav-item" href="javascript:void(0)" data-path="/history" onclick="navigate('/history')">
         <!-- Clock / history -->
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -219,6 +219,13 @@
 
 <script src="yt/api-2.js"></script>
 
-<script src="yt/script.js"></script>
+<!-- Scramjet — same client setup Ludus Stream (movie.html) uses. This is a
+     site-root-relative path (note the leading "/") on purpose — it's shared
+     infrastructure that lives at the true root of the Ludus site regardless
+     of which subfolder this app itself is mounted under. Everything that
+     belongs to *this* app lives under yt/ instead. -->
+<script src="/p/scram/scramjet.all.js"></script>
+
+<script src="app-4.js"></script>
 </body>
 </html>
