@@ -410,6 +410,111 @@
         }
         #converter-panel.active { display: flex; }
 
+        /* ── YT → MP4 Panel ────────────────────────────────────────────── */
+        #yt-panel {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: var(--bg-primary);
+            z-index: 200;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #yt-panel.active { display: flex; }
+
+        .yt-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px 32px;
+            max-width: 680px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .yt-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: var(--text-tertiary);
+            margin-bottom: 4px;
+        }
+        .yt-url-area {
+            width: 100%;
+            min-height: 96px;
+            max-height: 220px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: monospace;
+            font-size: 12.5px;
+            line-height: 1.6;
+            padding: 10px 12px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .yt-url-area:focus { outline: none; border-color: var(--accent-color); }
+        .yt-note {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            line-height: 1.5;
+        }
+        .yt-convert-btn {
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 20px;
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter .15s;
+        }
+        .yt-convert-btn:hover { filter: brightness(1.12); }
+        .yt-convert-btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+        .yt-job-list { display: flex; flex-direction: column; gap: 8px; }
+        .yt-job {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 11px 14px 10px;
+            transition: border-color .2s;
+        }
+        .yt-job.done  { border-color: rgba(100,220,130,.35); }
+        .yt-job.error { border-color: rgba(239,68,68,.3); }
+        .yt-job-title {
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 3px;
+        }
+        .yt-job-status {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            min-height: 15px;
+        }
+        .yt-job-bar { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .yt-job-bar-fill {
+            height: 100%;
+            background: var(--accent-color);
+            border-radius: 2px;
+            width: 0%;
+            transition: width .25s ease;
+        }
+        .yt-err  { color: #f87171; }
+        .yt-done { color: #4ade80; }
+
         .conv-topbar {
             height: 64px;
             padding: 0 28px;
@@ -750,6 +855,12 @@
         .fc-btn:hover { border-color: var(--accent-color); }
         .fc-btn.on { background: var(--accent-color); color: #000; border-color: transparent; font-weight: 600; }
         .fc-deck { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--glass); }
+        .fc-paste { display: grid; gap: 10px; padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--glass); }
+        .fc-paste-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+        .fc-paste textarea, .fc-paste input { width: 100%; box-sizing: border-box; font: inherit; color: #fff; background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; outline: none; }
+        .fc-paste textarea { min-height: 112px; resize: vertical; line-height: 1.45; }
+        .fc-paste textarea:focus, .fc-paste input:focus { border-color: var(--accent-color); }
+        .fc-paste-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
         .fc-card { perspective: 1200px; height: min(72vh, 680px); cursor: pointer; user-select: none; }
         .fc-in { position: relative; width: 100%; height: 100%; transition: transform .45s; transform-style: preserve-3d; }
         .fc-card.flip .fc-in { transform: rotateY(180deg); }
@@ -824,6 +935,14 @@
             <button class="btn btn-converter" onclick="openFlash()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"></rect><line x1="7" y1="9" x2="17" y2="9"></line><line x1="7" y1="13" x2="13" y2="13"></line></svg>
                 Flashcards
+            </button>
+
+            <button class="btn btn-converter" onclick="openYTConverter()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"></path>
+                    <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"></polygon>
+                </svg>
+                YT → MP4
             </button>
 
             <div id="dev-controls" style="display:none; margin-top: 24px; border-top: 1px solid var(--border); padding-top: 15px;">
@@ -1022,6 +1141,70 @@
         </div>
     </div>
 
+    <!-- YT → MP4 PANEL -->
+    <div id="yt-panel">
+        <div class="conv-topbar">
+            <button class="conv-back-btn" onclick="closeYTConverter()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                Back
+            </button>
+            <span class="conv-topbar-title">YT → MP4</span>
+            <span style="font-size:11px; color:var(--text-tertiary); margin-left:6px;">video+audio muxed in your browser · nothing uploaded</span>
+        </div>
+        <div class="yt-body">
+            <div>
+                <div class="yt-label">YouTube URLs</div>
+                <textarea id="yt-url-input" class="yt-url-area" placeholder="https://youtube.com/watch?v=...&#10;https://youtu.be/...&#10;One URL per line"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <label class="yt-label" style="margin:0;display:flex;align-items:center;gap:8px;">Download
+                    <select id="yt-output-format" style="background:#111;border:1px solid var(--border);border-radius:7px;color:#fff;padding:7px 9px;">
+                        <option value="mp4">MP4 video</option>
+                        <option value="mp3">MP3 audio</option>
+                    </select>
+                </label>
+                <label class="yt-label" style="margin:0;display:flex;align-items:center;gap:8px;">Quality
+                    <select id="yt-quality" style="background:#111;border:1px solid var(--border);border-radius:7px;color:#fff;padding:7px 9px;">
+                        <option value="best">Best available</option>
+                        <option value="1080">1080p</option>
+                        <option value="720">720p</option>
+                        <option value="480">480p</option>
+                        <option value="360">360p</option>
+                    </select>
+                </label>
+                <label class="yt-label" style="margin:0;display:flex;align-items:center;gap:8px;">Language
+                    <select id="yt-language" style="background:#111;border:1px solid var(--border);border-radius:7px;color:#fff;padding:7px 9px;">
+                        <option value="original" selected>Original audio</option>
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="it">Italian</option>
+                        <option value="nl">Dutch</option>
+                        <option value="pl">Polish</option>
+                        <option value="ru">Russian</option>
+                        <option value="tr">Turkish</option>
+                        <option value="ar">Arabic</option>
+                        <option value="hi">Hindi</option>
+                        <option value="id">Indonesian</option>
+                        <option value="ja">Japanese</option>
+                        <option value="ko">Korean</option>
+                        <option value="zh">Chinese</option>
+                    </select>
+                </label>
+            </div>
+            <div class="yt-note">
+                Pick a resolution for MP4 or extract a 192 kbps MP3. Language picks the audio track when the video has dubbed tracks (falls back to the original audio if it doesn't). The first conversion loads ffmpeg in this browser; uploads stay on this device.
+            </div>
+            <button class="yt-convert-btn" id="yt-convert-btn" onclick="ytStartConvert()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"></path><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"></polygon></svg>
+                Convert &amp; Download
+            </button>
+            <div id="yt-job-list" class="yt-job-list"></div>
+        </div>
+    </div>
+
     <!-- FLASHCARDS PANEL -->
     <div id="flash-panel">
         <div class="conv-topbar">
@@ -1030,7 +1213,7 @@
                 Back
             </button>
             <span class="conv-topbar-title" id="fc-title">Flashcards</span>
-            <span style="font-size:11px; color:var(--text-tertiary); margin-left:6px;">upload a CSV · term,definition · nothing leaves your device</span>
+            <span style="font-size:11px; color:var(--text-tertiary); margin-left:6px;">CSV or copied Quizlet export · nothing leaves your device</span>
         </div>
         <div class="fc-body"><div class="fc-wrap" id="fc-main"></div></div>
     </div>
@@ -2568,6 +2751,7 @@
             // Audio (via Web Audio re-encode)
             wav:  { name:'WAV',          tag:'audio',       mime:'audio/wav',         ext:'wav'  },
             ogg:  { name:'OGG Vorbis',   tag:'audio',       mime:'audio/ogg',         ext:'ogg'  },
+            mp3:  { name:'MP3 Audio',    tag:'audio',       mime:'audio/mpeg',        ext:'mp3'  },
             // Video frame extraction
             mov_frame_png: { name:'Frame as PNG', tag:'video', mime:'image/png',      ext:'png'  },
             mov_frame_jpg: { name:'Frame as JPG', tag:'video', mime:'image/jpeg',     ext:'jpg'  },
@@ -2612,9 +2796,9 @@
             'audio/aac':   ['wav','b64'],
             'audio/flac':  ['wav','b64'],
             // ── Video (MOV/MP4/WebM — resize/re-encode + frame extraction) ──
-            'video/quicktime': ['vid_resize','mov_frame_png','mov_frame_jpg','b64','hex'],
-            'video/mp4':       ['vid_resize','mov_frame_png','mov_frame_jpg','b64','hex'],
-            'video/webm':      ['vid_resize','mov_frame_png','mov_frame_jpg','b64','hex'],
+            'video/quicktime': ['mp3','vid_resize','mov_frame_png','mov_frame_jpg','b64','hex'],
+            'video/mp4':       ['mp3','vid_resize','mov_frame_png','mov_frame_jpg','b64','hex'],
+            'video/webm':      ['mp3','vid_resize','mov_frame_png','mov_frame_jpg','b64','hex'],
             // ── Fallback: any binary ──
             '__any__': ['b64','hex'],
         };
@@ -3219,7 +3403,27 @@
             if (fmt === 'vid_resize') {
                 return await resizeVideoConvert(file, baseName);
             }
+            if (fmt === 'mp3') {
+                return await videoToMp3(file, baseName);
+            }
             throw new Error('Unsupported video conversion format');
+        }
+
+        async function videoToMp3(file, baseName) {
+            if (!window.LudusConverterFFmpeg?.load) {
+                throw new Error('The local converter engine is still loading. Please try again.');
+            }
+            const ff = await window.LudusConverterFFmpeg.load();
+            const inputName = `local-${Date.now()}.${file.name.split('.').pop() || 'mp4'}`;
+            const outputName = `local-${Date.now()}.mp3`;
+            await ff.writeFile(inputName, new Uint8Array(await file.arrayBuffer()));
+            try {
+                await ff.exec(['-i', inputName, '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', outputName]);
+                const out = await ff.readFile(outputName);
+                return { blob: new Blob([out.buffer], { type:'audio/mpeg' }), filename: `${baseName}.mp3` };
+            } finally {
+                await Promise.allSettled([ff.deleteFile(inputName), ff.deleteFile(outputName)]);
+            }
         }
 
         function extractVideoFrame(file, outMime) {
@@ -3898,6 +4102,265 @@
         function openFlash() { fcPanel.classList.add('active'); fcHome(); }
         function closeFlash() { fcPanel.classList.remove('active'); clearInterval(fcTimer); }
 
+        // ── YT → MP4 Converter ──────────────────────────────────────────
+        (function () {
+            const BASE_FFM  = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd';
+            const BASE_CORE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.9/dist/umd';
+
+            let ffReady = null; // singleton promise → resolves to FFmpeg instance
+
+            const ytPanel      = document.getElementById('yt-panel');
+            const ytJobList    = document.getElementById('yt-job-list');
+            const ytConvertBtn = document.getElementById('yt-convert-btn');
+
+            window.openYTConverter  = () => ytPanel.classList.add('active');
+            window.closeYTConverter = () => ytPanel.classList.remove('active');
+
+            // ── ffmpeg loader ────────────────────────────────────────────
+            async function loadFFmpeg() {
+                if (ffReady) return ffReady;
+                ffReady = (async () => {
+                    // Fetch worker + core as blob URLs so cross-origin worker
+                    // restriction is bypassed (blobs are same-origin)
+                    const [workerBuf, coreBuf, wasmBuf] = await Promise.all([
+                        fetch(`${BASE_FFM}/814.ffmpeg.js`).then(r => r.arrayBuffer()),
+                        fetch(`${BASE_CORE}/ffmpeg-core.js`).then(r => r.arrayBuffer()),
+                        fetch(`${BASE_CORE}/ffmpeg-core.wasm`).then(r => r.arrayBuffer()),
+                    ]);
+                    const workerBlob = URL.createObjectURL(new Blob([workerBuf], { type: 'text/javascript' }));
+                    const coreBlob   = URL.createObjectURL(new Blob([coreBuf],   { type: 'text/javascript' }));
+                    const wasmBlob   = URL.createObjectURL(new Blob([wasmBuf],   { type: 'application/wasm' }));
+
+                    // Load main ffmpeg UMD script (sets window.FFmpegWASM)
+                    if (!window.FFmpegWASM) {
+                        await new Promise((res, rej) => {
+                            const s = document.createElement('script');
+                            s.src = `${BASE_FFM}/ffmpeg.js`;
+                            s.onload = res; s.onerror = rej;
+                            document.head.appendChild(s);
+                        });
+                    }
+
+                    // Monkey-patch Worker temporarily so ffmpeg.load() creates
+                    // a same-origin (blob) classic worker instead of cross-origin
+                    const _W = window.Worker;
+                    window.Worker = function (url, opts) {
+                        const s = String(url);
+                        if (s.includes('814') || s.includes('ffmpeg')) return new _W(workerBlob);
+                        return new _W(url, opts);
+                    };
+                    Object.setPrototypeOf(window.Worker, _W);
+
+                    const { FFmpeg } = window.FFmpegWASM;
+                    const ff = new FFmpeg();
+                    await ff.load({ coreURL: coreBlob, wasmURL: wasmBlob });
+
+                    window.Worker = _W; // restore
+                    return ff;
+                })();
+                return ffReady;
+            }
+            window.LudusConverterFFmpeg = { load: loadFFmpeg };
+
+            // ── helpers ──────────────────────────────────────────────────
+            function extractId(url) {
+                const m = url.trim().match(
+                    /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/))([A-Za-z0-9_-]{11})/
+                );
+                return m ? m[1] : null;
+            }
+
+            const RESOLVER_URL = localStorage.getItem('ludus_yt_resolver_url') || 'https://tokyo-suspended-sorts-prot.trycloudflare.com/resolve';
+
+            async function getInfo(videoId) {
+                const r = await fetch(`${RESOLVER_URL}?v=${encodeURIComponent(videoId)}&type=video`, {
+                    signal: AbortSignal.timeout(30000)
+                });
+                const data = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(data.error || `Local resolver returned HTTP ${r.status}`);
+                if (!data.adaptiveFormats?.length) throw new Error('Local resolver returned no compatible streams');
+                return data;
+            }
+
+            const langBase = code => String(code || '').toLowerCase().split(/[-_]/)[0];
+
+            // Choose the audio track: the wanted language if the video has it, otherwise the original track.
+            // `missed` is true only when tracks are language-tagged but none matched the request.
+            function pickAudio(auds, wantedLanguage) {
+                const sorted = auds.slice().sort((a,b) => (b.bitrate||0)-(a.bitrate||0));
+                const plain  = sorted.filter(f => !f.descriptive);          // skip audio-description tracks
+                const pool   = plain.length ? plain : sorted;
+                if (!pool.some(f => f.language)) return { aud: pool[0], missed: false }; // single track / older resolver
+                const original = pool.find(f => f.original) || pool[0];
+                if (wantedLanguage === 'original') return { aud: original, missed: false };
+                const hit = pool.find(f => langBase(f.language) === wantedLanguage);
+                return hit ? { aud: hit, missed: false } : { aud: original, missed: true };
+            }
+
+            function pickStreams(formats, wantedQuality = 'best', wantedLanguage = 'original') {
+                const vids = formats.filter(f => f.type?.startsWith('video/mp4'));
+                const prefs = wantedQuality === 'best'
+                    ? ['2160p60','2160p','1440p60','1440p','1080p60','1080p','720p60','720p','480p','360p']
+                    : [`${wantedQuality}p60`, `${wantedQuality}p`];
+                let vid = null;
+                for (const q of prefs) { vid = vids.find(f => f.qualityLabel === q); if (vid) break; }
+                if (!vid) vid = vids.sort((a,b) => (b.bitrate||0)-(a.bitrate||0))[0];
+
+                const { aud, missed } = pickAudio(formats.filter(f => f.type?.startsWith('audio/mp4')), wantedLanguage);
+                return { vid, aud, missed };
+            }
+
+            async function fetchBuf(url, onProgress) {
+                const r = await fetch(url);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const total = parseInt(r.headers.get('Content-Length') || '0');
+                const reader = r.body.getReader();
+                const chunks = []; let loaded = 0;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value); loaded += value.length;
+                    if (total && onProgress) onProgress(loaded / total);
+                }
+                const out = new Uint8Array(loaded); let off = 0;
+                for (const c of chunks) { out.set(c, off); off += c.length; }
+                return out;
+            }
+
+            // ── per-job DOM helpers ──────────────────────────────────────
+            function setStatus(el, html)  { el.querySelector('.yt-job-status').innerHTML = html; }
+            function setBar(el, pct)      { el.querySelector('.yt-job-bar-fill').style.width = (pct * 100).toFixed(1) + '%'; }
+
+            // ── process one video ────────────────────────────────────────
+            async function processOne(jobEl, videoId, outputFormat, wantedQuality, wantedLanguage, languageName) {
+                setStatus(jobEl, 'Fetching info…');
+
+                let info;
+                try { info = await getInfo(videoId); }
+                catch (e) {
+                    setStatus(jobEl, `<span class="yt-err">✗ ${e.message}</span>`);
+                    jobEl.classList.add('error'); return;
+                }
+
+                const title = (info.title || videoId).replace(/[/\\?%*:|"<>]/g, '_');
+                jobEl.querySelector('.yt-job-title').textContent = info.title || videoId;
+
+                const { vid, aud, missed } = pickStreams(info.adaptiveFormats, wantedQuality, wantedLanguage);
+                if (!aud || (outputFormat === 'mp4' && !vid)) {
+                    setStatus(jobEl, '<span class="yt-err">✗ No compatible MP4 streams found</span>');
+                    jobEl.classList.add('error'); return;
+                }
+
+                // Download video stream only when making MP4.
+                let vidData;
+                if (outputFormat === 'mp4') try {
+                    vidData = await fetchBuf(vid.url, p => {
+                        setBar(jobEl, p * 0.44);
+                        setStatus(jobEl, `Downloading video (${vid.qualityLabel||'?'}) — ${(p*100).toFixed(0)}%`);
+                    });
+                } catch(e) {
+                    setStatus(jobEl, `<span class="yt-err">✗ Video fetch: ${e.message}</span>`);
+                    jobEl.classList.add('error'); return;
+                }
+
+                // Download audio stream
+                let audData;
+                try {
+                    audData = await fetchBuf(aud.url, p => {
+                        setBar(jobEl, outputFormat === 'mp4' ? 0.44 + p * 0.44 : p * 0.82);
+                        setStatus(jobEl, `Downloading audio — ${(p*100).toFixed(0)}%`);
+                    });
+                } catch(e) {
+                    setStatus(jobEl, `<span class="yt-err">✗ Audio fetch: ${e.message}</span>`);
+                    jobEl.classList.add('error'); return;
+                }
+
+                // Load ffmpeg (first call downloads ~30 MB, cached after)
+                setStatus(jobEl, 'Loading ffmpeg…'); setBar(jobEl, 0.89);
+                let ff;
+                try { ff = await loadFFmpeg(); }
+                catch(e) {
+                    setStatus(jobEl, `<span class="yt-err">✗ ffmpeg load failed: ${e.message}</span>`);
+                    jobEl.classList.add('error'); return;
+                }
+
+                // Mux
+                setStatus(jobEl, 'Muxing…'); setBar(jobEl, 0.93);
+                try {
+                    await ff.writeFile('a.mp4', audData);
+                    const outputFile = outputFormat === 'mp3' ? 'out.mp3' : 'out.mp4';
+                    if (outputFormat === 'mp3') {
+                        await ff.exec(['-i', 'a.mp4', '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', outputFile]);
+                    } else {
+                        await ff.writeFile('v.mp4', vidData);
+                        await ff.exec(['-i','v.mp4','-i','a.mp4','-c','copy','-movflags','+faststart',outputFile]);
+                    }
+                    const out = await ff.readFile(outputFile);
+                    await Promise.allSettled(['v.mp4', 'a.mp4', outputFile].map(name => ff.deleteFile(name)));
+
+                    const blob = new Blob([out.buffer], { type: outputFormat === 'mp3' ? 'audio/mpeg' : 'video/mp4' });
+                    const a = Object.assign(document.createElement('a'), {
+                        href: URL.createObjectURL(blob),
+                        download: title + `.${outputFormat}`
+                    });
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+
+                    setBar(jobEl, 1); setStatus(jobEl, '<span class="yt-done">✓ Done</span>' + (missed ? ` <span style="color:var(--text-tertiary)">· ${languageName} audio isn’t available for this video, used the original audio</span>` : ''));
+                    jobEl.classList.add('done');
+                } catch(e) {
+                    setStatus(jobEl, `<span class="yt-err">✗ Mux failed: ${e.message}</span>`);
+                    jobEl.classList.add('error');
+                }
+            }
+
+            // ── main entry ───────────────────────────────────────────────
+            window.ytStartConvert = async function () {
+                const raw   = document.getElementById('yt-url-input').value;
+                const outputFormat = document.getElementById('yt-output-format').value;
+                const wantedQuality = document.getElementById('yt-quality').value;
+                const langSelect = document.getElementById('yt-language');
+                const wantedLanguage = langSelect.value;
+                const languageName = langSelect.selectedOptions[0].textContent;
+                const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+                if (!lines.length) return;
+
+                ytConvertBtn.disabled = true;
+                ytJobList.innerHTML   = '';
+
+                const jobs = lines.map(url => ({ url, id: extractId(url) }));
+
+                // Render all job rows first
+                for (const { url, id } of jobs) {
+                    const el = document.createElement('div');
+                    el.className = 'yt-job';
+                    if (!id) {
+                        el.classList.add('error');
+                        el.innerHTML = `
+                            <div class="yt-job-title">${url}</div>
+                            <div class="yt-job-status"><span class="yt-err">✗ Invalid YouTube URL</span></div>
+                            <div class="yt-job-bar"><div class="yt-job-bar-fill"></div></div>`;
+                    } else {
+                        el.dataset.vid = id;
+                        el.innerHTML = `
+                            <div class="yt-job-title">${id}</div>
+                            <div class="yt-job-status" style="color:var(--text-tertiary)">Queued</div>
+                            <div class="yt-job-bar"><div class="yt-job-bar-fill"></div></div>`;
+                    }
+                    ytJobList.appendChild(el);
+                }
+
+                // Process sequentially (ffmpeg is single-threaded)
+                for (const { id } of jobs) {
+                    if (!id) continue;
+                    const jobEl = ytJobList.querySelector(`[data-vid="${id}"]`);
+                    await processOne(jobEl, id, outputFormat, wantedQuality, wantedLanguage, languageName);
+                }
+
+                ytConvertBtn.disabled = false;
+            };
+        })();
+
         function fcParse(text) { // CSV/TSV with quotes; first two columns are term and definition
             text = text.replace(/^\uFEFF/, '');
             const d = [',', '\t', ';'].sort((a, b) => text.split(b).length - text.split(a).length)[0];
@@ -3915,14 +4378,24 @@
             if (cards.length > 1 && /^(term|word|front|question|vocab)/i.test(cards[0][0]) && /^(def|back|answer|meaning)/i.test(cards[0][1])) cards.shift();
             return cards;
         }
+        function fcCreateDeck(cards, name) {
+            if (cards.length < 2) return alert('Need at least 2 rows with a term and a definition.');
+            fcDecks.unshift({ name: String(name || 'Untitled flashcard set').trim() || 'Untitled flashcard set', cards });
+            fcSave(); fcStudy(fcDecks[0]);
+        }
         function fcLoad(file) {
             const rd = new FileReader();
             rd.onload = () => {
                 const cards = fcParse(String(rd.result));
-                if (cards.length < 2) return alert('Need at least 2 rows with a term and a definition (CSV: term,definition).');
-                fcDecks.unshift({ name: file.name.replace(/\.[^.]+$/, ''), cards }); fcSave(); fcStudy(fcDecks[0]);
+                fcCreateDeck(cards, file.name.replace(/\.[^.]+$/, ''));
             };
             rd.readAsText(file);
+        }
+        function fcImportPasted() {
+            const text = document.getElementById('fc-paste-text')?.value || '';
+            const name = document.getElementById('fc-paste-name')?.value || 'Quizlet export';
+            if (!text.trim()) return alert('Paste the copied terms and definitions first.');
+            fcCreateDeck(fcParse(text), name);
         }
         function fcSample() {
             fcDecks.unshift({ name: 'Sample: Solar System', cards: [['Mercury', 'Closest planet to the Sun'], ['Venus', 'Hottest planet'], ['Earth', 'Only known planet with life'], ['Mars', 'The Red Planet'], ['Jupiter', 'Largest planet'], ['Saturn', 'Planet with prominent rings']] });
@@ -3933,12 +4406,30 @@
             document.getElementById('fc-title').textContent = 'Flashcards';
             fcMain.innerHTML = `
                 <label class="fc-drop"><input type="file" id="fc-file" accept=".csv,.tsv,.txt,text/csv" style="display:none">
-                    <div style="font-size:34px">📇</div><div style="font-size:16px;color:#fff;margin:6px 0">Upload a CSV to make a flashcard set</div>
-                    <div class="fc-muted">One card per row: term,definition · header row optional</div></label>
+                    <div style="font-size:34px">&#128199;</div><div style="font-size:16px;color:#fff;margin:6px 0">Upload a CSV to make a flashcard set</div>
+                    <div class="fc-muted">One card per row: term,definition &#183; header row optional</div></label>
+                <section class="fc-paste" aria-label="Import from Quizlet URL">
+                    <div class="fc-paste-head"><b>Import from Quizlet URL</b><span class="fc-muted">&#10024; AI-powered &#183; no extension needed</span></div>
+                    <div class="fc-muted">Paste any public Quizlet set link and we\'ll extract all cards automatically.</div>
+                    <input id="fc-url-input" type="url" placeholder="https://quizlet.com/123456789/set-name-flash-cards/">
+                    <div class="fc-paste-actions">
+                        <span class="fc-muted" id="fc-url-status"></span>
+                        <button class="fc-btn on" id="fc-url-import-btn" type="button">&#128279; Import from URL</button>
+                    </div>
+                </section>
+                <section class="fc-paste" aria-label="Paste a Quizlet export">
+                    <div class="fc-paste-head"><b>Paste a Quizlet export</b><span class="fc-muted">Manual fallback</span></div>
+                    <div class="fc-muted">Use Quizlet&#8217;s More &#8594; Export &#8594; Copy text, then paste it here. Tabs, commas, and semicolons are supported.</div>
+                    <input id="fc-paste-name" maxlength="100" placeholder="Set name (optional)" value="Quizlet export">
+                    <textarea id="fc-paste-text" spellcheck="false" placeholder="Term[TAB]Definition&#10;Another term[TAB]Another definition"></textarea>
+                    <div class="fc-paste-actions"><span class="fc-muted">Your pasted cards are saved only in this browser.</span><button class="fc-btn on" id="fc-paste-import" type="button">Create flashcards</button></div>
+                </section>
                 <div class="fc-row"><button class="fc-btn" onclick="fcSample()">Try a sample set</button></div>
                 ${fcDecks.map((d, i) => `<div class="fc-deck"><span><b>${fcEsc(d.name)}</b> <span class="fc-muted">${d.cards.length} cards</span></span><span><button class="fc-btn" onclick="fcStudy(fcDecks[${i}])">Study</button> <button class="fc-btn" onclick="fcDecks.splice(${i},1);fcSave();fcHome()">Delete</button></span></div>`).join('')}`;
             const dz = fcMain.querySelector('.fc-drop');
             document.getElementById('fc-file').onchange = e => { if (e.target.files[0]) fcLoad(e.target.files[0]); };
+            document.getElementById('fc-paste-import').onclick = fcImportPasted;
+            document.getElementById('fc-url-import-btn').onclick = fcImportFromURL;
             dz.ondragover = e => e.preventDefault();
             dz.ondrop = e => { e.preventDefault(); if (e.dataTransfer.files[0]) fcLoad(e.dataTransfer.files[0]); };
         }
@@ -4017,6 +4508,73 @@
                 ${g.missed.length ? `<div class="fc-deck" style="display:block"><b>Missed (${g.missed.length})</b>${g.missed.map(m => `<div class="fc-muted">${fcEsc(m[0])} — ${fcEsc(m[1])}</div>`).join('')}</div>` : ''}
                 <div class="fc-row"><button class="fc-btn on" onclick="fcGame()">Play again</button>${g.missed.length ? '<button class="fc-btn" onclick="fcStudy(fc.deck, fc.game.missed)">Study missed</button>' : ''}<button class="fc-btn" onclick="fcStudy(fc.deck)">Flashcards</button></div>`;
         }
+
+        // ── Quizlet URL Import ───────────────────────────────────────────────
+        // Deep-scan a JSON object for arrays of term/definition objects.
+        function findTermsInJSON(obj, depth, visited) {
+            depth = depth || 0; visited = visited || new WeakSet();
+            if (depth > 14 || !obj || typeof obj !== 'object') return null;
+            if (visited.has(obj)) return null;
+            visited.add(obj);
+            if (Array.isArray(obj) && obj.length >= 2) {
+                const f = obj[0];
+                if (f && typeof f === 'object') {
+                    const kk = Object.keys(f);
+                    const pairs = (a, b) => obj.map(i => [String(i[a]||'').trim(), String(i[b]||'').trim()]).filter(p => p[0] && p[1]);
+                    if (kk.includes('word')     && kk.includes('definition')) return pairs('word','definition');
+                    if (kk.includes('term')     && kk.includes('definition')) return pairs('term','definition');
+                    if (kk.includes('front')    && kk.includes('back'))       return pairs('front','back');
+                    if (kk.includes('question') && kk.includes('answer'))     return pairs('question','answer');
+                }
+            }
+            const priority = ['terms','studiableItems','studiableItem','flashcards','cards','termInstances','setData'];
+            for (const key of priority) {
+                if (obj[key]) { const r = findTermsInJSON(obj[key], depth+1, visited); if (r && r.length) return r; }
+            }
+            for (const val of Object.values(obj)) {
+                if (val && typeof val === 'object') {
+                    const r = findTermsInJSON(val, depth+1, visited);
+                    if (r && r.length) return r;
+                }
+            }
+            return null;
+        }
+
+        async function fcImportFromURL() {
+            const urlEl  = document.getElementById('fc-url-input');
+            const statEl = document.getElementById('fc-url-status');
+            const btn    = document.getElementById('fc-url-import-btn');
+            const url    = urlEl?.value?.trim();
+            if (!url) return alert('Please paste a Quizlet URL first.');
+            if (!/quizlet\.com/i.test(url)) return alert('Please enter a valid Quizlet URL (quizlet.com/...)');
+
+            const setStatus = msg => { if (statEl) statEl.innerHTML = msg; };
+            btn.disabled = true; btn.textContent = '⧖ Fetching…';
+            setStatus('Connecting to local server…');
+
+            try {
+                const resp = await fetch('https://tokyo-suspended-sorts-prot.trycloudflare.com/quizlet?url=' + encodeURIComponent(url));
+                const data = await resp.json();
+                if (!resp.ok) {
+                    // Surface the FlareSolverr hint if Cloudflare blocked
+                    const hint = /FlareSolverr/i.test(data.error || '')
+                        ? ' &mdash; <a href="https://github.com/FlareSolverr/FlareSolverr" target="_blank" style="color:var(--accent-color)">FlareSolverr</a>'
+                        : '';
+                    throw new Error((data.error || 'Server error ' + resp.status) + hint);
+                }
+                if (!data.cards || data.cards.length < 2) throw new Error('No cards returned.');
+                fcCreateDeck(data.cards, data.title || 'Quizlet Import');
+            } catch(err) {
+                const net = err instanceof TypeError;
+                setStatus('⚠️ ' + (net
+                    ? 'yt.js server not running &mdash; start it with <code>node yt.js</code>'
+                    : (err.message || 'Import failed')));
+                btn.disabled = false; btn.textContent = '🔗 Import from URL';
+                return;
+            }
+            btn.disabled = false; btn.textContent = '🔗 Import from URL';
+        }
+
     </script>
 </body>
 </html>
