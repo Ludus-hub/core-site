@@ -4,11 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludus Stream</title>
-    <!-- Scramjet proxy assets — preloaded so the browser fetches them while the
-         page is still parsing, long before the conduit init script runs.       -->
-    <link rel="preload" href="/p/scram/scramjet.all.js"   as="script">
-    <link rel="preload" href="/p/scram/scramjet.sync.js"  as="script">
-    <link rel="preload" href="/p/scram/scramjet.wasm.wasm" as="fetch" crossorigin="anonymous">
     <style>
         :root {
             --bg-base: #040404;
@@ -728,37 +723,6 @@
             color: rgba(255, 255, 255, 0.45);
         }
 
-        /* ── Conduit Toggle Switch ── */
-        .cduit-toggle-wrap {
-            display: inline-flex; align-items: center; gap: 7px;
-            cursor: pointer; user-select: none; padding: 2px 0;
-        }
-        .cduit-toggle-label {
-            font-size: 11px; font-weight: 700;
-            color: rgba(255,255,255,0.4); transition: color 0.25s;
-        }
-        #conduitToggle.active .cduit-toggle-label { color: #92FE9D; }
-        .cduit-switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
-        .cduit-switch-track {
-            width: 34px; height: 18px; border-radius: 9px;
-            background: rgba(255,255,255,0.1);
-            border: 1.5px solid rgba(255,255,255,0.2);
-            transition: background 0.25s, border-color 0.25s;
-        }
-        .cduit-switch-thumb {
-            position: absolute; top: 2px; left: 2px;
-            width: 12px; height: 12px; border-radius: 50%;
-            background: rgba(255,255,255,0.35);
-            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.25s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-        }
-        #conduitToggle.active .cduit-switch-track {
-            background: rgba(146,254,157,0.22); border-color: #92FE9D;
-        }
-        #conduitToggle.active .cduit-switch-thumb {
-            transform: translateX(16px); background: #92FE9D;
-        }
-
         /* --- Server Controls Group --- */
         .server-controls {
             position: relative;
@@ -834,33 +798,6 @@
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        /* Conduit controls inside panel */
-        .sandbox-controls {
-            padding: 8px 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            background: rgba(255,255,255,0.02);
-        }
-        .sandbox-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: default;
-        }
-        .sandbox-header h4 {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-        }
-        .sandbox-header .sandbox-hint {
-            font-size: 10px;
-            color: #92FE9D;
-        }
-        .sandbox-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-        .sandbox-chip { display:none; }
-        .sandbox-dot { display:none; }
-        .sandbox-apply-btn { display:none; }
 
         /* Warning Banner */
         .servers-warning {
@@ -1112,6 +1049,52 @@
             text-overflow: ellipsis;
         }
 
+
+        /* ── Trailer button + player (player design matches the Ludus Music video player) ── */
+        .details-actions .btn-circle, .details-actions .ludus-yt-button { flex-shrink: 0; }
+        .ludus-yt-button { align-self: center; height: 55px; padding: 0 24px; border: 0; border-radius: 8px; background: linear-gradient(100deg, var(--accent, #00c9ff), #92fe9d); color: #051013; font: 700 1rem/1 system-ui, sans-serif; letter-spacing: .01em; white-space: nowrap; cursor: pointer; transition: filter .18s, transform .18s; }
+        .ludus-yt-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+        .trailer-shell { --line: rgba(255, 255, 255, .09); --muted: rgba(255, 255, 255, .55); --accent-soft: rgba(0, 201, 255, .12); --r-md: 16px; --r-pill: 999px; --shadow-lg: 0 30px 80px rgba(0, 0, 0, .65);
+            position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; padding: 56px 40px; background: #030304; color: #fff; }
+        .trailer-shell [hidden] { display: none !important; }
+        .trailer-shell :where(button, input, select) { font: inherit; color: inherit; }
+        .trailer-shell :where(button) { appearance: none; border: 0; cursor: pointer; background: none; }
+        .trailer-shell :where(button, input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .trailer-close { position: fixed; top: 20px; right: 24px; z-index: 5; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); color: #fff; }
+        .trailer-close:hover { background: var(--accent-soft); border-color: rgba(0, 201, 255, .32); color: var(--accent); }
+        .trailer-wrap { position: relative; width: min(1180px, 100%); aspect-ratio: 16 / 9; background: #000; border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-lg); }
+        .trailer-loader { position: absolute; z-index: 3; inset: 0; display: grid; place-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--muted); background: #050506; }
+        .trailer-spinner { width: 30px; height: 30px; margin: auto; border: 3px solid rgba(255, 255, 255, .15); border-top-color: var(--accent); border-radius: 50%; animation: trailerSpin .8s linear infinite; }
+        .trailer-loader.is-failed .trailer-spinner { display: none; }
+        @keyframes trailerSpin { to { transform: rotate(360deg); } }
+        .trailer-player { position: absolute; inset: 0; overflow: hidden; background: #000; }
+        .trailer-title { position: absolute; z-index: 2; top: 0; left: 0; right: 0; padding: 18px 20px 46px; background: linear-gradient(180deg, rgba(0, 0, 0, .8), transparent); font-size: 14px; font-weight: 700; pointer-events: none; }
+        .trailer-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .trailer-controls { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; padding: 0 16px 16px; display: flex; justify-content: center; }
+        .trailer-row { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; max-width: 920px; padding: 9px 14px; border-radius: var(--r-pill); background: rgba(10, 10, 10, .78); border: 1px solid var(--line); backdrop-filter: blur(18px); }
+        .trailer-control, .trailer-select { min-height: 30px; border: 1px solid var(--line); border-radius: var(--r-pill); background: rgba(255, 255, 255, .06); color: #fff; font-weight: 700; font-size: 12px; }
+        .trailer-control { min-width: 32px; padding: 0 8px; }
+        .trailer-skip { min-width: 42px; }
+        .trailer-select { padding: 0 8px; max-width: 120px; color-scheme: dark; cursor: pointer; }
+        .trailer-control:hover, .trailer-select:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+        .trailer-time { font-size: 11px; color: var(--muted); white-space: nowrap; }
+        .trailer-seek { min-width: 72px; flex: 1; }
+        .trailer-volume { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 9px; font-weight: 800; }
+        .trailer-volume input { width: 72px; }
+        .trailer-shell input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .14); outline: 0; accent-color: var(--accent); cursor: pointer; }
+        .trailer-shell input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(0, 201, 255, .25); cursor: pointer; transition: box-shadow .15s; }
+        .trailer-shell input[type="range"]:hover::-webkit-slider-thumb, .trailer-shell input[type="range"]:active::-webkit-slider-thumb { box-shadow: 0 0 0 5px rgba(0, 201, 255, .35); }
+        .trailer-shell input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(0, 201, 255, .25); cursor: pointer; }
+        .trailer-player:fullscreen { width: 100vw; height: 100vh; }
+        .trailer-player:fullscreen .trailer-video { width: 100vw; height: 100vh; }
+        .trailer-toast { position: absolute; z-index: 4; left: 50%; bottom: 76px; max-width: min(92%, 520px); transform: translateX(-50%); padding: 10px 15px; border-radius: var(--r-pill); background: rgba(10, 10, 10, .9); border: 1px solid var(--line); color: #fff; font-size: 13px; font-weight: 600; text-align: center; }
+        @media (max-width: 700px) {
+            .trailer-shell { padding: 56px 10px 10px; }
+            .trailer-volume, .trailer-select[data-role="quality"] { display: none; }
+            .trailer-row { gap: 6px; padding: 8px 10px; }
+            .trailer-controls { padding: 0 8px 8px; }
+        }
     </style>
 </head>
 <body>
@@ -1277,13 +1260,6 @@
                     <div class="servers-header">
                         <h3>Servers</h3>
                         <input class="servers-search" id="serverSearch" type="text" placeholder="Search…" oninput="filterServers(this.value)">
-                        <div id="conduitToggle" class="cduit-toggle-wrap active" style="flex-shrink:0;">
-                            <div class="cduit-switch">
-                                <div class="cduit-switch-track"></div>
-                                <div class="cduit-switch-thumb"></div>
-                            </div>
-                            <span class="cduit-toggle-label">Conduit</span>
-                        </div>
                         <button class="modal-close-btn" onclick="closeServersPanel()">&#x2715;</button>
                     </div>
 
@@ -1312,20 +1288,6 @@
         const W1280_IMG = 'https://image.tmdb.org/t/p/w1280';
         const W500_IMG  = 'https://image.tmdb.org/t/p/w500';
 
-        // ── Early service-worker warm-up ─────────────────────────────────────
-        // Start SW registration immediately on first load so it installs in
-        // parallel with content loading. The conduit init (which runs much later,
-        // after scramjet.all.js loads) can then just await this existing promise
-        // instead of starting from scratch.
-        let _swReadyPromise = null;
-        if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
-            _swReadyPromise = navigator.serviceWorker
-                .register('/sw.js', { scope: '/' })
-                .then(() => navigator.serviceWorker.ready)
-                .catch(() => null);
-        }
-        // ────────────────────────────────────────────────────────────────────
-        
         let currentItem = null;
         let currentNav = 'home';
         let currentActiveServerId = 'yapgrid';
@@ -1845,9 +1807,6 @@
             // Tell the parent frame to minimize the dock, mixer and any other panels
             window.parent.postMessage({ source: 'ludus-movie', action: 'playerOpened' }, '*');
 
-            // Proxy on by default every time the player opens
-            document.getElementById('conduitToggle')?.classList.add('active');
-
             // ── Restore saved server & show resume toast ──────────────────
             const _cwList = JSON.parse(localStorage.getItem(CW_KEY) || '[]');
             const _cwEntry = _cwList.find(i => {
@@ -1882,7 +1841,7 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(() => playerView.classList.add('idle'), IDLE_DELAY);
             };
-            // Topbar hover trigger — fires in parent doc even when conduit frame swallows mouse events
+            // Topbar hover trigger — fires in parent doc even when the stream iframe swallows mouse events
             const topbarTrigger = document.getElementById('player-topbar-trigger');
             const topbarEl      = document.querySelector('.player-topbar');
             const serversPanel  = document.getElementById('serversPanel');
@@ -2362,81 +2321,12 @@ const videoEl = document.getElementById('movie-player');
 
     </script>
 
-<script src="/p/scram/scramjet.all.js"></script>
-<script>
-        // ── Conduit init ────────────────────────────────────────────────
-        // Self-contained Scramjet init — no parent dependency.
-        // Registers its own service worker and inits its own controller,
-        // same pattern as insta.html, tiky.html, and yt/app.js.
-        // ────────────────────────────────────────────────────────────────
-        let _sc = null;
-        let _scResolve, _scReject;
-        const _conduitReady = new Promise((res, rej) => {
-            _scResolve = res;
-            _scReject  = rej;
-        });
-
-        (async () => {
-            try {
-                if (typeof $scramjetLoadController !== 'function') {
-                    throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
-                }
-                const { ScramjetController } = $scramjetLoadController();
-                _sc = new ScramjetController({
-                    prefix: '/scramjet/',
-                    wisp: 'wss://nebulaproxy.io/wisp/',
-                    files: {
-                        wasm: '/p/scram/scramjet.wasm.wasm',
-                        all:  '/p/scram/scramjet.all.js',
-                        sync: '/p/scram/scramjet.sync.js',
-                    }
-                });
-                if ('serviceWorker' in navigator) {
-                    if (navigator.serviceWorker.controller) {
-                        // SW is already active and controlling this page —
-                        // skip registration and ready-wait entirely.
-                    } else if (_swReadyPromise) {
-                        // Registration was started early in the main script;
-                        // just await the result rather than starting over.
-                        await _swReadyPromise;
-                    } else {
-                        // Fallback: start fresh (shouldn't normally hit this path).
-                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                        await navigator.serviceWorker.ready;
-                    }
-                }
-                await _sc.init();
-                _scResolve(_sc);
-            } catch(e) {
-                console.warn('[Ludus] Conduit failed to init:', e);
-                _scReject(e);
-                const toggle = document.getElementById('conduitToggle');
-                if (toggle && toggle.classList.contains('active')) {
-                    toggle.classList.remove('active');
-                    toggle.title = 'Conduit unavailable — proxy servers will load directly';
-                    const panel = document.getElementById('serversPanel');
-                    if (panel && panel.classList.contains('open') && typeof filterServers === 'function') {
-                        filterServers(document.getElementById('serverSearch')?.value || '');
-                    }
-                    if (typeof EXTRA_SERVERS !== 'undefined' && typeof loadExtraServer === 'function') {
-                        const active = EXTRA_SERVERS.find(s => s.id === currentActiveServerId);
-                        if (active && active.nonProxyHidden) loadExtraServer('yapgrid');
-                    }
-                }
-            }
-        })();
-    </script>
-
-
     <script>
 
         // ===== Servers Data =====
-        // proxyHidden: true    = hidden when conduit ON  (shows only when proxy is OFF)
-        // nonProxyHidden: true = hidden when conduit OFF (shows only when proxy is ON)
         const EXTRA_SERVERS = [
 
-            // Visible in both modes
-            { id: 'yapgrid',   name: 'YapGrid',    domain: 'yapgrid.com',  badge: 'Recommended', proxyBottom: true,
+            { id: 'yapgrid',   name: 'YapGrid',    domain: 'yapgrid.com',  badge: 'Recommended',
               movieUrl: id => `https://yapgrid.com/embed/movie/${id}`,
               tvUrl:    (id,s,e) => `https://yapgrid.com/embed/tv/${id}/${s}/${e}` },
 
@@ -2444,37 +2334,9 @@ const videoEl = document.getElementById('movie-player');
               movieUrl: id => `https://movienig.ht/watch/movie/${id}`,
               tvUrl:    (id,s,e) => `https://movienig.ht/watch/series/${id}/${s}/${e}` },
 
-            // Proxy ON only
-            { id: 'moviesapi', name: 'MoviesAPI',  domain: 'moviesapi.to', badge: '', nonProxyHidden: true,
-              movieUrl: id => `https://moviesapi.to/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://moviesapi.to/tv/${id}/${s}/${e}` },
-
-            { id: 'vidspark',  name: 'VidSpark',   domain: 'vidspark.to',  badge: '', nonProxyHidden: true,
-              movieUrl: id => `https://vidspark.to/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://vidspark.to/tv/${id}/${s}/${e}` },
-
-            { id: 'mycineby',  name: 'MyCineBy',   domain: 'mycineby.cc',  badge: 'Recommended', nonProxyHidden: true,
-              movieUrl: id => `https://mycineby.cc/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://mycineby.cc/embed/tv/${id}/${s}/${e}` },
-
-            // Proxy ON only (nonProxyHidden: shown when conduit is ON)
-            { id: 'vidzy-proxy',       name: 'Vidzy',       domain: 'vidzy.org',            badge: '', nonProxyHidden: true,
-              movieUrl: id => `https://vidzy.org/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://vidzy.org/tv/${id}/${s}/${e}` },
-
-            { id: 'streamvault-proxy', name: 'StreamVault', domain: 'streamvaultsrc.click', badge: '', nonProxyHidden: true,
+            { id: 'streamvault', name: 'StreamVault', domain: 'streamvaultsrc.click', badge: 'Not Recommended',
               movieUrl: id => `https://streamvaultsrc.click/embed/movie/${id}`,
               tvUrl:    (id,s,e) => `https://streamvaultsrc.click/embed/tv/${id}/${s}/${e}` },
-
-            // Proxy OFF only (proxyHidden: shown when conduit is OFF)
-            { id: 'streamvault', name: 'StreamVault', domain: 'streamvaultsrc.click', badge: 'Not Recommended', proxyHidden: true,
-              movieUrl: id => `https://streamvaultsrc.click/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://streamvaultsrc.click/embed/tv/${id}/${s}/${e}` },
-
-            // Proxy ON only
-            { id: 'vidrock', name: 'VidRock', domain: 'vidrock.ru', badge: 'Recommended', nonProxyHidden: true,
-              movieUrl: id => `https://vidrock.ru/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://vidrock.ru/embed/tv/${id}/${s}/${e}` },
 
         ];
 
@@ -2482,14 +2344,12 @@ const videoEl = document.getElementById('movie-player');
 
         function renderServersGrid(list) {
             const grid = document.getElementById('serversGrid');
-            const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
             if (list.length === 0) {
                 grid.innerHTML = '<div class="server-no-results">No servers match your search.</div>';
                 return;
             }
             grid.innerHTML = list.map(s => {
-                // Only show Rec badge when conduit is OFF; always show Not Recommended
-                const badgeHtml = (!conduitOn && s.badge === 'Recommended')
+                const badgeHtml = (s.badge === 'Recommended')
                     ? `<div class="s-badge s-badge-rec">Rec</div>`
                     : (s.badge === 'Not Recommended')
                     ? `<div class="s-badge s-badge-notreq">Not Rec</div>`
@@ -2505,63 +2365,18 @@ const videoEl = document.getElementById('movie-player');
         }
 
         function filterServers(query) {
-            const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
             const q = query.toLowerCase().trim();
-            let base = EXTRA_SERVERS.filter(s => {
-                if (conduitOn  && s.proxyHidden)    return false; // proxy-off-only → hide when ON
-                if (!conduitOn && s.nonProxyHidden) return false; // proxy-on-only  → hide when OFF
-                return true;
-            });
-            if (q) {
-                base = base.filter(s =>
-                    s.name.toLowerCase().includes(q) ||
-                    s.domain.toLowerCase().includes(q) ||
-                    (s.badge && s.badge.toLowerCase().includes(q))
-                );
-            }
-            // In conduit mode push unstable servers to the bottom so stable ones lead
-            if (conduitOn) {
-                base = [
-                    ...base.filter(s => !s.proxyBottom),
-                    ...base.filter(s =>  s.proxyBottom),
-                ];
-            }
-            filteredServers = base;
+            filteredServers = !q ? [...EXTRA_SERVERS] : EXTRA_SERVERS.filter(s =>
+                s.name.toLowerCase().includes(q) ||
+                s.domain.toLowerCase().includes(q) ||
+                (s.badge && s.badge.toLowerCase().includes(q))
+            );
             renderServersGrid(filteredServers);
         }
 
         // ===== Sandbox helpers — removed (sandbox is now locked) =====
 
         function toggleSandboxSection() {} // kept as no-op for any stale references
-
-        document.addEventListener('click', e => {
-            // Conduit toggle — re-mount stream and refresh server grid instantly
-            const cTgl = e.target.closest('#conduitToggle');
-            if (cTgl) {
-                cTgl.classList.toggle('active');
-                const isNowRoute = cTgl.classList.contains('active');
-
-                // Refresh server panel if open
-                const panel = document.getElementById('serversPanel');
-                if (panel.classList.contains('open')) {
-                    filterServers(document.getElementById('serverSearch').value || '');
-                }
-
-                if (currentItem) {
-                    const activeServer = EXTRA_SERVERS.find(s => s.id === currentActiveServerId);
-                    const nowHidden = activeServer && (
-                        (isNowRoute  && activeServer.proxyHidden)    || // turned ON, server is proxy-off-only
-                        (!isNowRoute && activeServer.nonProxyHidden)    // turned OFF, server is proxy-on-only
-                    );
-                    if (nowHidden) {
-                        loadExtraServer('yapgrid');
-                    } else {
-                        changeServer();
-                    }
-                }
-                return;
-            }
-        });
 
         // applySandboxNow removed — sandbox is hardcoded
 
@@ -2574,19 +2389,7 @@ const videoEl = document.getElementById('movie-player');
                 closeServersPanel();
             } else {
                 document.getElementById('serverSearch').value = '';
-                const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
-                let visibleServers = EXTRA_SERVERS.filter(s => {
-                    if (conduitOn  && s.proxyHidden)    return false;
-                    if (!conduitOn && s.nonProxyHidden) return false;
-                    return true;
-                });
-                if (conduitOn) {
-                    visibleServers = [
-                        ...visibleServers.filter(s => !s.proxyBottom),
-                        ...visibleServers.filter(s =>  s.proxyBottom),
-                    ];
-                }
-                filteredServers = visibleServers;
+                filteredServers = [...EXTRA_SERVERS];
                 renderServersGrid(filteredServers);
                 panel.classList.add('open');
                 btn.classList.add('open');
@@ -2630,9 +2433,9 @@ async function loadExtraServer(serverId) {
                     console.warn('[Ludus] ID lookup failed:', err);
                 }
             }
-            let streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
+            const streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
 
-            // Show loader immediately — covers any conduit init wait time
+            // Show the loader immediately
             const extraIframeId = 'player-iframe-' + Date.now();
             const extraContainer = document.getElementById('player-container');
             extraContainer.innerHTML = `
@@ -2640,20 +2443,6 @@ async function loadExtraServer(serverId) {
                     <div class="player-loader-spinner"></div>
                     <span class="player-loader-label" id="player-loader-label">Loading…</span>
                 </div>`;
-
-            // CONDUIT INJECTION — await full init before encoding
-            const useRoute = document.getElementById('conduitToggle')?.classList.contains('active');
-            if (useRoute) {
-                try {
-                    const loaderLabel = document.getElementById('player-loader-label');
-                    if (loaderLabel) loaderLabel.textContent = 'Initialising conduit…';
-                    const sc = await _conduitReady;
-                    streamUrl = location.origin + sc.encodeUrl(streamUrl);
-                    if (loaderLabel) loaderLabel.textContent = 'Connecting via conduit…';
-                } catch(err) {
-                    console.warn('[Ludus] Route encoding failed:', err);
-                }
-            }
 
             extraContainer.insertAdjacentHTML('beforeend', `
                 <iframe id="${extraIframeId}" src="${streamUrl}"
@@ -2672,5 +2461,232 @@ async function loadExtraServer(serverId) {
             if (e.key === 'Escape') closeServersPanel();
         });
     </script>
+<script>
+/* Ludus Movie — official trailers, resolved through the Ludus relay (direct requests). */
+window.LUDUS_YT_RELAY_URL = "https://philosophy-lamps-maryland-structured.trycloudflare.com/resolve";
+
+</script>
+<script>
+(() => {
+    'use strict';
+    const RESOLVE = window.LUDUS_YT_RELAY_URL;
+    const ROOT = RESOLVE.replace(/\/resolve\/?$/, '');
+    let player, active, toastTimer;
+
+    const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+    const clean = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const item = () => { try { return typeof currentItem === 'undefined' ? null : currentItem; } catch { return null; } };
+    const title = v => String(v?.title || v?.name || '').trim();
+    const year = v => String(v?.release_date || v?.first_air_date || '').slice(0, 4);
+    const formatTime = s => Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '0:00';
+
+    // ── Relay requests ──────────────────────────────────────────────────
+    async function request(path, params) {
+        const status = (state, text) => window.dispatchEvent(new CustomEvent('ludus:resolver-status', { detail: { state, text } }));
+        status('pending', 'Connecting to server…');
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 30000);
+        try {
+            const response = await fetch(`${ROOT}${path}?${new URLSearchParams(params)}`, { signal: controller.signal });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || `Relay error (${response.status})`);
+            status('ok', 'Server connected');
+            return data;
+        } catch (error) {
+            status('fail', 'Server unavailable');
+            throw error;
+        } finally { clearTimeout(timer); }
+    }
+    async function search(query) {
+        const data = await request('/search', { q: query.slice(0, 120) });
+        return Array.isArray(data.results) ? data.results : [];
+    }
+    function score(result, wanted) {
+        const words = clean(wanted).split(' ').filter(w => w.length > 2), found = clean(result.title);
+        return words.reduce((sum, w) => sum + (found.includes(w) ? 5 : -4), 0) + (/official|trailer|teaser/.test(found) ? 14 : -20);
+    }
+    async function trailerFor(value) {
+        const label = title(value);
+        const lists = await Promise.all([search(`${label} ${year(value)} official trailer`), search(`${label} official trailer`)]);
+        return lists.flat().map(result => ({ result, value: score(result, label) })).sort((a, b) => b.value - a.value)[0]?.result || null;
+    }
+
+    // ── Player ──────────────────────────────────────────────────────────
+    function toast(message) {
+        const box = player?.querySelector('.trailer-toast'); if (!box) return;
+        box.textContent = message; box.hidden = false;
+        clearTimeout(toastTimer); toastTimer = setTimeout(() => box.hidden = true, 3600);
+    }
+    function mixer() {
+        if (!active) return;
+        const { video, audio, label } = active;
+        try { window.parent?.postMessage({ source: 'movie', title: label, paused: video.paused, volume: audio.volume, currentTime: video.currentTime || 0, duration: video.duration || 0 }, '*'); } catch {}
+    }
+    function setLoader(text, failed) {
+        const box = player?.querySelector('.trailer-loader'); if (!box) return;
+        box.hidden = false; box.classList.toggle('is-failed', !!failed);
+        box.querySelector('span').textContent = text;
+    }
+    function close() {
+        if (active) {
+            active.video.pause(); active.audio.pause();
+            active.video.removeAttribute('src'); active.video.load();
+            active.audio.removeAttribute('src'); active.audio.load();
+        }
+        player?.remove(); player = null; active = null;
+    }
+    function shell(label) {
+        close();
+        player = document.createElement('div');
+        player.className = 'trailer-shell';
+        player.setAttribute('role', 'dialog'); player.setAttribute('aria-label', 'Trailer');
+        player.innerHTML = `
+            <button type="button" class="trailer-close" title="Close trailer" aria-label="Close trailer"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="20" y2="20"></line><line x1="20" y1="4" x2="4" y2="20"></line></svg></button>
+            <div class="trailer-wrap">
+                <div class="trailer-loader"><div class="trailer-spinner"></div><span>Finding the official trailer…</span></div>
+                <div class="trailer-player">
+                    <div class="trailer-title">${esc(label)}</div>
+                    <div class="trailer-controls">
+                        <div class="trailer-row">
+                            <button type="button" class="trailer-control" data-action="toggle" aria-label="Play">▶</button>
+                            <button type="button" class="trailer-control trailer-skip" data-action="back" aria-label="Back 10 seconds">−10</button>
+                            <button type="button" class="trailer-control trailer-skip" data-action="forward" aria-label="Forward 10 seconds">+10</button>
+                            <span class="trailer-time">0:00 / 0:00</span>
+                            <input class="trailer-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+                            <label class="trailer-volume">VOL <input class="trailer-vol" type="range" min="0" max="1" value=".9" step=".01" aria-label="Volume"></label>
+                            <select class="trailer-select" data-role="quality" aria-label="Video quality"></select>
+                            <select class="trailer-select" data-role="captions" aria-label="Captions" hidden><option value="">CC off</option></select>
+                            <select class="trailer-select" data-role="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+                            <button type="button" class="trailer-control" data-action="pip" aria-label="Picture in picture">▣</button>
+                            <button type="button" class="trailer-control" data-action="fullscreen" aria-label="Fullscreen">⛶</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="trailer-toast" hidden></div>
+            </div>`;
+        document.body.append(player);
+        player.querySelector('.trailer-close').onclick = close;
+    }
+    function mount(data, label) {
+        const byBitrate = (a, b) => (b.bitrate || 0) - (a.bitrate || 0);
+        const formats = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : [];
+        const videos = formats.filter(f => f.url && String(f.type).startsWith('video/mp4')).sort(byBitrate);
+        const audios = formats.filter(f => f.url && String(f.type).startsWith('audio/mp4')).sort(byBitrate);
+        if (!videos.length || !audios.length) throw new Error('No compatible trailer streams were returned.');
+
+        const $ = s => player.querySelector(s);
+        const frame = $('.trailer-player'), loader = $('.trailer-loader');
+        const play = $('[data-action="toggle"]'), seek = $('.trailer-seek'), volume = $('.trailer-vol'), clock = $('.trailer-time');
+        const quality = $('[data-role="quality"]'), captions = $('[data-role="captions"]'), speed = $('[data-role="speed"]');
+        const video = document.createElement('video'), audio = document.createElement('audio');
+        video.className = 'trailer-video'; video.muted = true; video.playsInline = true; video.preload = 'auto';
+        audio.preload = 'auto'; audio.volume = Number(volume.value);
+        frame.prepend(video);
+        active = { video, audio, label };
+
+        quality.innerHTML = videos.map((f, i) => `<option value="${i}">${esc(f.qualityLabel || 'Auto')} MP4</option>`).join('');
+        const tracks = Array.isArray(data.captions) ? data.captions : [];
+        tracks.forEach((c, i) => captions.add(new Option(c.label || c.language || `Caption ${i + 1}`, String(i))));
+        captions.hidden = !tracks.length;
+
+        const ready = () => { loader.hidden = true; };
+        const sync = () => { if (Math.abs(video.currentTime - audio.currentTime) > .35) audio.currentTime = video.currentTime; };
+        const update = () => {
+            play.textContent = video.paused ? '▶' : '❚❚'; play.setAttribute('aria-label', video.paused ? 'Play' : 'Pause');
+            if (Number.isFinite(video.duration) && !seek.matches(':active')) seek.value = String(Math.round(video.currentTime / video.duration * 1000) || 0);
+            clock.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+            mixer();
+        };
+        const jump = s => { if (Number.isFinite(video.duration)) { video.currentTime = Math.max(0, Math.min(video.duration, s)); audio.currentTime = video.currentTime; } };
+        const toggle = () => {
+            if (video.paused) { audio.play().catch(() => {}); video.play().catch(() => toast('Press play once more to begin.')); }
+            else { video.pause(); audio.pause(); }
+        };
+
+        video.addEventListener('loadedmetadata', () => { ready(); update(); video.play().catch(() => toast('Press play to begin.')); }, { once: true });
+        video.addEventListener('loadeddata', ready, { once: true });
+        video.addEventListener('playing', ready, { once: true });
+        video.addEventListener('play', () => { ready(); audio.play().catch(() => {}); update(); });
+        video.addEventListener('pause', () => { audio.pause(); update(); });
+        video.addEventListener('seeking', sync);
+        video.addEventListener('timeupdate', () => { sync(); update(); });
+        video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; speed.value = String(video.playbackRate); });
+        video.addEventListener('ended', () => { audio.pause(); update(); });
+        video.addEventListener('error', () => setLoader('Trailer stream could not be played.', true));
+        audio.addEventListener('error', () => toast('Trailer audio could not be played.'));
+
+        video.src = videos[0].url; audio.src = audios[0].url;
+
+        play.onclick = toggle;
+        $('[data-action="back"]').onclick = () => jump(video.currentTime - 10);
+        $('[data-action="forward"]').onclick = () => jump(video.currentTime + 10);
+        seek.oninput = () => jump(Number(seek.value) / 1000 * video.duration);
+        volume.oninput = () => { audio.volume = Number(volume.value); mixer(); };
+        speed.onchange = () => { video.playbackRate = audio.playbackRate = Number(speed.value); };
+        quality.onchange = () => {
+            const source = videos[Number(quality.value)], at = video.currentTime, was = !video.paused;
+            if (!source) return;
+            video.src = source.url;
+            video.addEventListener('loadedmetadata', () => { jump(at); if (was) video.play().catch(() => {}); }, { once: true });
+        };
+        captions.onchange = () => {
+            video.querySelectorAll('track[data-ludus]').forEach(t => t.remove());
+            const c = tracks[Number(captions.value)]; if (!c) return;
+            const track = document.createElement('track');
+            track.dataset.ludus = 'caption'; track.kind = 'subtitles'; track.srclang = c.language || 'en';
+            track.label = c.label || c.language || 'Captions'; track.src = c.url; track.default = true;
+            track.onload = () => track.track.mode = 'showing';
+            video.append(track);
+        };
+        $('[data-action="pip"]').onclick = () => video.requestPictureInPicture?.().catch(() => toast('Picture in picture is unavailable.'));
+        $('[data-action="fullscreen"]').onclick = async () => {
+            try { await frame.requestFullscreen(); await screen.orientation?.lock?.('landscape'); }
+            catch { toast('Fullscreen is unavailable.'); }
+        };
+        update();
+    }
+    async function playTrailer() {
+        const value = item();
+        if (!title(value)) return alert('Open a title first.');
+        const label = `${title(value)} — Official Trailer`;
+        shell(label);
+        const mine = player;
+        try {
+            const result = await trailerFor(value);
+            if (player !== mine) return;
+            if (!result?.videoId) throw new Error('No matching official trailer was found.');
+            setLoader('Loading trailer…');
+            const data = await request('/resolve', { v: result.videoId, type: 'video' });
+            if (player !== mine) return;
+            mount(data, label);
+        } catch (error) {
+            if (player === mine) setLoader(error.message || 'Trailer unavailable.', true);
+        }
+    }
+
+    // ── Hooks ───────────────────────────────────────────────────────────
+    function inject() {
+        const details = document.querySelector('.details-actions');
+        if (!details || details.querySelector('.ludus-yt-button')) return;
+        const button = document.createElement('button');
+        button.type = 'button'; button.className = 'ludus-yt-button'; button.textContent = '▶ Watch trailer';
+        button.onclick = playTrailer;
+        details.append(button);
+    }
+    window.addEventListener('message', event => {
+        const data = event.data;
+        if (!active || !data || data.target !== 'movie') return;
+        const { video, audio } = active;
+        if (data.action === 'togglePlay') { if (video.paused) video.play().catch(() => {}); else video.pause(); }
+        if (data.action === 'seekBack') video.currentTime = Math.max(0, video.currentTime - 10);
+        if (data.action === 'seekForward') video.currentTime = Math.min(video.duration, video.currentTime + 10);
+        if (data.action === 'setVolume') audio.volume = Math.max(0, Math.min(1, Number(data.volume)));
+        mixer();
+    });
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) screen.orientation?.unlock?.(); });
+    document.addEventListener('DOMContentLoaded', inject);
+    new MutationObserver(inject).observe(document.documentElement, { childList: true, subtree: true });
+    inject();
+})();
+</script>
 </body>
 </html>
