@@ -1229,8 +1229,10 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
         <span class="field-label">Data Source</span>
         <span class="field-hint" style="margin-top:0">
           Search, trending, video info, and channel pages are all loaded
-          from the Ludus server — no
-          YouTube API key involved. If a video won't play, try another
+          from the Ludus server. If it's unavailable, the official
+          YouTube Data API (then public backup servers) takes over for search, trending and
+          channels; video info and recommendations only use the API when you click to load
+          them, to save quota. If a video won't play, try another
           server from the player's server menu.
         </span>
       </div>
@@ -1264,8 +1266,11 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 
 // ─── Ludus YouTube · api.js ─────────────────────────────────────────────────
 // Every title card, search, trending row, video page and channel page is loaded
-// from the Ludus resolver (yt.js, backed by yt-dlp). There is no YouTube Data
-// API, no API key and no quota anywhere in this page. Requests go straight to the
+// from the Ludus resolver (yt.js, backed by yt-dlp) first. If the resolver fails, the
+// official YouTube Data API steps in as the first backup — same API keys, key rotation and
+// daily quota limits as yt-api.html — and public Invidious instances are the last resort. Video info and
+// recommendations only use the Data API when the person clicks to load them, to save quota.
+// Requests go straight to the
 // resolver.
 // Server names and addresses are only shown to developer accounts (same rule as Ludus Music). Everyone else sees
 // neutral wording, and only developers can override the built-in server from this browser.
@@ -1279,6 +1284,33 @@ const RESOLVER_BASE = (_storedResolver('ludus_music_custom_resolver') ||
 const RESOLVER_TIMEOUT_MS = 30000;
 const SEARCH_PAGE = 15;   // the resolver returns the first N hits; page P is the Pth slice of 15
 const SEARCH_MAX_PAGES = 6;
+
+// ── YouTube Data API backup — same keys, quota rules and request costs as yt-api.html / api.js ──
+// Second tier of the fallback chain (Ludus resolver → Data API → Invidious). Rotation, the 10,000-unit
+// per-key budget, search = 100 units / everything else = 1 unit, and the midnight-Pacific daily reset are
+// all identical to api.js, and the usage counter lives under the same localStorage key, so yt-api.html and
+// these pages see one shared per-browser tally. These are client-side keys (readable by anyone who views
+// source); see the notes in api.js about restricting them to the YouTube Data API v3 and to this site's origin.
+const API_KEYS = [
+  'AIzaSyDOwb7RzCaEmGCE-326vbGqzPzmHcvyBpM',
+  'AIzaSyC0dsrSGIoh-bwNDeLp_oWglY9ybYKzQk4',
+  'AIzaSyDZaaEbJPunml3y543D-2hyGR7asqOzGqw',
+  'AIzaSyA_whBQY6oCAdlrkFLHzCMsc5ut4HrhpQw',
+  'AIzaSyBHCLpYR7Jw_Em7kRGrrR-5vaf08iDIWFY',
+  'AIzaSyB0yKkuTOmOnIPxz2Q7xuEjVJmrI-Obli4',
+];
+const API_BASE = 'https://www.googleapis.com/youtube/v3';
+const DATA_API_TIMEOUT_MS = 8000;
+const ENDPOINT_COST     = { search: 100 };
+const DAILY_UNIT_BUDGET = 10000; // Google's real per-key daily ceiling
+const QUOTA_STORAGE_KEY = 'ludusyt_quota_v2';
+// Google resets Data API quota at midnight Pacific time, so the "new day" check is done in America/Los_Angeles.
+function _todayKey() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date()); // en-CA formats as YYYY-MM-DD directly
+}
 
 const LudusAPI = (() => {
 
@@ -1306,6 +1338,7 @@ const LudusAPI = (() => {
     const control = document.getElementById('server-status');
     if (dot) dot.className = 'status-dot ' + (state === 'err' ? 'err' : 'ok');
     if (host) host.textContent = state === 'ok' ? devText('Ludus resolver', 'Connected to server')
+      : state === 'api' ? devText('Backup · YouTube Data API', 'Connected to backup server')
       : state === 'backup' ? devText(`Backup · ${_invGood ? new URL(_invGood).hostname : 'Invidious'}`, 'Connected to backup server')
       : devText('resolver unavailable', 'Server unavailable');
     if (control) control.title = host?.textContent || 'YouTube server status';
@@ -1457,10 +1490,304 @@ const LudusAPI = (() => {
     playlist: async (id) => ({ videos: _list(await _get('playlist', { list: id })) }),
   };
 
+  // ── YouTube Data API backup ────────────────────────────────────────────
+  // Tier 2, tried when the Ludus resolver fails. Quota handling is a direct port of api.js: each key is used
+  // until Google reports quotaExceeded (or its local 10,000-unit tally runs out), then the next key takes over;
+  // when every key is spent the tier throws immediately (no network) so the Invidious tier gets its turn.
+  function _freshQuotaState() {
+    return { day: _todayKey(), activeIndex: 0, keys: API_KEYS.map(() => ({ used: 0, exhausted: false })) };
+  }
+
+  function _loadQuotaState() {
+    try {
+      const raw = localStorage.getItem(QUOTA_STORAGE_KEY);
+      const parsed = raw && JSON.parse(raw);
+      if (parsed && parsed.day === _todayKey() && Array.isArray(parsed.keys) && parsed.keys.length === API_KEYS.length) {
+        return parsed;
+      }
+    } catch { /* corrupt/missing — fall through to a fresh state */ }
+    // New day, first run ever, or the API_KEYS list changed size — everyone starts back at key 0.
+    return _freshQuotaState();
+  }
+
+  function _saveQuotaState() {
+    try { localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify(_quota)); } catch {}
+  }
+
+  let _quota = _loadQuotaState();
+
+  // Calls can overlap (e.g. the home page fires several at once), so every write re-reads the stored state first
+  // instead of saving a stale copy over another call's spend, and only moves past a key that is still the active one.
+  function _updateKey(idx, fn) {
+    _quota = _loadQuotaState();
+    fn(_quota.keys[idx]);
+    _saveQuotaState();
+  }
+
+  function _advanceKey(fromIdx) {
+    _quota = _loadQuotaState();
+    if (_quota.activeIndex === fromIdx) _quota.activeIndex = (fromIdx + 1) % API_KEYS.length;
+    _saveQuotaState();
+  }
+
+  function _quotaExceededError() {
+    const e = new Error('This key is out of quota for today.');
+    e.quotaExceeded = true;
+    return e;
+  }
+
+  function _allKeysExhaustedError() {
+    const e = new Error(`All ${API_KEYS.length} API keys are out of quota for today.`);
+    e.allKeysExhausted = true;
+    return e;
+  }
+
+  // Google's real "you're out of quota" response shape → rotate to the next key instead of surfacing a generic error.
+  function _isQuotaError(status, data) {
+    if (status !== 403 && status !== 429) return false;
+    const reason = data?.error?.errors?.[0]?.reason || '';
+    const msg    = data?.error?.message || '';
+    return /quota/i.test(reason) || /quota/i.test(msg) || data?.error?.status === 'RESOURCE_EXHAUSTED';
+  }
+
+  // Goes through the page's own fetch (Conduit-gated where Conduit exists, like every other external request).
+  // If the proxied attempt fails at the network level, or comes back as a non-quota 403 (e.g. a key whose
+  // website restriction doesn't accept the proxy's referrer), it is retried once directly.
+  async function _dataFetch(url, signal) {
+    const proxied = typeof nativeFetch === 'function' && typeof conduitEnabled === 'function' && conduitEnabled();
+    if (!proxied) return fetch(url, { signal });
+    try {
+      const res = await fetch(url, { signal });
+      if (res.status !== 403) return res;
+      const body = await res.clone().json().catch(() => ({}));
+      return _isQuotaError(403, body) ? res : nativeFetch(url, { signal });
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      return nativeFetch(url, { signal });
+    }
+  }
+
+  async function _ytRaw(endpoint, params, apiKey, navSignal) {
+    const clean = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    const qs  = new URLSearchParams([...clean, ['key', apiKey]]).toString();
+    const timeoutCtrl = new AbortController();
+    const timer = setTimeout(() => timeoutCtrl.abort(), DATA_API_TIMEOUT_MS);
+    try {
+      const res  = await _dataFetch(`${API_BASE}/${endpoint}?${qs}`, _combineSignals(timeoutCtrl.signal, navSignal));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (_isQuotaError(res.status, data)) throw _quotaExceededError();
+        throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      }
+      return data;
+    } catch (e) {
+      if (e.quotaExceeded) throw e;
+      if (e.name === 'AbortError') {
+        if (navSignal.aborted) { const ne = new Error('cancelled'); ne.navCancelled = true; throw ne; }
+        throw new Error(`timed out after ${DATA_API_TIMEOUT_MS}ms`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Tries the active key; on a real quota error it marks that key exhausted, advances, and retries the same
+  // call — up to once per key. A non-quota error (bad request, timeout, 5xx) is NOT a reason to rotate keys.
+  async function _ytGet(endpoint, params = {}) {
+    _quota = _loadQuotaState(); // pick up the day rolling over, or spend from another tab / page
+    const cost = ENDPOINT_COST[endpoint] || 1;
+    const navSignal = _genController.signal;
+
+    for (let tries = 0; tries < API_KEYS.length; tries++) {
+      const idx = _quota.activeIndex;
+      const keyState = _quota.keys[idx];
+
+      if (keyState.exhausted || keyState.used + cost > DAILY_UNIT_BUDGET) {
+        _updateKey(idx, k => { k.exhausted = true; });
+        _advanceKey(idx);
+        continue;
+      }
+
+      try {
+        const data = await _ytRaw(endpoint, params, API_KEYS[idx], navSignal);
+        _updateKey(idx, k => { k.used += cost; });
+        return data;
+      } catch (e) {
+        if (e.navCancelled) throw e;
+        if (e.quotaExceeded) {
+          _updateKey(idx, k => { k.exhausted = true; });
+          _advanceKey(idx);
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw _allKeysExhaustedError();
+  }
+
+  function _isoDurationToSeconds(iso) {
+    if (!iso) return 0;
+    const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
+    if (!m) return 0;
+    const [, h, mi, s] = m;
+    return (Number(h) || 0) * 3600 + (Number(mi) || 0) * 60 + (Number(s) || 0);
+  }
+
+  function _ytThumbs(thumbnails) {
+    if (!thumbnails) return [];
+    return Object.values(thumbnails).filter(Boolean).map(t => ({ url: t.url, width: t.width, height: t.height }));
+  }
+
+  // videos.list / search.list item → the same video-card shape _fromResolver() produces.
+  function _ytVideo(item) {
+    const id = typeof item.id === 'string' ? item.id : item.id?.videoId;
+    const sn = item.snippet || {}, cd = item.contentDetails || {}, st = item.statistics || {};
+    return {
+      videoId: id, title: sn.title, description: sn.description || '',
+      videoThumbnails: _ytThumbs(sn.thumbnails),
+      author: sn.channelTitle, authorId: sn.channelId, authorThumbnails: [],
+      lengthSeconds: _isoDurationToSeconds(cd.duration),
+      liveNow: sn.liveBroadcastContent === 'live',
+      viewCount: st.viewCount !== undefined ? Number(st.viewCount) : undefined,
+      likeCount: st.likeCount !== undefined ? Number(st.likeCount) : undefined,
+      publishedText: _fmtPublished(sn.publishedAt),
+    };
+  }
+
+  // search.list / playlistItems.list carry no duration or view counts — one batched videos.list call
+  // (1 unit, up to 50 ids) fills those in so cards keep their duration badge and view count.
+  async function _ytHydrate(items) {
+    const ids = items.map(i => (typeof i.id === 'string' ? i.id : i.id?.videoId)).filter(Boolean);
+    if (!ids.length) return [];
+    const byId = {};
+    try {
+      const data = await _ytGet('videos', { part: 'contentDetails,statistics', id: ids.join(',') });
+      (data.items || []).forEach(v => { byId[v.id] = v; });
+    } catch (e) { if (e.navCancelled) throw e; /* best-effort — cards just render without duration/views */ }
+    return items.map(item => {
+      const vid = typeof item.id === 'string' ? item.id : item.id?.videoId;
+      return _ytVideo({ ...item, contentDetails: byId[vid]?.contentDetails, statistics: byId[vid]?.statistics });
+    });
+  }
+
+  const YT_CATEGORY_IDS = { gaming: '20', music: '10' };
+
+  // Data API v3 pages by token, but "Load more" only ever asks for page N+1 of the same query, in order — so a
+  // nextPageToken cache stands in for page numbers. If a later page is asked for without a cached token (the
+  // earlier pages came from another source) this tier steps aside instead of re-serving page 1 and wasting 100 units.
+  const _ytSearchPages = new Map(); // `${channelId}::${q}::${sort}` -> { page, nextPageToken }
+
+  async function _ytSearch(q, { sort_by, page = 1, channelId } = {}) {
+    if (!q && !channelId) return [];
+    const params = { part: 'snippet', type: 'video', maxResults: 25, order: sort_by === 'upload_date' ? 'date' : 'relevance' };
+    if (q) params.q = q;
+    if (channelId) { params.channelId = channelId; params.order = 'date'; }
+    const key = `${channelId || ''}::${q || ''}::${sort_by || ''}`;
+    if (page > 1) {
+      const prev = _ytSearchPages.get(key);
+      if (!prev?.nextPageToken) throw new Error('No Data API page token for this results page');
+      params.pageToken = prev.nextPageToken;
+    }
+    const data = await _ytGet('search', params);
+    _ytSearchPages.set(key, { page, nextPageToken: data.nextPageToken });
+    return _ytHydrate(data.items || []);
+  }
+
+  // Channel handles (@name) → channel IDs, cached so channel() + channelVideos() resolve a handle once (1 unit).
+  const _handleIds = new Map();
+  function _ytChannelId(id) {
+    if (!String(id).startsWith('@')) return Promise.resolve(id);
+    if (!_handleIds.has(id)) {
+      _handleIds.set(id, _ytGet('channels', { part: 'id', forHandle: id }).then(d => {
+        const cid = d.items?.[0]?.id;
+        if (!cid) throw new Error('Channel not found');
+        return cid;
+      }).catch(e => { _handleIds.delete(id); throw e; }));
+    }
+    return _handleIds.get(id);
+  }
+
+  const _ytSeedCache = new Map(); // videoId -> { title, tags } from a video() lookup this session
+
+  const _ytData = {
+    trending: async (type = 'default', region = 'US') => {
+      const params = { part: 'snippet,contentDetails,statistics', chart: 'mostPopular', regionCode: region, maxResults: 50 };
+      if (YT_CATEGORY_IDS[type]) params.videoCategoryId = YT_CATEGORY_IDS[type];
+      return ((await _ytGet('videos', params)).items || []).map(_ytVideo);
+    },
+
+    popular: async () => {
+      const data = await _ytGet('videos', { part: 'snippet,contentDetails,statistics', chart: 'mostPopular', regionCode: 'US', maxResults: 50 });
+      return (data.items || []).map(_ytVideo);
+    },
+
+    search: (q, params = {}) => _ytSearch(q, params),
+
+    video: async id => {
+      const data = await _ytGet('videos', { part: 'snippet,contentDetails,statistics', id });
+      const v = data.items?.[0];
+      if (!v) throw new Error('Video not found');
+      const norm = _ytVideo(v);
+      _titles.set(id, norm.title);
+      _ytSeedCache.set(id, { title: norm.title, tags: v.snippet?.tags || [] });
+      let authorThumbnails = [], subCountText;
+      try {
+        const ch = await _ytGet('channels', { part: 'snippet,statistics', id: v.snippet.channelId });
+        const c = ch.items?.[0];
+        authorThumbnails = _ytThumbs(c?.snippet?.thumbnails);
+        if (c?.statistics && !c.statistics.hiddenSubscriberCount) subCountText = _fmtCompact(c.statistics.subscriberCount) + ' subscribers';
+      } catch (e) { if (e.navCancelled) throw e; /* best-effort */ }
+      return { ...norm, authorThumbnails, subCountText };
+    },
+
+    // Data API v3 dropped the official related-videos param in 2023, so "related" is a relevance search seeded
+    // by the video's tags/title — a full search.list call (100 units) plus the 1-unit hydrate, exactly as in api.js.
+    recommendations: async (id, opts = {}) => {
+      const cached = _ytSeedCache.get(id);
+      let title = opts.seedTitle || cached?.title || _titles.get(id);
+      let tags  = opts.seedTags  || cached?.tags;
+      if (!title && !tags) {
+        const data = await _ytGet('videos', { part: 'snippet', id });
+        const v = data.items?.[0];
+        if (!v) throw new Error('Video not found');
+        title = v.snippet?.title; tags = v.snippet?.tags;
+        _ytSeedCache.set(id, { title, tags });
+      }
+      const seed = (tags?.slice(0, 3).join(' ') || title || '').slice(0, 100);
+      if (!seed) throw new Error('No related videos found');
+      const rel = await _ytGet('search', { part: 'snippet', type: 'video', q: seed, maxResults: 20 });
+      const videos = await _ytHydrate((rel.items || []).filter(i => i.id?.videoId !== id));
+      if (!videos.length) throw new Error('No related videos found');
+      return { title: title || '', videos };
+    },
+
+    channel: async id => {
+      const cid = await _ytChannelId(id);
+      const data = await _ytGet('channels', { part: 'snippet,statistics', id: cid });
+      const c = data.items?.[0];
+      if (!c) throw new Error('Channel not found');
+      return {
+        author: c.snippet?.title || 'YouTube channel', authorId: c.id,
+        authorThumbnails: _ytThumbs(c.snippet?.thumbnails),
+        subCountText: c.statistics && !c.statistics.hiddenSubscriberCount ? _fmtCompact(c.statistics.subscriberCount) : '',
+        description: c.snippet?.description || '',
+      };
+    },
+
+    channelVideos: async (id, page = 1) => ({ videos: await _ytSearch(null, { page, channelId: await _ytChannelId(id) }) }),
+
+    playlist: async id => {
+      const data = await _ytGet('playlistItems', { part: 'snippet,contentDetails', playlistId: id, maxResults: 50 });
+      const items = (data.items || [])
+        .filter(it => it.contentDetails?.videoId)
+        .map(it => ({ id: { videoId: it.contentDetails.videoId }, snippet: it.snippet }));
+      return { videos: await _ytHydrate(items) };
+    },
+  };
+
   // ── Invidious backup ───────────────────────────────────────────────────
-  // The resolver (yt.js) is the primary source for everything. If it is unreachable or errors, each call
-  // below falls back to public Invidious instances. After a network-level
-  // resolver failure the backup is tried first for 60s so pages don't wait on a dead tunnel every time.
+  // Last resort, after the resolver and the YouTube Data API above. Public Invidious instances.
   const INV_SEED = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.nerdvpn.de', 'https://invidious.privacyredirect.com'];
   const INV_CACHE_KEY = 'ludusyt_invidious_hosts';
   let _invHosts = null, _invGood = null, _resolverDownUntil = 0;
@@ -1536,37 +1863,59 @@ const LudusAPI = (() => {
     playlist: async id => ({ videos: _invVideos(await _invGet(`playlists/${_enc(id)}`)) }),
   };
 
+  // ── Fallback chain ─────────────────────────────────────────────────────
+  // Ludus resolver → YouTube Data API → public Invidious. After a network-level resolver failure the order flips
+  // to Data API → Invidious → resolver for 60s so pages don't wait on a dead tunnel every time. A source that
+  // throws (or, for the trending/popular feeds, comes back empty) hands over to the next one; a navigation-cancel
+  // stops the whole chain. If every source fails, the resolver's own error is reported.
+  //
+  // Quota saving (same approach as yt-api.html): video info and recommendations are the calls the Data API would
+  // pay for most, so they only use it when the caller passes { dataApi: true } — which app.js does only after the
+  // person clicks "Load video info" / "Load recommendations". Without that flag those two calls run on the resolver
+  // and Invidious exactly as before, and if both fail the error carries canUseDataApi so the page can offer the
+  // button. Search, trending, popular, channel and playlist use the Data API automatically as the first backup.
+  const DATA_API_ON_REQUEST = new Set(['video', 'recommendations']);
+
+  // True while at least one key still has quota left today (reads the same shared tally; no network call).
+  function _dataApiAvailable() {
+    const q = _loadQuotaState();
+    return q.keys.some(k => !k.exhausted && k.used < DAILY_UNIT_BUDGET);
+  }
+
   const _isEmpty = out => Array.isArray(out) && !out.length;
-  async function _tryBoth(primary, backup, args, softEmpty = false) {
-    const [first, second] = Date.now() < _resolverDownUntil ? [backup, primary] : [primary, backup];
-    let firstErr, firstEmpty = null;
-    try {
-      const out = await first(...args);
-      if (!(softEmpty && _isEmpty(out))) {
-        if (first === primary) _resolverDownUntil = 0; else _setStatus('backup');
+  async function _tryChain(name, args) {
+    const softEmpty = name === 'trending' || name === 'popular';
+    const gated = DATA_API_ON_REQUEST.has(name);
+    const last = args[args.length - 1];
+    const requested = !gated || (!!last && typeof last === 'object' && last.dataApi === true);
+    let order = Date.now() < _resolverDownUntil
+      ? [_ytData, _inv, resolverAPI]
+      : [resolverAPI, _ytData, _inv];
+    if (!requested) order = order.filter(src => src !== _ytData);
+    else if (gated) order = [_ytData, ...order.filter(src => src !== _ytData)]; // the person asked for the API: use it first
+    let primaryErr = null, firstErr = null, firstEmpty = null;
+    for (const src of order) {
+      try {
+        const out = await src[name](...args);
+        if (softEmpty && _isEmpty(out)) { firstEmpty = firstEmpty || out; continue; }
+        if (src === resolverAPI) _resolverDownUntil = 0;
+        else _setStatus(src === _ytData ? 'api' : 'backup');
         return out;
+      } catch (e) {
+        if (e.navCancelled) throw e;
+        firstErr = firstErr || e;
+        if (src === resolverAPI) { primaryErr = e; if (e.unreachable) _resolverDownUntil = Date.now() + 60000; }
       }
-      firstEmpty = out;
-    } catch (e) {
-      if (e.navCancelled) throw e;
-      firstErr = e;
-      if (first === primary && e.unreachable) _resolverDownUntil = Date.now() + 60000;
     }
-    try {
-      const out = await second(...args);
-      if (softEmpty && _isEmpty(out) && firstEmpty) return firstEmpty;
-      if (second === backup) _setStatus('backup'); else _resolverDownUntil = 0;
-      return out;
-    } catch (e) {
-      if (firstEmpty) return firstEmpty;
-      if (e.navCancelled) throw e;
-      _setStatus('err');
-      throw new Error(`${(first === primary ? firstErr : e).message} (backup servers failed too)`);
-    }
+    if (firstEmpty) return firstEmpty;
+    _setStatus('err');
+    const err = new Error(`${(primaryErr || firstErr).message} (backup servers failed too)`);
+    if (!requested && _dataApiAvailable()) err.canUseDataApi = true;
+    throw err;
   }
 
   const _both = {};
-  for (const name of Object.keys(_inv)) _both[name] = (...args) => _tryBoth(resolverAPI[name], _inv[name], args, name === 'trending' || name === 'popular');
+  for (const name of Object.keys(_inv)) _both[name] = (...args) => _tryChain(name, args);
   return { ...resolverAPI, ..._both };
 })();
 </script>
@@ -1720,6 +2069,14 @@ function skeletonRecs(n = 7) {
 }
 
 let _retryFns = {};
+// Stands in for a load that would be paid for with YouTube Data API quota: it only runs if the person clicks.
+// Same card style as the home recommendations prompt.
+function apiPromptHTML(text, label, onClick) {
+  const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 6);
+  _retryFns[id] = onClick;
+  return `<div class="home-recs-prompt"><span>${escHTML(text)}</span><button class="load-more-btn" onclick="_retryFns['${id}']&&_retryFns['${id}']()">${escHTML(label)}</button></div>`;
+}
+
 function errState(msg, retryFn) {
   const id = 'r' + Date.now();
   if (retryFn) _retryFns[id] = retryFn;
@@ -1838,7 +2195,7 @@ async function renderHome() {
       </section>
     `);
 
-    let shown = 0, lastError = null;
+    let shown = 0, lastError = null, needsApi = false;
     Promise.all(recs.map((p, i) => p.then(({ r, e }) => {
       if (isStale(myGen)) return;
       const el = document.getElementById(`home-rec-${i}`);
@@ -1848,11 +2205,37 @@ async function renderHome() {
         el.innerHTML = `
           <h2 class="row-title">${r.title ? `Because you watched "${escHTML(r.title)}"` : 'Recommended for you'}</h2>
           <div class="video-grid">${r.videos.slice(0, 12).map(videoCard).join('')}</div>`;
-      } else { if (e && !e.navCancelled) lastError = e; el.remove(); }
+      } else { if (e && !e.navCancelled) lastError = e; if (e?.canUseDataApi) needsApi = true; el.remove(); }
     }))).then(() => {
       if (isStale(myGen) || shown || !seeds.length) return;
       const slot = document.getElementById('home-recs-slot');
       if (!slot) return;
+      if (needsApi) {
+        // The server and the backup servers both failed, so the only source left is the YouTube Data API, which
+        // costs quota: ask first, and fill just the most recent "Because you watched" row when asked.
+        slot.innerHTML = `
+          <div class="home-recs-prompt">
+            <span>Recommendations curated for you couldn't be loaded from the server. Load them from the YouTube API instead? This uses API quota.</span>
+            <button class="load-more-btn" id="load-home-recs">Load recommendations</button>
+          </div>`;
+        const btn = document.getElementById('load-home-recs');
+        btn?.addEventListener('click', async () => {
+          btn.disabled = true; btn.textContent = 'Loading…';
+          try {
+            const r = await LudusAPI.recommendations(seeds[0].videoId, { seedTitle: seeds[0].title, dataApi: true });
+            if (isStale(myGen)) return;
+            slot.innerHTML = `
+              <section class="home-section">
+                <h2 class="row-title">${r.title ? `Because you watched "${escHTML(r.title)}"` : 'Recommended for you'}</h2>
+                <div class="video-grid">${r.videos.slice(0, 12).map(videoCard).join('')}</div>
+              </section>`;
+          } catch (e) {
+            if (isStale(myGen) || e.navCancelled) return;
+            btn.disabled = false; btn.textContent = 'Failed — try again';
+          }
+        });
+        return;
+      }
       slot.innerHTML = `
         <div class="home-recs-prompt">
           <span>Couldn't load recommendations${lastError ? `: ${escHTML(lastError.message)}` : ''}</span>
@@ -2157,7 +2540,7 @@ async function renderSearch(params = {}) {
 route('/watch', renderWatch);
 
 // The title/description/channel row and the Up Next rail both load automatically
-// (resolver first, Invidious backup if it fails). The player mounts first and never
+// (resolver first, then Invidious; the YouTube Data API only when the person asks for it). The player mounts first and never
 // waits on either.
 async function renderWatch(params = {}) {
   const myGen = beginRender();
@@ -2192,7 +2575,7 @@ async function renderWatch(params = {}) {
   // recommendations() would otherwise need just to find this video's title/tags.
   let _seedTitle = null;
 
-  async function loadVideoInfo() {
+  async function loadVideoInfo(opts = {}) {
     const metaEl = document.getElementById('watch-meta');
     if (metaEl) metaEl.innerHTML = `
       <div class="skel" style="height:22px;width:78%;margin-bottom:10px"></div>
@@ -2203,7 +2586,7 @@ async function renderWatch(params = {}) {
       </div>`;
 
     try {
-      const data = await LudusAPI.video(id);
+      const data = await LudusAPI.video(id, opts);
       if (isStale(myGen)) return;
       _seedTitle = data.title;
 
@@ -2262,27 +2645,32 @@ async function renderWatch(params = {}) {
       if (isStale(myGen)) return;
       // Metadata failed — the player above keeps playing regardless.
       const el = document.getElementById('watch-meta');
-      if (el) el.innerHTML = errState(`Title & info unavailable: ${e.message}`, loadVideoInfo);
+      if (el) el.innerHTML = e.canUseDataApi
+        ? apiPromptHTML('Video info (channel, description) couldn\'t be loaded from the server. Load it from the YouTube API instead? This uses API quota.', 'Load video info', () => loadVideoInfo({ dataApi: true }))
+        : errState(`Title & info unavailable: ${e.message}`, () => loadVideoInfo(opts));
     }
   }
 
-  async function loadRecommendations() {
+  async function loadRecommendations(opts = {}) {
     const recEl = document.getElementById('rec-list');
     if (recEl) recEl.innerHTML = skeletonRecs(8);
 
     try {
-      const data = await LudusAPI.recommendations(id, { seedTitle: _seedTitle });
+      const data = await LudusAPI.recommendations(id, { seedTitle: _seedTitle, ...opts });
       if (isStale(myGen)) return;
       const el = document.getElementById('rec-list');
       if (el) el.innerHTML = (data.videos || []).slice(0, 18).map(recCard).join('') || '<div class="empty-state">No recommendations</div>';
     } catch (e) {
       if (isStale(myGen)) return;
       const el = document.getElementById('rec-list');
-      if (el) el.innerHTML = errState(e.message, loadRecommendations);
+      if (el) el.innerHTML = e.canUseDataApi
+        ? apiPromptHTML('The Up Next queue couldn\'t be loaded from the server. Load it from the YouTube API instead? This uses API quota.', 'Load queue', () => loadRecommendations({ dataApi: true }))
+        : errState(e.message, () => loadRecommendations(opts));
     }
   }
 
-  // Video info and the Up Next queue load by default; playback above never waits on them.
+  // Video info and the Up Next queue load by default; playback above never waits on them. If the server and the
+  // backup servers both fail, each one offers a button to load from the YouTube Data API instead (uses quota).
   loadVideoInfo();
   loadRecommendations();
 }
