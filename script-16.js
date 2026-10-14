@@ -253,6 +253,7 @@
 
 // === GLOBAL VARIABLES (Hoisted to prevent crashes) ===
 let currentSrc = ""; // MUST be defined before UI tries to render!
+let _loadToken = 0;
 const frame = document.getElementById("gameFrame");
 const viewer = document.getElementById("viewer");
 const grid = document.getElementById("gameGrid");
@@ -1012,22 +1013,6 @@ const GAME_PATCH_SCRIPT = `<script>
 })();
 <\/script>`;
 
-function prepareSandboxedGameHtml(html, url) {
-    let base = '';
-    try { base = new URL('.', url).href; } catch (_) {}
-    const injection = base ? `<base href="${base}">` : '';
-    let output = String(html);
-
-    if (/<head[^>]*>/i.test(output)) {
-        output = output.replace(/(<head[^>]*>)/i, `$1${injection}`);
-    } else {
-        output = `<!doctype html><html><head><meta charset="utf-8">${injection}</head><body>${output}</body></html>`;
-    }
-    if (output.includes('ytgame.js') || /pixi/i.test(output)) {
-        output = output.replace(/(<head[^>]*>)/i, '$1' + GAME_PATCH_SCRIPT);
-    }
-    return output;
-}
 
 // ── Content Warning System ─────────────────────────────────────────────────────
 const CONTENT_WARNINGS = (() => {
@@ -1098,6 +1083,7 @@ function loadGameSafe(p) {
 }
 
 async function loadGame(p) {
+    const token = ++_loadToken;
     currentSrc = p;
     // Save scroll position so we can restore it when returning to the game grid
     try { localStorage.setItem('mathmaster_scroll_pos', window.scrollY); } catch(e) {}
@@ -1112,53 +1098,48 @@ async function loadGame(p) {
     if (recentlyPlayed.length > 50) recentlyPlayed.pop(); 
     localStorage.setItem('mathmaster_recent', JSON.stringify(recentlyPlayed));
 
-    // Enforce the same strict sandbox on every game, including yt.html. The
-    // attribute must be in place before src/srcdoc so the first navigation
-    // cannot briefly receive broader permissions.
     frame.setAttribute('sandbox', GAME_SANDBOX);
 
+    // Only fetch+srcdoc for ytgame/Pixi games (patch must run before those libs).
+    // Everything else loads directly via src= to avoid unnecessary fetches.
     let usedSrcdoc = false;
-
-    if (!usedSrcdoc) {
-        try {
-            const resp = await fetch(p);
-            if (resp.ok) {
-                const html = await resp.text();
+    try {
+        const resp = await fetch(p);
+        if (token !== _loadToken) return;
+        if (resp.ok) {
+            const html = await resp.text();
+            if (token !== _loadToken) return;
+            if (html.includes('ytgame.js') || /pixi/i.test(html)) {
+                const patched = html.replace(/(<head[^>]*>)/i, '$1' + GAME_PATCH_SCRIPT);
                 frame.removeAttribute('src');
-                frame.srcdoc = prepareSandboxedGameHtml(html, p);
+                frame.srcdoc = patched;
                 usedSrcdoc = true;
             }
-        } catch(e) { /* fetch failed — fall through to direct src */ }
-
-        if (!usedSrcdoc) {
-            frame.removeAttribute('srcdoc');
-            frame.src = p;
         }
+    } catch(e) { /* fetch failed — fall through to direct src= */ }
+
+    if (token !== _loadToken) return;
+    if (!usedSrcdoc) {
+        frame.removeAttribute('srcdoc');
+        frame.src = p;
     }
 
     renderViewerButtons();
 
 }
 
-function goHome(skipScrollRestore) {
+function goHome() {
+    _loadToken++; // cancel any in-flight loadGame() fetch
     if (document.fullscreenElement) document.exitFullscreen();
 
-    // ── Instant iframe teardown ──────────────────────────────────────────────
-    // Removing srcdoc first is essential — browsers give srcdoc priority over
-    // src, so setting src alone won't navigate away while srcdoc is present.
-    // Navigating to about:blank terminates ALL running JS, audio contexts,
-    // Web Workers, timers, and WebSockets inside the frame immediately.
     frame.removeAttribute('srcdoc');
     frame.src = 'about:blank';
 
     viewer.style.display = "none";
     grid.style.display = "grid";
 
-    // Save once a player finishes a game instead of waiting for the next
-    // minute-long background sync or an unreliable page-close event.
     window.saveDataToCloud?.(true);
     document.querySelector('.dock-container').style.transform = "translateX(-50%)";
-    if (skipScrollRestore === true) return;
     // Restore the scroll position saved when the user opened this game
     try {
         const saved = localStorage.getItem('mathmaster_scroll_pos');
@@ -2101,7 +2082,7 @@ function switchSection(targetAppId, clickedBtn) {
     // Clicking out of the games section closes any running game right away
     // instead of leaving it running (audio, CPU) hidden in the background.
     if (targetAppId !== 'app-games' && viewer && viewer.style.display === 'flex' && typeof goHome === 'function') {
-        goHome(true);
+        goHome();
     }
 
     const allSections = document.querySelectorAll('.app-section');
