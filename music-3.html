@@ -4,11 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Ludus Music</title>
-  <!-- Scramjet proxy assets — preloaded so the browser fetches them while the
-       page is still parsing, well before the conduit init script runs.        -->
-  <link rel="preload" href="/p/scram/scramjet.all.js"    as="script">
-  <link rel="preload" href="/p/scram/scramjet.sync.js"   as="script">
-  <link rel="preload" href="/p/scram/scramjet.wasm.wasm" as="fetch" crossorigin="anonymous">
   <style>
 /* =========================================================
    Ludus Music — glass theme
@@ -249,6 +244,46 @@ a { color: var(--accent); }
 .playlist-preview small { margin-top: 2px; color: var(--muted); font-size: 11px; }
 .playlist-preview button { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, .08); color: #fff; font-size: 18px; }
 .playlist-preview button:hover { background: var(--accent); color: #00141b; }
+/* --- Add-songs panel: tabs, CSV pane, copy-from-playlist pane --- */
+.pl-add-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-add-tabs button { padding: 8px 16px; border-radius: var(--r-pill); background: rgba(0, 0, 0, .22); border: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-weight: 700; transition: .15s; }
+.pl-add-tabs button:hover { color: #fff; border-color: var(--accent-line); }
+.pl-add-tabs button.active { background: var(--gradient); border-color: transparent; color: #00141b; }
+.pl-pane { display: grid; gap: 14px; }
+.pl-pane[hidden] { display: none; }
+.pl-pane > p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.pl-csv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pl-csv-pick { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: var(--r-pill); background: #fff; color: #000; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: .18s; }
+.pl-csv-pick:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 24px rgba(255, 255, 255, .18); }
+.pl-csv-pick input[type=file] { display: none !important; }
+.pl-csv-help { padding: 11px 16px; border-radius: var(--r-pill); background: rgba(0, 0, 0, .22); border: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-weight: 700; }
+.pl-csv-help:hover { color: var(--accent); border-color: var(--accent-line); }
+.copy-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.copy-controls select { flex: 0 1 260px; min-width: 0; padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: rgba(0, 0, 0, .4); color: #fff; font-size: 13px; }
+.copy-controls input { flex: 1 1 180px !important; }
+.copy-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.copy-bar .copy-count { color: var(--muted); font-size: 12px; font-weight: 600; }
+.copy-bar .copy-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.copy-btn { padding: 9px 16px; border-radius: var(--r-pill); background: rgba(0, 0, 0, .22); border: 1px solid var(--line); color: #fff; font-size: 12.5px; font-weight: 700; transition: .15s; }
+.copy-btn:hover:not(:disabled) { border-color: var(--accent-line); background: var(--accent-soft); }
+.copy-btn.primary { background: var(--gradient); border-color: transparent; color: #00141b; }
+.copy-btn.primary:hover:not(:disabled) { box-shadow: 0 6px 18px var(--accent-glow); background: var(--gradient); }
+.copy-btn:disabled { opacity: .4; cursor: default; }
+.copy-list { max-height: 360px; overflow: auto; }
+.copy-row { display: grid; grid-template-columns: 22px 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; padding: 8px 14px; border-bottom: 1px solid var(--line); background: transparent; color: #fff; text-align: left; transition: background .15s; }
+.copy-row:last-child { border-bottom: 0; }
+.copy-row:hover:not(.has) { background: rgba(255, 255, 255, .05); }
+.copy-row.picked { background: var(--accent-soft); }
+.copy-row.has { opacity: .5; cursor: default; }
+.copy-check { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--faint); color: transparent; font-size: 13px; font-weight: 900; transition: .15s; }
+.copy-row.picked .copy-check { background: var(--accent); border-color: var(--accent); color: #00141b; }
+.copy-row.has .copy-check { border-style: dashed; }
+.copy-art { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: #1a1a1c; display: grid; place-items: center; color: var(--faint); }
+.copy-row b, .copy-row small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.copy-row b { font-size: 13px; }
+.copy-row small { margin-top: 2px; color: var(--muted); font-size: 11.5px; }
+.copy-tag { color: var(--muted); font-size: 11px; font-weight: 700; }
+
 
 /* ---------------------------------------------------------
    Floating dock player
@@ -458,10 +493,6 @@ dialog input:focus { border-color: var(--accent-line); }
 .yt-player-loader-spinner { width: 30px; height: 30px; margin: auto; border: 3px solid rgba(255, 255, 255, .15); border-top-color: var(--accent); border-radius: 50%; animation: musicSpin .8s linear infinite; }
 @keyframes musicSpin { to { transform: rotate(360deg); } }
 
-/* --- Monochrome shell (loaded inline, not a redirect) --- */
-.monochrome-shell { position: fixed; inset: 0; z-index: 520; background: #030304; }
-.monochrome-shell[hidden] { display: none; }
-.monochrome-frame { width: 100%; height: 100%; border: 0; display: block; }
 .relay-player { position: absolute; inset: 0; overflow: hidden; background: #000; }
 .relay-player-title { position: absolute; z-index: 2; top: 0; left: 0; right: 0; padding: 18px 20px 46px; background: linear-gradient(180deg, rgba(0, 0, 0, .8), transparent); font-size: 14px; font-weight: 700; }
 .relay-player-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
@@ -492,8 +523,8 @@ dialog input:focus { border-color: var(--accent-line); }
   .brand-text b { display: none; }
   .search-box input { width: 120px; }
   .search-box input:focus { width: 150px; }
-  .relay-pill span, .relay-pill, .proxy-pill { font-size: 0; padding: 0; width: 22px; height: 22px; border-radius: 50%; justify-content: center; }
-  .relay-pill i, .proxy-pill i { margin: 0; }
+  .relay-pill span, .relay-pill { font-size: 0; padding: 0; width: 22px; height: 22px; border-radius: 50%; justify-content: center; }
+  .relay-pill i { margin: 0; }
   .main { padding: 92px 20px 168px; }
   .hero { min-height: 230px; padding: 28px 22px; }
   .hero::after { right: -14px; bottom: -24px; font-size: 96px; }
@@ -524,128 +555,6 @@ dialog input:focus { border-color: var(--accent-line); }
   .np-art-frame { width: min(260px, 72vw); }
 }
 
-/* ── Monochrome proxy search overlay ─────────────────────────────────────────
-   Matches monochrome.st's own .search-bar component exactly:
-   colors pulled from their dist/assets/index-CRKbaZQB.css
-   (data-theme=monochrome variables: --input #1f1f1f, --border #2a2a2a,
-    --foreground #f5f5f5, --muted-foreground #a0a0a0, --ring #f5f5f5,
-    --radius-md 8px).  Overlaid above the proxied iframe so it replaces
-   the non-functional built-in search bar.
-   ──────────────────────────────────────────────────────────────────────────*/
-.mono-search-overlay {
-  position: absolute;
-  top: 8px; left: 164px; right: 72px;
-  z-index: 2;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-}
-/* Wrapper — mirrors monochrome's .search-bar + .track-list-search-container */
-.mono-search-form {
-  position: relative;
-  display: flex;
-  align-items: center;
-  max-width: 760px;
-  width: 100%;
-  pointer-events: all;
-}
-/* Icon — mirrors .search-bar svg.search-icon */
-.mono-search-icon {
-  position: absolute;
-  left: .75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #a0a0a0;               /* --muted-foreground */
-  pointer-events: none;
-  display: block;
-  width: 20px; height: 20px;
-}
-/* Input — mirrors .search-bar input / .track-list-search-input */
-.mono-search-input {
-  width: 100%;
-  padding: .75rem 2.5rem;       /* 2.5rem leaves room for icon + clear btn */
-  background-color: #1f1f1f;   /* --input */
-  border: 1px solid #2a2a2a;   /* --border */
-  border-radius: 8px;           /* --radius-md */
-  color: #f5f5f5;               /* --foreground */
-  font-size: 1rem;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  outline: none;
-  transition: box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
-}
-.mono-search-input::placeholder { color: #a0a0a0; }
-/* Focus — mirrors .search-bar input:focus */
-.mono-search-input:focus {
-  border-color: #f5f5f5;        /* --ring */
-  box-shadow: 0 0 0 3px rgba(245, 245, 245, 0.2); /* highlight-rgb 0.2 */
-}
-/* Submit arrow button — mirrors .search-clear-btn placement */
-.mono-search-submit {
-  position: absolute;
-  right: .25rem;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px; height: 32px;
-  border: 0;
-  background: transparent;
-  color: #a0a0a0;
-  cursor: pointer;
-  border-radius: 6px;
-  padding: 0;
-  line-height: 1;
-  font-size: 1.25rem;
-  transition: color .15s ease, background-color .15s ease;
-}
-.mono-search-submit:hover {
-  color: #f5f5f5;
-  background-color: rgba(255,255,255,0.08);
-}
-@media (max-width: 700px) {
-  .mono-search-overlay { top: 7px; left: 74px; right: 52px; }
-  .mono-search-input { padding-top: .62rem; padding-bottom: .62rem; }
-}
-/* ── Monochrome proxy loading gate ──────────────────────────────────────── */
-.mono-gate {
-  position: absolute; inset: 0; z-index: 3;
-  background: #030304;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 16px;
-  transition: opacity .4s ease;
-}
-.mono-gate.hidden { opacity: 0; pointer-events: none; }
-.mono-gate-spin {
-  width: 36px; height: 36px;
-  border: 3px solid rgba(0,201,255,0.18);
-  border-top-color: #00C9FF;
-  border-radius: 50%;
-  animation: mono-spin .75s linear infinite;
-}
-@keyframes mono-spin { to { transform: rotate(360deg); } }
-.mono-gate-label {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: rgba(255,255,255,0.45); font-size: 13px;
-}
-.mono-fault {
-  position: absolute; inset: 0; z-index: 3;
-  background: #030304;
-  display: none; flex-direction: column;
-  align-items: center; justify-content: center; gap: 14px;
-  padding: 40px; text-align: center;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-.mono-fault h3 { color: #ff6b6b; font-size: 1.2rem; }
-.mono-fault p { color: rgba(255,255,255,0.45); font-size: 13px; max-width: 360px; line-height: 1.6; }
-/* ── Proxy-status pill (next to resolver-status) ────────────────────────── */
-.proxy-pill { cursor: pointer; font-family: inherit; appearance: none; } /* size, weight, padding and the connected look all come from .relay-pill / .relay-pill.online */
-.proxy-pill:hover { border-color: rgba(255,255,255,.24); color: rgba(255,255,255,.9); }
-.proxy-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.proxy-pill.fail i { background: #e05555; box-shadow: 0 0 6px #e05555; }
-.proxy-pill.off i { background: #8b8d93; box-shadow: none; }
-.proxy-pill.fail { color: rgba(255,180,180,0.75); }
 
 
 /* =========================================================
@@ -739,9 +648,8 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
         </form>
 
         <div class="relay-pill" id="resolver-status"><i></i> Connecting to server…</div>
-        <button class="relay-pill proxy-pill" id="proxy-status" type="button" aria-pressed="true" title="Conduit is on — click to use the server directly"><i></i> Conduit on</button>
 
-        <button class="icon-btn" id="resolver-settings" title="Server address" aria-label="Server settings">
+        <button class="icon-btn" id="resolver-settings" title="Music settings" aria-label="Server settings">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
         </button>
       </div>
@@ -873,150 +781,42 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     </div>
   </div>
 
-  <div class="monochrome-shell" id="monochrome-shell" hidden>
-    <!-- Close button (always on top) -->
-    <button class="np-close" id="close-monochrome" title="Close Monochrome" aria-label="Close Monochrome"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="20" y2="20"></line><line x1="20" y1="4" x2="4" y2="20"></line></svg></button>
-
-    <!-- Loading gate — shown while conduit is spinning up (same pattern as insta.html / tiky.html) -->
-    <div class="mono-gate" id="mono-gate">
-      <div class="mono-gate-spin"></div>
-      <div class="mono-gate-label" id="mono-gate-label">Connecting to conduit…</div>
-    </div>
-
-    <!-- Error screen — shown if conduit fails and direct fallback also fails -->
-    <div class="mono-fault" id="mono-fault">
-      <h3>⚠ Conduit failed to load</h3>
-      <p id="mono-fault-msg">An unknown error occurred.</p>
-    </div>
-
-
-    <!-- The proxied Monochrome iframe -->
-    <iframe id="monochrome-frame" class="monochrome-frame" title="Monochrome" allow="autoplay; fullscreen" style="display:none"></iframe>
-  </div>
-
-  <dialog id="resolver-dialog"><form method="dialog"><h2>Music settings</h2><p>Use your current Cloudflare resolver URL, ending in <code>/resolve</code>.</p><input id="resolver-input" type="url"><div class="offline-settings"><label><input id="download-mode" type="checkbox"> Download mode</label><small>After a song starts cleanly, keep a temporary browser copy and remove it when playback finishes.</small><label><input id="download-videos" type="checkbox"> Include music videos</label><small>Also saves a lower-resolution music video where available. Video bundles use far more of your 1 GB download space, so fewer songs will fit.</small><label><input id="download-lyrics" type="checkbox"> Include lyrics</label><small>Saves available lyrics with each download. Lyrics use very little space.</small><label><input id="confirm-delete-download" type="checkbox"> Ask before deleting a download</label><small>Clicking the check mark on a downloaded song removes it. Leave this on to get a confirmation first.</small><label><input id="compress-downloads" type="checkbox"> Compress new downloads</label><small id="compress-note">Re-encodes each song to Opus so it takes roughly 3–6× less space (more songs fit in your 1 GB). It is lossy, so quality drops a little. On by default.</small><label class="select-row">Compression level <select id="compress-quality"><option value="48">Light · 48 kbps stereo</option><option value="32">Small · 32 kbps mono</option><option value="20">Smallest · 20 kbps mono</option></select></label><button type="button" id="compress-existing">Compress existing downloads</button><div class="section-sep">Keep downloads on any address</div><small>Browser storage belongs to a single web address, so downloads don't follow you to a different domain. Export a file, or link a folder on your computer, and your music works from any address.</small><div class="offline-row"><button type="button" id="export-downloads">Export to file</button><button type="button" id="import-downloads">Import from file</button><input id="import-downloads-file" type="file" accept=".ludusmusic" hidden></div><div id="folder-controls"><small id="folder-status"></small><div class="offline-row"><button type="button" id="pick-download-folder">Choose backup folder…</button><button type="button" id="sync-folder" hidden>Sync now</button><button type="button" id="unlink-folder" hidden>Unlink</button></div></div><small id="offline-cache-status">Offline library: checking…</small><button type="button" id="clear-offline-cache">Clear offline cache</button></div><div class="dialog-actions"><button value="cancel">Cancel</button><button id="save-resolver" class="primary" value="default">Save</button></div></form></dialog>
+  <dialog id="resolver-dialog"><form method="dialog"><h2>Music settings</h2><div class="offline-settings"><div class="section-sep" style="margin-top:0;padding-top:0;border-top:0">Your own resolver</div><small>Want to use your own server instead? Run the Ludus resolver (<code>yt.js</code> with yt-dlp) yourself and paste its https address. Leave this empty to use the built-in server.</small><input id="custom-resolver-input" type="url" placeholder="https://your-resolver.example.com/resolve" autocomplete="off" spellcheck="false" style="margin:0"><small id="custom-resolver-note"></small><div id="dev-resolver-block" hidden style="display:grid;gap:9px"><div class="section-sep">Built-in server · developers only</div><input id="resolver-input" type="url" autocomplete="off" spellcheck="false" style="margin:0"><small>Only developer accounts see this. Clearing it goes back to the address in the code.</small></div></div><div class="offline-settings"><label><input id="download-mode" type="checkbox"> Download mode</label><small>After a song starts cleanly, keep a temporary browser copy and remove it when playback finishes.</small><label><input id="download-videos" type="checkbox"> Include music videos</label><small>Also saves a lower-resolution music video where available. Video bundles use far more of your 1 GB download space, so fewer songs will fit.</small><label><input id="download-lyrics" type="checkbox"> Include lyrics</label><small>Saves available lyrics with each download. Lyrics use very little space.</small><label><input id="confirm-delete-download" type="checkbox"> Ask before deleting a download</label><small>Clicking the check mark on a downloaded song removes it. Leave this on to get a confirmation first.</small><label><input id="compress-downloads" type="checkbox"> Compress new downloads</label><small id="compress-note">Re-encodes each song to Opus so it takes roughly 3–6× less space (more songs fit in your 1 GB). It is lossy, so quality drops a little. Off by default.</small><label class="select-row">Compression level <select id="compress-quality"><option value="48">Light · 48 kbps stereo</option><option value="32">Small · 32 kbps mono</option><option value="20">Smallest · 20 kbps mono</option></select></label><button type="button" id="compress-existing">Compress existing downloads</button><div class="section-sep">Keep downloads on any address</div><small>Browser storage belongs to a single web address, so downloads don't follow you to a different domain. Export a file, or link a folder on your computer, and your music works from any address.</small><div class="offline-row"><button type="button" id="export-downloads">Export to file</button><button type="button" id="import-downloads">Import from file</button><input id="import-downloads-file" type="file" accept=".ludusmusic" hidden></div><div id="folder-controls"><small id="folder-status"></small><small>Songs are saved in the folder as protected .ludus files that only this app can open. Older plain song files are converted automatically, or when you press Sync now.</small><div class="offline-row"><button type="button" id="pick-download-folder">Choose backup folder…</button><button type="button" id="sync-folder" hidden>Sync now</button><button type="button" id="unlink-folder" hidden>Unlink</button></div></div><small>Downloads stay on this device. They are never included in cloud saves or in site backup exports, since they would make those files huge. Your playlists, likes and settings are still backed up.</small><small id="offline-cache-status">Offline library: checking…</small><button type="button" id="clear-offline-cache">Clear offline cache</button></div><div class="dialog-actions"><button value="cancel">Cancel</button><button id="save-resolver" class="primary" value="default">Save</button></div></form></dialog>
   <dialog id="resolver-fallback-dialog"><form method="dialog"><h2>Music server is unavailable</h2><p>Would you like to open Monochrome instead, or stay here and keep trying this music server?</p><div class="dialog-actions"><button id="resolver-fallback-stay" value="stay">Stay here</button><button id="resolver-fallback-redirect" class="primary" type="button">Open Monochrome</button></div></form></dialog>
+  <dialog id="folder-restore-dialog"><form method="dialog"><h2>Load your downloads?</h2><p id="folder-restore-message"></p><small>Your browser will ask for permission to open the folder. Your songs then load the same way as Sync now.</small><div class="dialog-actions"><button value="later">Not now</button><button id="folder-restore-ok" class="primary" type="button">Choose folder…</button></div></form></dialog>
   <dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Are you sure?</h2><p id="confirm-message"></p><label class="confirm-check" id="confirm-check-row" hidden><input type="checkbox" id="confirm-check"><span id="confirm-check-label"></span></label><div class="dialog-actions"><button value="cancel">Cancel</button><button id="confirm-ok" class="danger" value="confirm">Delete</button></div></form></dialog>
   <dialog id="prompt-dialog"><form method="dialog"><h2 id="prompt-title">Name</h2><input id="prompt-input" type="text" maxlength="80" placeholder="Playlist name"><div class="dialog-actions"><button value="cancel">Cancel</button><button id="prompt-ok" class="primary" value="confirm">Save</button></div></form></dialog>
-  <dialog id="csv-help-dialog"><form method="dialog"><h2>Get a CSV to import</h2><ol class="csv-steps"><li>Go to <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">tunemymusic.com/transfer</a>.</li><li>Connect the account your playlist is on (Spotify, Apple Music, YouTube Music, etc.).</li><li>Pick that playlist and export it as a CSV file rather than transferring it directly.</li><li>Come back here and use Import CSV to upload that file.</li></ol><div class="dialog-actions"><button class="primary" value="ok">Got it</button></div></form></dialog>
+  <dialog id="csv-help-dialog"><form method="dialog"><h2>Get a CSV to import</h2><ol class="csv-steps"><li>Go to <a href="https://www.tunemymusic.com/transfer" target="_blank" rel="noopener">tunemymusic.com/transfer</a>.</li><li>Connect the account your playlist is on (Spotify, Apple Music, YouTube Music, etc.).</li><li>Pick that playlist and export it as a CSV file rather than transferring it directly.</li><li>Come back here and use Import CSV to upload that file. You can start a new playlist from it, or add it to a playlist you already have. Inside any playlist, ＋ Add songs → Import CSV does the same.</li></ol><div class="dialog-actions"><button class="primary" value="ok">Got it</button></div></form></dialog>
   <dialog id="unmatched-dialog"><form method="dialog"><h2>Some songs couldn't be added</h2><p id="unmatched-summary"></p><div class="unmatched-list" id="unmatched-list"></div><div class="dialog-actions"><button class="primary" value="ok">OK</button></div></form></dialog>
   <dialog id="playlist-picker-dialog"><form method="dialog"><h2>Add to playlist</h2><div class="picker-list" id="picker-list"></div><button type="button" class="ghost-btn" id="picker-new-playlist">＋ New playlist</button><div class="dialog-actions"><button value="cancel">Close</button></div></form></dialog>
+  <dialog id="csv-dest-dialog"><form method="dialog"><h2>Where should these songs go?</h2><p id="csv-dest-file" style="margin:0 0 12px;color:var(--muted);font-size:13px"></p><div class="picker-list" id="csv-dest-list"></div><div class="dialog-actions"><button value="cancel">Cancel</button></div></form></dialog>
 
   <div class="import-stack" id="import-stack" aria-live="polite"></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   
 
-  <!-- Start the relay while the rest of the page finishes loading. -->
-  <script>
-    let _swReadyPromise = null;
-    if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
-      _swReadyPromise = navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then(() => navigator.serviceWorker.ready)
-        .catch(() => null);
-    }
-  </script>
-  <!-- ============================================================
-       SCRAMJET BUNDLE — served from the site root so the service
-       worker's scope covers the entire origin.
-  ============================================================ -->
-  <script src="/p/scram/scramjet.all.js"></script>
-  <script>
-
-        // ── Conduit init (matches insta.html / tiky.html pattern exactly) ──
-        let _sc = null;
-        let _scResolve, _scReject;
-        const _conduitReady = new Promise((res, rej) => {
-            _scResolve = res;
-            _scReject  = rej;
-        });
-        const _conduitPreferenceKey = 'ludus_music_conduit_enabled';
-        const conduitEnabled = () => {
-            try { return localStorage.getItem(_conduitPreferenceKey) !== 'off'; }
-            catch (_) { return true; }
-        };
-        const setConduitEnabled = enabled => {
-            try { localStorage.setItem(_conduitPreferenceKey, enabled ? 'on' : 'off'); }
-            catch (_) { /* Private browsing can disable storage. */ }
-        };
-
-        // Install this before the application script runs. Music starts its
-        // resolver requests immediately, so waiting to patch fetch until after
-        // init would allow those first requests to bypass Conduit.
-        const _nativeFetch = window.fetch.bind(window);
-        window.fetch = async function conduitFetch(resource, options) {
-            let target = null;
-            try {
-                const input = resource instanceof Request ? resource.url : resource;
-                target = new URL(input, location.href);
-            } catch (_) { /* Let native fetch report invalid input. */ }
-
-            if (!target || !conduitEnabled() || !/^https?:$/.test(target.protocol) || target.origin === location.origin) {
-                return _nativeFetch(resource, options);
-            }
-
-            try {
-                const sc = await _conduitReady;
-                const proxied = location.origin + sc.encodeUrl(target.href);
-                return resource instanceof Request
-                    ? _nativeFetch(new Request(proxied, resource), options)
-                    : _nativeFetch(proxied, options);
-            } catch (_) {
-                // Keep the music UI usable if the relay itself cannot start.
-                return _nativeFetch(resource, options);
-            }
-        };
-
-        (async () => {
-            try {
-                if (typeof $scramjetLoadController !== 'function') {
-                    throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
-                }
-                const { ScramjetController } = $scramjetLoadController();
-                _sc = new ScramjetController({
-                    prefix: '/scramjet/',
-                    wisp:   'wss://nebulaproxy.io/wisp/',
-                    files: {
-                        wasm: '/p/scram/scramjet.wasm.wasm',
-                        all:  '/p/scram/scramjet.all.js',
-                        sync: '/p/scram/scramjet.sync.js',
-                    }
-                });
-
-                // Reuse the early service-worker registration when available.
-                // The registration began above so the music server can load in
-                // the background while the relay is being prepared.
-                if ('serviceWorker' in navigator) {
-                    if (navigator.serviceWorker.controller) {
-                        // Already controlled by the relay.
-                    } else if (_swReadyPromise) {
-                        await _swReadyPromise;
-                    } else {
-                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                        await navigator.serviceWorker.ready;
-                    }
-                }
-
-                await _sc.init();
-
-                // Fetch was already routed through Conduit before app startup.
-
-                _scResolve(_sc);
-                window.dispatchEvent(new CustomEvent('ludus:conduit-ready'));
-                console.info('[Ludus Music] Conduit ready — fetch proxy active.');
-            } catch(e) {
-                console.warn('[Ludus Music] Conduit failed to init:', e);
-                _scReject(e);
-                window.dispatchEvent(new CustomEvent('ludus:conduit-failed', { detail: String(e) }));
-            }
-        })();
-
-  </script>
   <script>
 (() => {
   'use strict';
 
   const $ = selector => document.querySelector(selector);
+  // The built-in music server address lives only here. Only developer accounts can see it in the UI; everyone else
+  // sees just the "your own resolver" box. When the tunnel address changes, edit this one line.
+  const RESOLVER_URL = 'https://philosophy-lamps-maryland-structured.trycloudflare.com/resolve';
+  const CUSTOM_RESOLVER_KEY = 'ludus_music_custom_resolver'; // a user's own resolver; travels with their account
+  const DEV_RESOLVER_KEY = 'ludus_music_resolver_url';       // developer override of the built-in server; this browser only
+  const isDeveloper = () => { try { return localStorage.getItem('mathmaster_dev') === 'true' && sessionStorage.getItem('mathmaster_dev_unlocked') === 'true'; } catch { return false; } };
+  // Accepts "https://host", "https://host/resolve" or a trailing slash; plain http is only allowed for this computer.
+  function normalizeResolverUrl(raw) {
+    const text = String(raw || '').trim().replace(/\/+$/, ''); if (!text) return '';
+    let url; try { url = new URL(text); } catch { return null; }
+    const local = /^(localhost|\[?::1\]?|127(\.\d+){3})$/i.test(url.hostname);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) return null;
+    url.search = ''; url.hash = ''; url.pathname = url.pathname.replace(/\/+$/, '').replace(/\/resolve$/, '') + '/resolve';
+    return url.href;
+  }
+  const storedResolver = key => { try { return normalizeResolverUrl(localStorage.getItem(key)) || ''; } catch { return ''; } };
+  const activeResolver = () => storedResolver(CUSTOM_RESOLVER_KEY) || (isDeveloper() ? storedResolver(DEV_RESOLVER_KEY) : '') || RESOLVER_URL;
   const state = {
     queue: [], index: -1, queueMode: 'collection', radioRequest: 0,
     similarSeed: null, similarSeen: new Set(), similarPromise: null, similarToken: null, similarFailAt: 0, similarWaiting: false,
@@ -1029,9 +829,9 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     lyrics: { videoId: null, lines: [], index: -1, source: '', retryAt: 0 }, captionsCache: {},
     streamController: null, playbackRequest: 0, previewController: null, previewRequest: 0, lyricRetryTimer: null,
     resolverFallbackOffered: false, musicVideo: null,
-    downloadMode: load('ludus_music_download_mode', false), downloadVideos: load('ludus_music_download_videos', false), downloadLyrics: load('ludus_music_download_lyrics', false), compressDownloads: load('ludus_music_compress_downloads', true), compressKbps: [48, 32, 20].includes(load('ludus_music_compress_kbps', 32)) ? load('ludus_music_compress_kbps', 32) : 32, folderHandle: null, compressJob: null, offlineTracks: load('ludus_music_offline_tracks', {}), offlineLyrics: load('ludus_music_offline_lyrics', {}), temporaryCacheId: null, offlineObjectUrl: null,
+    downloadMode: load('ludus_music_download_mode', false), downloadVideos: load('ludus_music_download_videos', false), downloadLyrics: load('ludus_music_download_lyrics', false), compressDownloads: load('ludus_music_compress_downloads', false), compressKbps: [48, 32, 20].includes(load('ludus_music_compress_kbps', 32)) ? load('ludus_music_compress_kbps', 32) : 32, folderHandle: null, compressJob: null, offlineTracks: load('ludus_music_offline_tracks', {}), offlineLyrics: load('ludus_music_offline_lyrics', {}), temporaryCacheId: null, offlineObjectUrl: null,
     queues: load('ludus_music_queues', [{ id: 'main', name: 'Main queue', queue: [], index: -1, queueMode: 'collection' }]), activeQueueId: load('ludus_music_active_queue', 'main'),
-    resolver: localStorage.getItem('ludus_music_resolver_url') || localStorage.getItem('ludusyt_stream_relay_url') || 'https://tokyo-suspended-sorts-prot.trycloudflare.com/resolve'
+    get resolver() { return activeResolver(); }
   };
 
   const audio = $('#audio');
@@ -1180,7 +980,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     return new Blob(pages, { type: 'audio/ogg; codecs=opus' });
   }
   /* ogg:end */
-  const COMPRESS_MAX_SECONDS = 15 * 60; // decoding peaks at roughly 47 MB of memory per minute of audio (measured), so longer tracks are stored as they are
+  const COMPRESS_MAX_SECONDS = 30 * 60; // decoding holds the whole song in memory, so very long tracks are stored as they are
   function audioCompressionSupported() { return typeof AudioEncoder === 'function' && typeof AudioData === 'function' && Boolean(window.OfflineAudioContext || window.webkitOfflineAudioContext); }
   async function compressAudio(blob, kbps) {
     const channels = kbps > 32 ? 2 : 1, rate = 48000;
@@ -1188,19 +988,20 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const support = await AudioEncoder.isConfigSupported(config).catch(() => null);
     if (!support?.supported) throw new Error('This browser cannot encode Opus.');
     const Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-    // Decoding on an offline context also resamples the song to 48 kHz. This is the only full-length copy kept in memory:
-    // mono is mixed down one second at a time while encoding, instead of rendering a second whole-song buffer.
+    // Decoding on an offline context also resamples the song to 48 kHz, which keeps memory use down.
     const decoded = await new Offline(2, 1, rate).decodeAudioData(await blob.arrayBuffer());
     if (decoded.duration > COMPRESS_MAX_SECONDS) throw new Error('Track is too long to compress.');
-    const frames = decoded.length, left = decoded.getChannelData(0), right = decoded.numberOfChannels > 1 ? decoded.getChannelData(1) : left;
+    const frames = Math.ceil(decoded.duration * rate);
+    const mixer = new Offline(channels, frames, rate); const source = mixer.createBufferSource();
+    source.buffer = decoded; source.connect(mixer.destination); source.start(); // an offline destination with 1 channel mixes stereo down to mono
+    const rendered = await mixer.startRendering();
     const packets = []; let failure = null;
     const encoder = new AudioEncoder({ output: chunk => { const data = new Uint8Array(chunk.byteLength); chunk.copyTo(data); packets.push({ data, samples: Math.round((chunk.duration || 20000) / 1e6 * rate) }); }, error: error => { failure = error; } });
     encoder.configure(config);
-    const step = rate; // one second at a time
+    const planes = Array.from({ length: channels }, (_, channel) => rendered.getChannelData(channel)); const step = rate; // one second at a time
     for (let start = 0; start < frames; start += step) {
       const count = Math.min(step, frames - start); const samples = new Float32Array(count * channels);
-      if (channels === 1) for (let i = 0; i < count; i++) samples[i] = (left[start + i] + right[start + i]) * .5;
-      else { samples.set(left.subarray(start, start + count), 0); samples.set(right.subarray(start, start + count), count); }
+      planes.forEach((plane, channel) => samples.set(plane.subarray(start, start + count), channel * count));
       const audioData = new AudioData({ format: 'f32-planar', sampleRate: rate, numberOfFrames: count, numberOfChannels: channels, timestamp: Math.round(start / rate * 1e6), data: samples });
       encoder.encode(audioData); audioData.close();
       if (failure) throw failure;
@@ -1247,6 +1048,40 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   const FOLDER_MANIFEST = 'ludus-music.json';
   const trackExt = mime => /ogg|opus/i.test(mime || '') ? 'ogg' : 'm4a';
   const safeAudioMime = mime => /^audio\/(mp4|ogg|webm|mpeg|aac|x-m4a)\b/i.test(String(mime || '')) ? String(mime) : 'audio/mp4';
+  // ── Protected folder files ──────────────────────────────────────────────────────────────────────
+  // Songs copied to the backup folder are stored as <id>.ludus: the audio is AES-CTR scrambled behind a short header, so
+  // double-clicking a file does nothing and media players (even "Open with…" or a renamed extension) can't recognise it.
+  // Only this app can read them back. This stops casual clicking, it is not secret-grade security: the key lives in this
+  // page's source, which is what lets the folder keep working from any web address. Older plain .m4a/.ogg files are
+  // converted automatically (see migrateFolderFiles).
+  const TRACK_FILE_MAGIC = new TextEncoder().encode('LUDUSTRK1\n');
+  const TRACK_FILE_IV_BYTES = 16;
+  const PLAIN_TRACK_FILE = /^[\w-]{11}\.(ogg|m4a)$/;
+  const PROTECTED_TRACK_FILE = /^[\w-]{11}\.ludus$/;
+  const isFolderTrackFile = name => PLAIN_TRACK_FILE.test(String(name)) || PROTECTED_TRACK_FILE.test(String(name));
+  let trackKeyPromise = null;
+  function folderCipherKey() {
+    if (!window.crypto?.subtle) throw new Error('Protected storage needs a secure (https or localhost) page.');
+    if (!trackKeyPromise) trackKeyPromise = crypto.subtle.digest('SHA-256', new TextEncoder().encode('ludus-music/folder-tracks/v1/7f3a91c4-5be2-4d08-a6c9-2e81d0b47f35'))
+      .then(raw => crypto.subtle.importKey('raw', raw, 'AES-CTR', false, ['encrypt', 'decrypt']));
+    return trackKeyPromise;
+  }
+  async function protectTrack(blob) {
+    const key = await folderCipherKey(); const iv = crypto.getRandomValues(new Uint8Array(TRACK_FILE_IV_BYTES));
+    const body = await crypto.subtle.encrypt({ name: 'AES-CTR', counter: iv, length: 64 }, key, await blob.arrayBuffer());
+    return new Blob([TRACK_FILE_MAGIC, iv, body], { type: 'application/octet-stream' });
+  }
+  async function unprotectTrack(file, mime) {
+    const bytes = new Uint8Array(await file.arrayBuffer()); const head = TRACK_FILE_MAGIC.length;
+    if (bytes.length <= head + TRACK_FILE_IV_BYTES || !TRACK_FILE_MAGIC.every((byte, index) => bytes[index] === byte)) throw new Error('Not a protected Ludus track');
+    const body = await crypto.subtle.decrypt({ name: 'AES-CTR', counter: bytes.slice(head, head + TRACK_FILE_IV_BYTES), length: 64 }, await folderCipherKey(), bytes.subarray(head + TRACK_FILE_IV_BYTES));
+    return new Blob([body], { type: safeAudioMime(mime) });
+  }
+  // Reads one song from the folder: protected .ludus files are unscrambled, older plain files are read as they are.
+  async function readFolderTrack(handle, name, mime) {
+    const file = await (await handle.getFileHandle(name)).getFile();
+    return PROTECTED_TRACK_FILE.test(name) ? unprotectTrack(file, mime) : new Blob([file], { type: safeAudioMime(mime || file.type) });
+  }
   // Adds one downloaded song (from a file or folder) to this browser. Everything read from outside is re-validated.
   async function importTrack(id, meta, blob, lyrics) {
     if (!/^[\w-]{11}$/.test(String(id)) || !blob?.size) throw new Error('Invalid track');
@@ -1254,7 +1089,6 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     await putOfflineBlob(offlineKey('audio', id), blob, { type: 'audio', videoId: id, temporary: false });
     const extra = meta?.codec === 'opus' ? { codec: 'opus', kbps: Number(meta.kbps) || 0, originalBytes: Number(meta.originalBytes) || 0 } : {};
     state.offlineTracks[id] = { ...song, temporary: false, cachedAt: Date.now(), bytes: blob.size, ...extra };
-    requestPersistentStorage();
     if (Array.isArray(lyrics?.lines) && lyrics.lines.length) {
       const num = value => Number.isFinite(value) ? value : NaN;
       state.offlineLyrics[id] = { lines: lyrics.lines.slice(0, 2000).map(line => ({ text: String(line?.text || '').slice(0, 400), start: num(line?.start), end: num(line?.end) })), source: 'Saved lyrics' };
@@ -1303,6 +1137,12 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   // Linked folder: a ludus-music.json manifest plus one audio file per song. The folder handle is remembered in
   // IndexedDB, but permission has to be granted again after a restart, which "Sync now" does.
   const handleDb = () => new Promise((resolve, reject) => { const request = indexedDB.open('ludus-music-handles', 1); request.onupgradeneeded = () => request.result.createObjectStore('handles'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+  // A folder handle can't be saved to the cloud and browsers never reveal a folder's full path, so cloud saves carry only
+  // its name. That name is used to offer loading downloads from the folder on a new address.
+  const BACKUP_FOLDER_KEY = 'ludus_music_backup_folder';
+  function pushCloudSave() { try { (window.parent !== window ? window.parent : window).saveDataToCloud?.(true); } catch { /* standalone or cross-origin: the next autosave covers it */ } }
+  function rememberBackupFolder(handle) { if (!handle?.name) return; const known = load(BACKUP_FOLDER_KEY, null); if (known?.name === handle.name) return; save(BACKUP_FOLDER_KEY, { name: handle.name }); pushCloudSave(); }
+  function forgetBackupFolder() { if (localStorage.getItem(BACKUP_FOLDER_KEY) === null) return; localStorage.removeItem(BACKUP_FOLDER_KEY); pushCloudSave(); }
   async function storeFolderHandle(handle) { const db = await handleDb(); await new Promise((resolve, reject) => { const tx = db.transaction('handles', 'readwrite'); handle ? tx.objectStore('handles').put(handle, 'downloads') : tx.objectStore('handles').delete('downloads'); tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error); }); }
   async function loadFolderHandle() { try { const db = await handleDb(); return await new Promise(resolve => { const request = db.transaction('handles').objectStore('handles').get('downloads'); request.onsuccess = () => resolve(request.result || null); request.onerror = () => resolve(null); }); } catch { return null; } }
   async function folderHandleReady(request = false) {
@@ -1321,12 +1161,13 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     folderQueue = folderQueue.then(async () => {
       const handle = await folderHandleReady(); const item = state.offlineTracks[id]; if (!handle || !item || item.temporary) return;
       const record = await offlineRecord(offlineKey('audio', id)); if (!record?.blob) return;
-      const file = `${id}.${trackExt(record.blob.type)}`; await writeFolderFile(handle, file, record.blob);
+      const file = `${id}.ludus`; await writeFolderFile(handle, file, await protectTrack(record.blob));
       const manifest = await readFolderManifest(handle); const previous = manifest.tracks[id]?.file;
-      if (previous && previous !== file && /^[\w-]{11}\.(ogg|m4a)$/.test(previous)) await handle.removeEntry(previous).catch(() => {}); // e.g. the m4a left behind after compressing
       const { videoCached, musicVideoId, videoBytes, temporary, ...meta } = item;
       manifest.tracks[id] = { ...meta, file, mime: record.blob.type }; if (state.offlineLyrics[id]) manifest.lyrics[id] = state.offlineLyrics[id];
       await writeFolderFile(handle, FOLDER_MANIFEST, JSON.stringify(manifest));
+      // Only now that the protected copy is saved and listed: drop the old file and any plain twin left behind (e.g. before compressing).
+      for (const stale of new Set([previous, `${id}.m4a`, `${id}.ogg`])) if (stale && stale !== file && isFolderTrackFile(stale)) await handle.removeEntry(stale).catch(() => {});
     }).catch(() => {});
     return folderQueue;
   }
@@ -1335,20 +1176,57 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     folderQueue = folderQueue.then(async () => {
       const handle = await folderHandleReady(); if (!handle) return;
       const manifest = await readFolderManifest(handle); const entry = manifest.tracks[id]; if (!entry) return;
-      if (/^[\w-]{11}\.(ogg|m4a)$/.test(String(entry.file))) await handle.removeEntry(entry.file).catch(() => {});
+      if (isFolderTrackFile(entry.file)) await handle.removeEntry(entry.file).catch(() => {});
       delete manifest.tracks[id]; delete manifest.lyrics[id]; await writeFolderFile(handle, FOLDER_MANIFEST, JSON.stringify(manifest));
     }).catch(() => {});
+  }
+  // Converts plain .m4a/.ogg files already sitting in the folder (saved by earlier versions) into protected .ludus files.
+  // Safety: the new file is read back and must match the original by hash before the original is deleted, and the manifest is
+  // updated before the deletion, so an interruption at any point never loses a song. Resolves to how many files were converted.
+  const sha256 = async buffer => new Uint8Array(await crypto.subtle.digest('SHA-256', buffer));
+  function migrateFolderFiles() {
+    if (!state.folderHandle) return Promise.resolve(0);
+    let converted = 0;
+    const job = folderQueue.then(async () => {
+      const handle = await folderHandleReady(); if (!handle) return;
+      const manifest = await readFolderManifest(handle); const plain = [];
+      for await (const [name, entry] of handle.entries()) if (entry.kind === 'file' && PLAIN_TRACK_FILE.test(name)) plain.push(name);
+      for (const name of plain) {
+        try {
+          const id = name.slice(0, 11); const meta = manifest.tracks[id]; const target = `${id}.ludus`;
+          const mime = meta?.mime || (name.endsWith('.ogg') ? 'audio/ogg; codecs=opus' : 'audio/mp4');
+          // A protected copy is already listed and readable, so this plain file is just a leftover twin.
+          if (meta?.file === target) {
+            const intact = await unprotectTrack(await (await handle.getFileHandle(target)).getFile(), mime).then(() => true, () => false);
+            if (intact) { await handle.removeEntry(name); converted++; continue; }
+          }
+          const original = await (await handle.getFileHandle(name)).getFile(); if (!original.size) continue;
+          await writeFolderFile(handle, target, await protectTrack(original));
+          const check = await unprotectTrack(await (await handle.getFileHandle(target)).getFile(), mime).catch(() => null);
+          const hashes = check ? await Promise.all([sha256(await original.arrayBuffer()), sha256(await check.arrayBuffer())]) : null;
+          const same = Boolean(hashes) && check.size === original.size && hashes[0].every((byte, index) => byte === hashes[1][index]);
+          if (!same) { await handle.removeEntry(target).catch(() => {}); continue; } // leave the original untouched
+          if (meta) manifest.tracks[id] = { ...meta, file: target, mime };
+          else { const { videoCached, musicVideoId, videoBytes, temporary, ...known } = state.offlineTracks[id] || {}; manifest.tracks[id] = { ...known, videoId: id, file: target, mime }; if (state.offlineLyrics[id]) manifest.lyrics[id] = state.offlineLyrics[id]; }
+          await writeFolderFile(handle, FOLDER_MANIFEST, JSON.stringify(manifest));
+          await handle.removeEntry(name); converted++;
+        } catch { /* keep this file as it is and carry on with the rest */ }
+      }
+    }).catch(() => {});
+    folderQueue = job;
+    return job.then(() => converted);
   }
   // Two-way: songs only the folder has are imported, songs only this browser has are copied into the folder.
   async function syncFolder() {
     const handle = await folderHandleReady(true); if (!handle) { toast('Allow access to the folder to sync it.'); renderFolderStatus(); return; }
-    const chip = statusStart('Syncing with your folder…'); let imported = 0, copied = 0, full = false;
+    const chip = statusStart('Syncing with your folder…'); let imported = 0, copied = 0, protectedCount = 0, full = false;
     try {
+      statusUpdate(chip, 'Protecting older song files in your folder…'); protectedCount = await migrateFolderFiles();
       const manifest = await readFolderManifest(handle); const entries = Object.entries(manifest.tracks);
       for (const [position, [id, meta]] of entries.entries()) {
-        if (isSavedOffline(id) || !/^[\w-]{11}\.(ogg|m4a)$/.test(String(meta?.file))) continue;
+        if (isSavedOffline(id) || !isFolderTrackFile(meta?.file)) continue;
         statusUpdate(chip, `Loading ${position + 1} of ${entries.length} from your folder…`);
-        try { const file = await (await handle.getFileHandle(meta.file)).getFile(); await importTrack(id, meta, new Blob([file], { type: safeAudioMime(meta.mime || file.type) }), manifest.lyrics?.[id]); imported++; }
+        try { await importTrack(id, meta, await readFolderTrack(handle, meta.file, meta.mime), manifest.lyrics?.[id]); imported++; }
         catch (error) { if (error?.storageFull) { full = true; break; } }
       }
       statusUpdate(chip, 'Copying downloads into your folder…');
@@ -1356,14 +1234,18 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       await folderQueue;
     } catch (error) { toast(error.message || 'Sync failed.'); return; }
     finally { statusEnd(chip); refreshDownloadButtons(); updateOfflineStatus(); renderFolderStatus(); }
-    toast(`Synced: ${imported} loaded from the folder, ${copied} copied to it${full ? ' · storage is full' : ''}.`);
+    toast(`Synced: ${imported} loaded from the folder, ${copied} copied to it${protectedCount ? `, ${protectedCount} older file${protectedCount === 1 ? '' : 's'} protected` : ''}${full ? ' · storage is full' : ''}.`);
   }
-  async function chooseDownloadFolder() {
+  async function chooseDownloadFolder({ expectedName = '' } = {}) {
     if (typeof window.showDirectoryPicker !== 'function') { toast("This browser can't link a folder. Use Export to file instead."); return; }
-    try { const handle = await window.showDirectoryPicker({ id: 'ludus-music', mode: 'readwrite' }); state.folderHandle = handle; await storeFolderHandle(handle); await renderFolderStatus(); await syncFolder(); }
+    try {
+      const handle = await window.showDirectoryPicker({ id: 'ludus-music', mode: 'readwrite' });
+      if (expectedName && handle.name !== expectedName && !await confirmDialog(`That folder is called “${handle.name}”, but your backup folder was “${expectedName}”. Use it anyway?`, { title: 'Different folder', confirmLabel: 'Use it' })) return;
+      state.folderHandle = handle; await storeFolderHandle(handle); rememberBackupFolder(handle); await renderFolderStatus(); await syncFolder();
+    }
     catch (error) { if (error?.name !== 'AbortError') toast(error?.name === 'SecurityError' ? 'This page is not allowed to open a folder picker here.' : 'Could not use that folder.'); }
   }
-  async function unlinkDownloadFolder() { state.folderHandle = null; await storeFolderHandle(null).catch(() => {}); renderFolderStatus(); toast('Folder unlinked. Its files were left alone.'); }
+  async function unlinkDownloadFolder() { state.folderHandle = null; await storeFolderHandle(null).catch(() => {}); forgetBackupFolder(); renderFolderStatus(); toast('Folder unlinked. Its files were left alone.'); }
   async function renderFolderStatus() {
     const controls = $('#folder-controls'); if (!controls) return;
     const supported = typeof window.showDirectoryPicker === 'function'; controls.hidden = !supported; if (!supported) return;
@@ -1378,17 +1260,9 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     $('#import-downloads').onclick = () => $('#import-downloads-file').click();
     $('#import-downloads-file').onchange = async event => { const files = [...event.target.files]; event.target.value = ''; for (const file of files) await importDownloadsFile(file); };
     $('#pick-download-folder').onclick = chooseDownloadFolder; $('#sync-folder').onclick = syncFolder; $('#unlink-folder').onclick = unlinkDownloadFolder;
-    loadFolderHandle().then(handle => { state.folderHandle = handle; renderFolderStatus(); });
+    loadFolderHandle().then(handle => { state.folderHandle = handle; renderFolderStatus(); if (handle) rememberBackupFolder(handle); if (handle) migrateFolderFiles().then(count => { if (count) toast(`Protected ${count} older song file${count === 1 ? '' : 's'} in your backup folder.`); }); });
   }
 
-  // By default a browser may silently delete a site's stored data when the disk runs low (common on small Chromebook drives).
-  // Asking for persistent storage once, after the first real download, marks the library as worth keeping. Chrome decides
-  // without a prompt; if it says no, nothing changes.
-  let persistAsked = false;
-  function requestPersistentStorage() {
-    if (persistAsked || !navigator.storage?.persist) return; persistAsked = true;
-    navigator.storage.persisted().then(already => already || navigator.storage.persist()).catch(() => {});
-  }
   async function cacheTrack(song, streamUrl, temporary = false) {
     if (!song?.videoId || !streamUrl || !('indexedDB' in window)) throw new Error('IndexedDB offline storage is unavailable in this browser.');
     if (await storageIsFull()) throw new StorageFullError();
@@ -1405,7 +1279,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     state.offlineTracks[song.videoId] = { ...song, temporary, cachedAt: Date.now(), bytes: blob.size, ...(compressed ? { codec: 'opus', kbps: state.compressKbps, originalBytes } : {}) };
     save('ludus_music_offline_tracks', state.offlineTracks);
     if (temporary) state.temporaryCacheId = song.videoId;
-    else { syncDownloadedPlaylist(song); noteTaste(song, 'download'); requestPersistentStorage(); }
+    else { syncDownloadedPlaylist(song); noteTaste(song, 'download'); }
     updateOfflineStatus();
     return { originalBytes, bytes: blob.size, compressed };
   }
@@ -1495,6 +1369,29 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     }
     toast(`Restored ${absent.length} saved download${absent.length === 1 ? '' : 's'}.`);
   }
+  // After signing in on an address with no linked folder, offer to load downloads from the backup folder remembered in the
+  // cloud save. The browser's folder picker is the permission step; once chosen, loading is the usual Sync now.
+  let folderRestoreOpen = false;
+  const pageIsShown = () => new Promise(resolve => { if (window.innerWidth > 0) return resolve(); const check = () => { if (window.innerWidth > 0) { window.removeEventListener('resize', check); resolve(); } }; window.addEventListener('resize', check); });
+  async function offerFolderRestoreFromCloud() {
+    const remembered = load(BACKUP_FOLDER_KEY, null);
+    if (!remembered?.name || folderRestoreOpen || typeof window.showDirectoryPicker !== 'function') return;
+    if (sessionStorage.getItem('ludus_cloud_restored_at') === null || sessionStorage.getItem('ludus_music_folder_prompt_declined') === 'true') return;
+    folderRestoreOpen = true;
+    try {
+      if (state.folderHandle || await loadFolderHandle()) return; // this address already has a linked folder
+      await pageIsShown();
+      const dialog = $('#folder-restore-dialog'); if (!dialog || dialog.open) return;
+      $('#folder-restore-message').textContent = `Your account has a backup folder named “${remembered.name}”. Load your downloads from it?`;
+      dialog.returnValue = '';
+      await new Promise(resolve => {
+        $('#folder-restore-ok').onclick = () => { dialog.close('choose'); chooseDownloadFolder({ expectedName: remembered.name }); };
+        dialog.addEventListener('close', resolve, { once: true }); dialog.showModal();
+      });
+      if (dialog.returnValue !== 'choose') sessionStorage.setItem('ludus_music_folder_prompt_declined', 'true');
+    } finally { folderRestoreOpen = false; }
+  }
+  try { new BroadcastChannel('ludus-cloud').onmessage = event => { if (event.data?.type === 'restored') offerFolderRestoreFromCloud().catch(() => {}); }; } catch { /* BroadcastChannel unavailable */ }
   async function saveSongOffline(song, button, { quiet = false } = {}) {
     // Resolves to 'saved' | 'exists' | 'full' | 'failed' so bulk downloads know when to stop.
     if (!song?.videoId) return 'failed';
@@ -1587,9 +1484,13 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     state.resolverFallbackOffered = true;
     $('#resolver-fallback-dialog').showModal();
   }
+  let resolverCheckId = 0;
   async function checkResolver() {
-    try { const response = await fetch(`${baseUrl()}/health`, { signal: AbortSignal.timeout(3500) }); if (!response.ok) throw new Error(); resolverStatus(true, 'Connected to server'); }
-    catch { resolverStatus(false, 'Server unavailable'); offerResolverFallback(); }
+    const check = ++resolverCheckId;
+    if (check !== resolverCheckId) return;
+    resolverStatus(false, 'Connecting to server…');
+    try { const response = await fetch(`${baseUrl()}/health`, { signal: AbortSignal.timeout(6000) }); if (!response.ok) throw new Error(); if (check === resolverCheckId) resolverStatus(true, 'Connected to server'); }
+    catch { if (check !== resolverCheckId) return; resolverStatus(false, 'Server unavailable'); offerResolverFallback(); }
   }
   async function search(query) {
     const response = await fetch(searchUrl(query), { signal: AbortSignal.timeout(30000) });
@@ -1726,7 +1627,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   function renderPlaylist(id) {
     const playlist = state.playlists.find(item => item.id === id); if (!playlist) return renderLibrary();
     const isDownloads = playlist.id === DOWNLOADS_PLAYLIST_ID; const isLiked = playlist.id === LIKED_PLAYLIST_ID; const isAuto = isDownloads || isLiked;
-    $('#view').innerHTML = `<section class="playlist-hero">${playlistArt(playlist, 'playlist-hero-art')}<div><div class="eyebrow">${isDownloads ? 'OFFLINE LIBRARY' : isLiked ? 'YOUR FAVORITES' : 'PLAYLIST'}</div><h1>${safe(playlist.name)}</h1><p id="playlist-count">${playlist.songs.length} song${playlist.songs.length === 1 ? '' : 's'} · saved in this browser</p>${isDownloads ? '<div class="storage-block"><div><b>Download storage</b><span data-storage-text>0 MB of 1 GB</span></div><span class="storage-meter"><i></i></span></div>' : ''}<div class="hero-actions"><button id="play-playlist">▶ Play</button><button id="shuffle-playlist">⤨ Shuffle play</button>${isDownloads ? '<button class="ghost danger-ghost" id="clear-downloads">Delete all downloads</button>' : `<button class="ghost" id="download-playlist" title="Download every song here until the 1 GB limit is reached">${downloadGlyph} Download all</button>${isLiked ? '' : '<button class="ghost" id="open-playlist-add">＋ Add songs</button><button class="ghost" id="rename-playlist">Rename</button>'}`}</div></div></section>${isAuto ? '' : `<section class="playlist-editor" id="playlist-editor" hidden><div class="playlist-editor-head"><div><span class="section-kicker">ADD TO ${safe(playlist.name)}</span><h2>Search to add songs</h2><p>Preview results without changing your queue, then use the add button on a track.</p></div><button class="playlist-editor-close" id="close-playlist-add" type="button" aria-label="Close add songs" title="Close">×</button></div><form id="playlist-search-form"><input id="playlist-search-input" placeholder="Search by artist, song, or album" autocomplete="off"><button type="submit">Search</button></form><div class="playlist-preview" id="playlist-preview" hidden></div><div class="song-list" id="playlist-search-results"><div class="empty">Search for music, then use the plus button to add a song.</div></div></section>`}<section class="section"><div class="section-head"><div><span class="section-kicker">TRACKS</span><h2>${isDownloads ? 'Saved downloads' : isLiked ? 'Liked songs' : 'Playlist'}</h2></div><input id="playlist-filter" class="playlist-filter" placeholder="Search this ${isDownloads ? 'download list' : 'playlist'}" aria-label="Search this playlist">${isAuto ? '' : '<button class="text-action danger" id="delete-playlist">Delete</button>'}</div><div class="song-list" id="playlist-tracks">${playlist.songs.length ? playlist.songs.map((song, index) => songRow(song, index + 1, false, '', isDownloads ? '' : playlist.id)).join('') : `<div class="empty">${isDownloads ? 'Save songs offline to see them here.' : isLiked ? 'Tap the heart on any song and it lands here.' : 'This playlist is empty. Use Add songs to search and build it.'}</div>`}</div></section>`;
+    $('#view').innerHTML = `<section class="playlist-hero">${playlistArt(playlist, 'playlist-hero-art')}<div><div class="eyebrow">${isDownloads ? 'OFFLINE LIBRARY' : isLiked ? 'YOUR FAVORITES' : 'PLAYLIST'}</div><h1>${safe(playlist.name)}</h1><p id="playlist-count">${playlist.songs.length} song${playlist.songs.length === 1 ? '' : 's'} · saved in this browser</p>${isDownloads ? '<div class="storage-block"><div><b>Download storage</b><span data-storage-text>0 MB of 1 GB</span></div><span class="storage-meter"><i></i></span></div>' : ''}<div class="hero-actions"><button id="play-playlist">▶ Play</button><button id="shuffle-playlist">⤨ Shuffle play</button>${isDownloads ? '<button class="ghost danger-ghost" id="clear-downloads">Delete all downloads</button>' : `<button class="ghost" id="download-playlist" title="Download every song here until the 1 GB limit is reached">${downloadGlyph} Download all</button>${isLiked ? '' : '<button class="ghost" id="open-playlist-add">＋ Add songs</button><button class="ghost" id="rename-playlist">Rename</button>'}`}</div></div></section>${isAuto ? '' : `<section class="playlist-editor" id="playlist-editor" hidden><div class="playlist-editor-head"><div><span class="section-kicker">ADD TO ${safe(playlist.name)}</span><h2>Add songs</h2><p>Search for tracks, import a CSV, or copy songs from your other playlists.</p></div><button class="playlist-editor-close" id="close-playlist-add" type="button" aria-label="Close add songs" title="Close">×</button></div><div class="pl-add-tabs" id="pl-add-tabs" role="tablist"><button type="button" role="tab" data-tab="search" class="active">Search</button><button type="button" role="tab" data-tab="csv">Import CSV</button><button type="button" role="tab" data-tab="copy">From playlists</button></div><div class="pl-pane" data-pane="search"><form id="playlist-search-form"><input id="playlist-search-input" placeholder="Search by artist, song, or album" autocomplete="off"><button type="submit">Search</button></form><div class="playlist-preview" id="playlist-preview" hidden></div><div class="song-list" id="playlist-search-results"><div class="empty">Search for music, then use the plus button to add a song.</div></div></div><div class="pl-pane" data-pane="csv" hidden><p>Upload a CSV and its songs are added to <b>${safe(playlist.name)}</b>. Nothing new is created, and songs already here are skipped.</p><div class="pl-csv-actions"><label class="pl-csv-pick">Choose CSV file<input id="pl-csv-input" type="file" accept=".csv,text/csv"></label><button type="button" class="pl-csv-help" id="pl-csv-help">How do I get a CSV?</button></div></div><div class="pl-pane" data-pane="copy" hidden><div class="copy-controls"><select id="copy-source" aria-label="Copy songs from"></select><input id="copy-filter" placeholder="Filter songs" autocomplete="off"></div><div class="copy-bar"><span class="copy-count" id="copy-count"></span><div class="copy-btns"><button type="button" class="copy-btn" id="copy-toggle-all">Select all</button><button type="button" class="copy-btn" id="copy-add-all">Add whole playlist</button><button type="button" class="copy-btn primary" id="copy-add-selected" disabled>Add selected</button></div></div><div class="song-list copy-list" id="copy-list"></div></div></section>`}<section class="section"><div class="section-head"><div><span class="section-kicker">TRACKS</span><h2>${isDownloads ? 'Saved downloads' : isLiked ? 'Liked songs' : 'Playlist'}</h2></div><input id="playlist-filter" class="playlist-filter" placeholder="Search this ${isDownloads ? 'download list' : 'playlist'}" aria-label="Search this playlist">${isAuto ? '' : '<button class="text-action danger" id="delete-playlist">Delete</button>'}</div><div class="song-list" id="playlist-tracks">${playlist.songs.length ? playlist.songs.map((song, index) => songRow(song, index + 1, false, '', isDownloads ? '' : playlist.id)).join('') : `<div class="empty">${isDownloads ? 'Save songs offline to see them here.' : isLiked ? 'Tap the heart on any song and it lands here.' : 'This playlist is empty. Use Add songs to search and build it.'}</div>`}</div></section>`;
     bindSongs(playlist.songs, 'collection');
     $('#play-playlist').onclick = () => playlist.songs.length ? playList(playlist.songs, 0, { anchor: false }) : toast('Add a song first.');
     $('#shuffle-playlist').onclick = () => { if (!playlist.songs.length) return toast('Add a song first.'); setShuffle(true); playList(playlist.songs, 0, { anchor: false }); }; // shuffle mode on, queue shuffled once
@@ -1736,6 +1637,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     $('#playlist-filter').oninput = () => { const query = normal($('#playlist-filter').value); const filtered = playlist.songs.filter(song => normal(`${song.title} ${song.artist} ${song.album}`).includes(query)); $('#playlist-tracks').innerHTML = filtered.length ? filtered.map(song => songRow(song, playlist.songs.indexOf(song) + 1, false, '', isDownloads ? '' : playlist.id)).join('') : '<div class="empty">No playlist tracks match that search.</div>'; bindSongs(filtered, 'collection'); };
     if ($('#open-playlist-add')) $('#open-playlist-add').onclick = () => { const editor = $('#playlist-editor'); editor.hidden = false; $('#playlist-search-input').focus(); };
     if ($('#close-playlist-add')) $('#close-playlist-add').onclick = () => { $('#playlist-editor').hidden = true; };
+    if (!isAuto) wirePlaylistAdder(playlist);
     if ($('#playlist-search-form')) $('#playlist-search-form').onsubmit = async event => {
       event.preventDefault(); const query = $('#playlist-search-input').value.trim(); if (!query) return;
       $('#playlist-search-results').innerHTML = '<div class="empty">Searching music…</div>';
@@ -2414,56 +2316,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       if (active.wasPlaying) audio.play().catch(() => {});
     }
   }
-  // Opens Monochrome right inside this page (an iframe overlay) instead of
-  // navigating the whole app away to https://monochrome.st.
-  // url is optional — omit for the homepage, pass a /search/… URL to search.
-  function openMonochrome(url) {
+  // Monochrome fallback: opens in a new tab.
+  function openMonochrome() {
     $('#resolver-fallback-dialog').close();
-    audio.pause();
-    if (typeof url !== 'string' || !/^https:\/\//i.test(url)) url = 'https://monochrome.st';
-
-    const shell  = document.getElementById('monochrome-shell');
-    const gate   = document.getElementById('mono-gate');
-    const label  = document.getElementById('mono-gate-label');
-    const fault  = document.getElementById('mono-fault');
-    const fmsg   = document.getElementById('mono-fault-msg');
-    const frame  = document.getElementById('monochrome-frame');
-
-    // Reset state
-    shell.hidden = false;
-    gate.classList.remove('hidden');
-    fault.style.display = 'none';
-    frame.style.display = 'none';
-    if (label) label.textContent = 'Connecting to conduit…';
-
-    function showFault(error) {
-      gate.classList.add('hidden');
-      fault.style.display = 'flex';
-      fmsg.textContent = error?.message || String(error || 'Unable to start the conduit.');
-    }
-
-    function revealFrame() {
-      gate.classList.add('hidden');
-      frame.style.display = 'block';
-    }
-
-    function loadUrl(target) {
-      frame.addEventListener('load', revealFrame, { once: true });
-      // 8-second fallback — same as insta.html / tiky.html
-      setTimeout(() => { if (frame.style.display !== 'block') revealFrame(); }, 8000);
-      frame.src = target;
-    }
-
-    (typeof _conduitReady !== 'undefined' ? _conduitReady : Promise.reject())
-      .then(sc => {
-        if (label) label.textContent = 'Loading Monochrome…';
-        loadUrl(location.origin + sc.encodeUrl(url));
-      })
-      .catch(showFault);
-  }
-  function closeMonochrome() {
-    $('#monochrome-shell').hidden = true;
-    $('#monochrome-frame').src = 'about:blank';
+    window.open('https://monochrome.st', '_blank', 'noopener');
   }
   async function openMusicVideo() {
     const song = state.queue[state.index]; if (!song) { toast('Choose a song first.'); return; }
@@ -2569,9 +2425,40 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const score = result => { const resultTitle = normal(result.title); const resultArtist = normal(result.artist); return (title && (resultTitle.includes(title) || title.includes(resultTitle)) ? 6 : 0) + (artist && (resultArtist.includes(artist) || artist.includes(resultArtist)) ? 4 : 0) + (String(result.title || '').toLowerCase().includes('official') ? 1 : 0); };
     return results.slice().sort((a, b) => score(b) - score(a))[0];
   }
-  async function importCsv(file) {
+  // Appends songs to an existing playlist, skipping anything already in it (and duplicates within `songs`).
+  function addSongsToPlaylist(id, songs) {
+    const playlist = state.playlists.find(item => item.id === id);
+    if (!playlist || id === LIKED_PLAYLIST_ID || id === DOWNLOADS_PLAYLIST_ID) return { added: 0, skipped: songs.length, playlist: null };
+    const seen = new Set(playlist.songs.map(song => song.videoId)); let added = 0, skipped = 0;
+    for (const song of songs) {
+      if (!song?.videoId || seen.has(song.videoId)) { skipped++; continue; }
+      seen.add(song.videoId); playlist.songs.push({ ...song }); noteTaste(song, 'playlist'); added++;
+    }
+    if (added) { mergePlaylistSongsIntoLibrary(); save('ludus_music_playlists', state.playlists); renderPlaylists(); }
+    return { added, skipped, playlist };
+  }
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  function showPlaylist(id) { if (state.route?.type === 'playlist' && state.route.id === id) renderPlaylist(id); else go({ type: 'playlist', id }); }
+
+  // Sidebar import: asks whether the CSV should start a new playlist or be added to one that already exists.
+  function chooseCsvDestination(file) {
+    const editable = state.playlists.filter(item => ![LIKED_PLAYLIST_ID, DOWNLOADS_PLAYLIST_ID].includes(item.id));
+    const defaultName = file.name.replace(/\.csv$/i, '') || 'Imported playlist';
+    if (!editable.length) return Promise.resolve({ id: null, name: defaultName });
+    return new Promise(resolve => {
+      const dialog = $('#csv-dest-dialog'); let choice;
+      $('#csv-dest-file').textContent = file.name;
+      $('#csv-dest-list').innerHTML = `<button type="button" class="picker-item" data-dest="">＋ New playlist “${safe(defaultName)}”<span>New</span></button>` + editable.map(item => `<button type="button" class="picker-item" data-dest="${safe(item.id)}">${safe(item.name)}<span>${plural(item.songs.length, 'song')}</span></button>`).join('');
+      dialog.querySelectorAll('[data-dest]').forEach(button => button.onclick = () => { choice = { id: button.dataset.dest || null, name: defaultName }; dialog.close(); });
+      const onClose = () => { dialog.removeEventListener('close', onClose); resolve(choice || null); };
+      dialog.addEventListener('close', onClose); dialog.showModal();
+    });
+  }
+  async function importCsv(file, targetId = null, newName = '') {
     let text; try { text = await file.text(); } catch { toast('Could not read that CSV.'); return; }
     const rows = csvRows(text); if (!rows.length) { toast('No song titles or YouTube links were found in that CSV.'); return; }
+    const target = targetId ? state.playlists.find(item => item.id === targetId) : null;
+    if (targetId && !target) { toast('That playlist no longer exists.'); return; }
     const chipId = statusStart(`Preparing ${rows.length} song${rows.length === 1 ? '' : 's'}…`);
     const songs = []; const unmatched = []; let matched = 0;
     for (let index = 0; index < rows.length; index++) {
@@ -2586,8 +2473,89 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     }
     statusEnd(chipId);
     if (!songs.length) { toast('No tracks could be matched. Check your connection, then try again.'); if (unmatched.length) showUnmatched(unmatched); return; }
-    const id = crypto.randomUUID?.() || `playlist-${Date.now()}`; const name = file.name.replace(/\.csv$/i, '') || 'Imported playlist'; state.playlists.push({ id, name, songs }); mergePlaylistSongsIntoLibrary(); save('ludus_music_playlists', state.playlists); renderPlaylists(); go({ type: 'playlist', id }); toast(`Imported ${matched} of ${rows.length} tracks.`);
+    if (target) {
+      // Existing playlist: add to it instead of creating a new one.
+      const { added, skipped } = addSongsToPlaylist(target.id, songs);
+      toast(added ? `Added ${plural(added, 'song')} to ${target.name}${skipped ? ` · ${skipped} already there` : ''}.` : `Nothing new to add — all ${plural(songs.length, 'matched song')} were already in ${target.name}.`);
+      if (state.route?.type === 'playlist' && state.route.id === target.id) renderPlaylist(target.id);
+      else if (!file.fromEditor) go({ type: 'playlist', id: target.id });
+      if (unmatched.length) showUnmatched(unmatched);
+      return;
+    }
+    const id = crypto.randomUUID?.() || `playlist-${Date.now()}`; const name = newName || file.name.replace(/\.csv$/i, '') || 'Imported playlist'; state.playlists.push({ id, name, songs }); mergePlaylistSongsIntoLibrary(); save('ludus_music_playlists', state.playlists); renderPlaylists(); go({ type: 'playlist', id }); toast(`Imported ${matched} of ${rows.length} tracks.`);
     if (unmatched.length) showUnmatched(unmatched);
+  }
+
+  // The "Add songs" panel inside a playlist: Search | Import CSV | From playlists.
+  // Its open/tab/source state survives the re-render that happens after songs are added.
+  let plAddUi = { id: null, tab: 'search', open: false, source: '', filter: '', picked: new Set() };
+  function wirePlaylistAdder(playlist) {
+    if (plAddUi.id !== playlist.id) plAddUi = { id: playlist.id, tab: 'search', open: false, source: '', filter: '', picked: new Set() };
+    const ui = plAddUi; const editor = $('#playlist-editor'); if (!editor) return;
+    const setTab = tab => {
+      ui.tab = tab;
+      editor.querySelectorAll('#pl-add-tabs button').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
+      editor.querySelectorAll('.pl-pane').forEach(pane => { pane.hidden = pane.dataset.pane !== tab; });
+      if (tab === 'copy') renderCopyPane();
+    };
+    editor.querySelectorAll('#pl-add-tabs button').forEach(button => button.onclick = () => setTab(button.dataset.tab));
+    if ($('#open-playlist-add')) $('#open-playlist-add').onclick = () => { ui.open = true; editor.hidden = false; (ui.tab === 'search' ? $('#playlist-search-input') : null)?.focus(); };
+    if ($('#close-playlist-add')) $('#close-playlist-add').onclick = () => { ui.open = false; editor.hidden = true; };
+
+    // CSV straight into this playlist.
+    $('#pl-csv-input').onchange = event => { const file = event.target.files[0]; event.target.value = ''; if (!file) return; file.fromEditor = true; toast(`Adding songs from ${file.name}…`); importCsv(file, playlist.id); };
+    $('#pl-csv-help').onclick = () => $('#csv-help-dialog').showModal();
+
+    // Songs from other playlists: whole list, or tick the ones you want.
+    const sources = () => state.playlists.filter(item => item.id !== playlist.id && item.songs?.length);
+    const sourceName = item => item.id === LIKED_PLAYLIST_ID ? 'Liked songs' : item.id === DOWNLOADS_PLAYLIST_ID ? 'Downloads' : item.name;
+    function renderCopyPane() {
+      const list = sources(); const select = $('#copy-source');
+      if (!list.length) { select.innerHTML = '<option value="">No other playlists with songs</option>'; select.disabled = true; $('#copy-list').innerHTML = '<div class="empty">You don\'t have any other playlist with songs in it yet.</div>'; $('#copy-count').textContent = ''; $('#copy-toggle-all').disabled = $('#copy-add-all').disabled = $('#copy-add-selected').disabled = true; return; }
+      select.disabled = false;
+      if (!list.some(item => item.id === ui.source)) { ui.source = list[0].id; ui.picked = new Set(); }
+      select.innerHTML = list.map(item => `<option value="${safe(item.id)}"${item.id === ui.source ? ' selected' : ''}>${safe(sourceName(item))} · ${plural(item.songs.length, 'song')}</option>`).join('');
+      $('#copy-filter').value = ui.filter; paintCopyList();
+    }
+    function paintCopyList() {
+      const source = state.playlists.find(item => item.id === ui.source); if (!source) return;
+      const have = new Set(playlist.songs.map(song => song.videoId)); const query = normal(ui.filter);
+      const visible = source.songs.filter(song => !query || normal(`${song.title} ${song.artist} ${song.album}`).includes(query));
+      $('#copy-list').innerHTML = visible.length ? visible.map(song => {
+        const has = have.has(song.videoId); const picked = ui.picked.has(song.videoId);
+        const art = song.thumbnail ? `<img class="copy-art" src="${safe(song.thumbnail)}" alt="" loading="lazy">` : '<span class="copy-art">♫</span>';
+        return `<button type="button" class="copy-row${picked ? ' picked' : ''}${has ? ' has' : ''}" data-id="${safe(song.videoId)}"${has ? ' disabled' : ''}><span class="copy-check">✓</span>${art}<span><b>${safe(song.title)}</b><small>${safe(song.artist)}</small></span><span class="copy-tag">${has ? 'In playlist' : ''}</span></button>`;
+      }).join('') : '<div class="empty">No songs match that filter.</div>';
+      const selectable = visible.filter(song => !have.has(song.videoId));
+      const allPicked = selectable.length > 0 && selectable.every(song => ui.picked.has(song.videoId));
+      $('#copy-toggle-all').textContent = allPicked ? 'Clear selection' : 'Select all'; $('#copy-toggle-all').disabled = !selectable.length;
+      const newCount = source.songs.filter(song => !have.has(song.videoId)).length;
+      $('#copy-add-all').disabled = !newCount; $('#copy-add-all').textContent = newCount ? `Add whole playlist (${newCount})` : 'Add whole playlist';
+      $('#copy-add-selected').disabled = !ui.picked.size; $('#copy-add-selected').textContent = ui.picked.size ? `Add selected (${ui.picked.size})` : 'Add selected';
+      $('#copy-count').textContent = `${plural(source.songs.length, 'song')} in ${sourceName(source)}${newCount < source.songs.length ? ` · ${source.songs.length - newCount} already in ${playlist.name}` : ''}`;
+    }
+    $('#copy-source').onchange = () => { ui.source = $('#copy-source').value; ui.picked = new Set(); paintCopyList(); };
+    $('#copy-filter').oninput = () => { ui.filter = $('#copy-filter').value; paintCopyList(); };
+    $('#copy-list').onclick = event => {
+      const row = event.target.closest('.copy-row'); if (!row || row.disabled) return;
+      const id = row.dataset.id; ui.picked.has(id) ? ui.picked.delete(id) : ui.picked.add(id); paintCopyList();
+    };
+    $('#copy-toggle-all').onclick = () => {
+      const source = state.playlists.find(item => item.id === ui.source); if (!source) return;
+      const have = new Set(playlist.songs.map(song => song.videoId)); const query = normal(ui.filter);
+      const selectable = source.songs.filter(song => !have.has(song.videoId) && (!query || normal(`${song.title} ${song.artist} ${song.album}`).includes(query)));
+      const allPicked = selectable.length && selectable.every(song => ui.picked.has(song.videoId));
+      selectable.forEach(song => allPicked ? ui.picked.delete(song.videoId) : ui.picked.add(song.videoId)); paintCopyList();
+    };
+    const commit = songs => {
+      const { added, skipped } = addSongsToPlaylist(playlist.id, songs); ui.picked = new Set();
+      toast(added ? `Added ${plural(added, 'song')} to ${playlist.name}${skipped ? ` · ${skipped} already there` : ''}.` : `Those songs are already in ${playlist.name}.`);
+      renderPlaylist(playlist.id);
+    };
+    $('#copy-add-selected').onclick = () => { const source = state.playlists.find(item => item.id === ui.source); if (source) commit(source.songs.filter(song => ui.picked.has(song.videoId))); };
+    $('#copy-add-all').onclick = () => { const source = state.playlists.find(item => item.id === ui.source); if (source) commit(source.songs); };
+
+    editor.hidden = !ui.open; setTab(ui.tab);
   }
 
   // Liked songs always sits first; downloads have their own button (with the storage meter) above the list.
@@ -2713,11 +2681,18 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   $('#add-library').onclick = libraryCurrent; $('#np-library').onclick = libraryCurrent;
   $('#queue-toggle').onclick = () => setSidePanel($('#queue').hidden ? 'queue' : null); $('#close-queue').onclick = () => setSidePanel(null);
   $('#close-lyrics').onclick = event => { event.preventDefault(); event.stopPropagation(); setSidePanel(null); };
-  $('#csv-input').onchange = event => { const file = event.target.files[0]; if (file) importCsv(file); event.target.value = ''; };
+  $('#csv-input').onchange = async event => { const file = event.target.files[0]; event.target.value = ''; if (!file) return; const dest = await chooseCsvDestination(file); if (dest) importCsv(file, dest.id, dest.name); };
   $('#csv-help').onclick = () => $('#csv-help-dialog').showModal();
   $('#new-playlist').onclick = createPlaylist;
-  $('#resolver-settings').onclick = () => { $('#resolver-input').value = state.resolver; $('#download-mode').checked = state.downloadMode; $('#download-videos').checked = state.downloadVideos; $('#download-lyrics').checked = state.downloadLyrics; $('#confirm-delete-download').checked = state.confirmDownloadDelete; $('#compress-downloads').checked = state.compressDownloads && audioCompressionSupported(); $('#compress-quality').value = String(state.compressKbps); const canCompress = audioCompressionSupported(); $('#compress-downloads').disabled = !canCompress; $('#compress-quality').disabled = !canCompress; $('#compress-existing').disabled = !canCompress; $('#compress-note').textContent = canCompress ? 'Re-encodes each song to Opus so it takes roughly 3–6× less space (more songs fit in your 1 GB). It is lossy, so quality drops a little. On by default.' : "This browser can't encode Opus (it needs WebCodecs), so compression isn't available here. Try a recent Chrome, Edge or Firefox."; renderFolderStatus(); updateOfflineStatus(); $('#resolver-dialog').showModal(); };
-  $('#save-resolver').onclick = () => { state.resolver = $('#resolver-input').value.trim().replace(/\/+$/, ''); state.downloadMode = $('#download-mode').checked; state.downloadVideos = $('#download-videos').checked; state.downloadLyrics = $('#download-lyrics').checked; if (audioCompressionSupported()) state.compressDownloads = $('#compress-downloads').checked; state.compressKbps = Number($('#compress-quality').value) || 32; localStorage.setItem('ludus_music_compress_downloads', JSON.stringify(state.compressDownloads)); localStorage.setItem('ludus_music_compress_kbps', JSON.stringify(state.compressKbps)); localStorage.setItem('ludus_music_resolver_url', state.resolver); localStorage.setItem('ludus_music_download_mode', JSON.stringify(state.downloadMode)); localStorage.setItem('ludus_music_download_videos', JSON.stringify(state.downloadVideos)); localStorage.setItem('ludus_music_download_lyrics', JSON.stringify(state.downloadLyrics)); state.confirmDownloadDelete = $('#confirm-delete-download').checked; save('ludus_music_confirm_download_delete', state.confirmDownloadDelete); state.captionsCache = {}; state.resolverFallbackOffered = false; updateOfflineStatus(); checkResolver(); };
+  $('#resolver-settings').onclick = () => { $('#custom-resolver-input').value = storedResolver(CUSTOM_RESOLVER_KEY); $('#custom-resolver-note').textContent = ''; const dev = isDeveloper(); $('#dev-resolver-block').hidden = !dev; $('#dev-resolver-block').style.display = dev ? 'grid' : 'none'; $('#resolver-input').value = dev ? (storedResolver(DEV_RESOLVER_KEY) || RESOLVER_URL) : ''; $('#download-mode').checked = state.downloadMode; $('#download-videos').checked = state.downloadVideos; $('#download-lyrics').checked = state.downloadLyrics; $('#confirm-delete-download').checked = state.confirmDownloadDelete; $('#compress-downloads').checked = state.compressDownloads && audioCompressionSupported(); $('#compress-quality').value = String(state.compressKbps); const canCompress = audioCompressionSupported(); $('#compress-downloads').disabled = !canCompress; $('#compress-quality').disabled = !canCompress; $('#compress-existing').disabled = !canCompress; $('#compress-note').textContent = canCompress ? 'Re-encodes each song to Opus so it takes roughly 3–6× less space (more songs fit in your 1 GB). It is lossy, so quality drops a little. Off by default.' : "This browser can't encode Opus (it needs WebCodecs), so compression isn't available here. Try a recent Chrome, Edge or Firefox."; renderFolderStatus(); updateOfflineStatus(); $('#resolver-dialog').showModal(); };
+  $('#save-resolver').onclick = event => {
+    const customRaw = $('#custom-resolver-input').value.trim(); const custom = normalizeResolverUrl(customRaw);
+    if (customRaw && !custom) { event.preventDefault(); $('#custom-resolver-note').textContent = 'That address does not look right. Use a full https:// address.'; return; }
+    const devRaw = isDeveloper() ? $('#resolver-input').value.trim() : ''; const dev = normalizeResolverUrl(devRaw);
+    if (devRaw && !dev) { event.preventDefault(); toast('The built-in server address is not valid.'); return; }
+    if (custom) localStorage.setItem(CUSTOM_RESOLVER_KEY, custom); else localStorage.removeItem(CUSTOM_RESOLVER_KEY);
+    if (isDeveloper()) { if (!dev || dev === RESOLVER_URL) localStorage.removeItem(DEV_RESOLVER_KEY); else localStorage.setItem(DEV_RESOLVER_KEY, dev); }
+    state.downloadMode = $('#download-mode').checked; state.downloadVideos = $('#download-videos').checked; state.downloadLyrics = $('#download-lyrics').checked; state.compressDownloads = $('#compress-downloads').checked; state.compressKbps = Number($('#compress-quality').value) || 32; localStorage.setItem('ludus_music_compress_downloads', JSON.stringify(state.compressDownloads)); localStorage.setItem('ludus_music_compress_kbps', JSON.stringify(state.compressKbps)); localStorage.setItem('ludus_music_download_mode', JSON.stringify(state.downloadMode)); localStorage.setItem('ludus_music_download_videos', JSON.stringify(state.downloadVideos)); localStorage.setItem('ludus_music_download_lyrics', JSON.stringify(state.downloadLyrics)); state.confirmDownloadDelete = $('#confirm-delete-download').checked; save('ludus_music_confirm_download_delete', state.confirmDownloadDelete); state.captionsCache = {}; state.resolverFallbackOffered = false; updateOfflineStatus(); checkResolver(); };
   $('#clear-offline-cache').onclick = async () => { if (await confirmDialog('Every downloaded song and saved music video will be removed from this browser.', { title: 'Delete all downloads?', confirmLabel: 'Delete all' })) clearOfflineCache(); };
   $('#now-info').onclick = openFullscreen; $('#open-lyrics').onclick = openLyrics; $('#np-close').onclick = closeFullscreen;
   $('#np-lyrics').onclick = () => toggleNpLyrics(); $('#np-lyrics-close').onclick = event => { event.preventDefault(); event.stopPropagation(); toggleNpLyrics(false); };
@@ -2732,11 +2707,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   };
   $('#resolver-fallback-stay').onclick = () => $('#resolver-fallback-dialog').close();
   $('#resolver-fallback-redirect').onclick = openMonochrome;
-  $('#close-monochrome').onclick = closeMonochrome;
   $('#preview-audio').ontimeupdate = () => { const preview = $('#preview-audio'); if (preview.currentTime >= 30) { preview.pause(); toast('Preview finished.'); } };
   wireMusicVideoControls(); wireDownloadTools();
   state.lyricRetryTimer = window.setInterval(() => { if (lyricsPanelOpen() && !state.lyrics.lines.length) loadLyricsForCurrent(true); }, 12000);
-  document.addEventListener('keydown', event => { if (event.key !== 'Escape') return; if (!$('#monochrome-shell').hidden) closeMonochrome(); else if (state.musicVideo) closeMusicVideo(); else if (!$('#nowplaying-full').hidden) closeFullscreen(); else if (!$('#queue').hidden || !$('#lyrics-panel').hidden) setSidePanel(null); });
+  document.addEventListener('keydown', event => { if (event.key !== 'Escape') return; if (state.musicVideo) closeMusicVideo(); else if (!$('#nowplaying-full').hidden) closeFullscreen(); else if (!$('#queue').hidden || !$('#lyrics-panel').hidden) setSidePanel(null); });
   window.addEventListener('message', event => {
     const data = event.data || {}; if (data.target !== 'music') return;
     if (data.action === 'togglePlay') togglePlay();
@@ -2758,45 +2732,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') persistPlayback(); });
   window.addEventListener('beforeunload', persistPlayback);
 
-  // ── Proxy-status pill: update when the conduit resolves or rejects ────────
-  (function() {
-    const pill = document.getElementById('proxy-status');
-    if (!pill) return;
-    let conduitState = _sc ? 'ok' : 'pending';
-
-    function renderConduitControl() {
-      const enabled = conduitEnabled();
-      const visibleState = enabled ? conduitState : 'off';
-      const text = !enabled ? 'Conduit off' : conduitState === 'ok' ? 'Conduit on' : conduitState === 'fail' ? 'Conduit unavailable' : 'Conduit…';
-      pill.className = 'relay-pill proxy-pill ' + (visibleState === 'ok' ? 'online' : visibleState); // 'online' = identical to the "Connected to server" pill
-      pill.innerHTML = '<i></i>' + text;
-      pill.setAttribute('aria-pressed', String(enabled));
-      pill.title = enabled
-        ? 'Conduit is on — click to use the server directly'
-        : 'Conduit is off — click to proxy the server';
-    }
-
-    pill.onclick = () => {
-      setConduitEnabled(!conduitEnabled());
-      state.resolverFallbackOffered = false;
-      renderConduitControl();
-      checkResolver();
-    };
-
-    window.addEventListener('ludus:conduit-ready', function() {
-      conduitState = 'ok';
-      state.resolverFallbackOffered = false;
-      renderConduitControl();
-      checkResolver();
-    }, { once: true });
-    window.addEventListener('ludus:conduit-failed', function() {
-      conduitState = 'fail';
-      renderConduitControl();
-    }, { once: true });
-    renderConduitControl();
-  })();
-
-  initialiseQueues(); restoreDownloadedPlaylist(); syncLikedPlaylist(); downloadedPlaylist(); mergePlaylistSongsIntoLibrary(); renderPlaylists(); paintRadio(); try { navigator.storage?.persist?.(); } catch { /* best effort: asks the browser not to evict downloads */ } $('#rail-downloads').onclick = () => go({ type: 'playlist', id: DOWNLOADS_PLAYLIST_ID }); checkResolver(); initMediaSessionHandlers(); restorePlayback(); updateOfflineStatus(); go({ type: 'home' }, false); offerSavedDownloadRestore().catch(() => {});
+  initialiseQueues(); restoreDownloadedPlaylist(); syncLikedPlaylist(); downloadedPlaylist(); mergePlaylistSongsIntoLibrary(); renderPlaylists(); paintRadio(); try { navigator.storage?.persist?.(); } catch { /* best effort: asks the browser not to evict downloads */ } $('#rail-downloads').onclick = () => go({ type: 'playlist', id: DOWNLOADS_PLAYLIST_ID }); checkResolver(); initMediaSessionHandlers(); restorePlayback(); updateOfflineStatus(); go({ type: 'home' }, false); offerSavedDownloadRestore().catch(() => {}); offerFolderRestoreFromCloud().catch(() => {});
 })();
   </script>
 </body>
