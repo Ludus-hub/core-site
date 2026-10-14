@@ -936,7 +936,7 @@ window.addEventListener('message', function (e) {
     }
 });
 
-// Patch script injected before ytgame.js / PixiJS in srcdoc games.
+// Patch script injected before game.js / PixiJS in srcdoc games.
 // Fixes: (1) /undefined/ in CDN fetch/XHR/script-tag paths, (2) WebGL crash via forceCanvas.
 const GAME_PATCH_SCRIPT = `<script>
 (function(){
@@ -956,7 +956,7 @@ const GAME_PATCH_SCRIPT = `<script>
   };
 
   // --- Fix 1b: Patch dynamically created <script>/<link>/<img> src/href ---
-  // ytgame.js loads its home page via an injected <script src> tag which bypasses fetch/XHR.
+  // game.js loads its home page via an injected <script src> tag which bypasses fetch/XHR.
   var _createElement = document.createElement.bind(document);
   document.createElement = function(tag) {
     var el = _createElement(tag);
@@ -1265,7 +1265,7 @@ const games = [
 {name:"OMORI", path:"./Versions/Assets/Game Data/427-z.html", logo:"./Versions/Assets/Pictures/Non-edited/427.webp", secret: true},
 {name:"Milk Inside a Bag of Milk Inside a Bag of Milk", path:"./Versions/Assets/Game Data/650-f.html", logo:"./Versions/Assets/Pictures/Non-edited/650.webp", secret: true},
   {name:"Yume Nikki", path:"./Versions/Assets/Game Data/433.html", logo:"./Versions/Assets/Pictures/Non-edited/433.webp", secret: true},
-  {name:"Youtube",path:"yt-7.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
+  {name:"Youtube",path:"yt-8.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
   {name:"Baseball Bros", path:"Versions/Assets/Game Data/Baseball Bros.html", logo:"Versions/Assets/Pictures/Non-edited/Baseball-n.webp"},
