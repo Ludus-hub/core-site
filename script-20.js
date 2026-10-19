@@ -611,6 +611,216 @@ async function exportSave() {
     }
 }
 
+// ── Local save-folder sync ─────────────────────────────────────────────────
+// Mirrors the music app's folder approach: the user grants a directory once,
+// then the app can read/write a normal JSON backup there without an account.
+const LUDUS_LOCAL_SYNC_DB = 'LudusLocalSaveSync';
+const LUDUS_LOCAL_SYNC_STORE = 'handles';
+const LUDUS_LOCAL_SYNC_KEY = 'save-folder';
+const LUDUS_LOCAL_SYNC_FILE = 'ludus-save.json';
+
+function openLocalSaveSyncDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(LUDUS_LOCAL_SYNC_DB, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(LUDUS_LOCAL_SYNC_STORE);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Could not open local sync storage.'));
+    });
+}
+
+async function readLocalSaveFolder() {
+    const db = await openLocalSaveSyncDb();
+    try {
+        return await new Promise((resolve, reject) => {
+            const request = db.transaction(LUDUS_LOCAL_SYNC_STORE, 'readonly').objectStore(LUDUS_LOCAL_SYNC_STORE).get(LUDUS_LOCAL_SYNC_KEY);
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+    } finally { db.close(); }
+}
+
+async function rememberLocalSaveFolder(handle) {
+    const db = await openLocalSaveSyncDb();
+    try {
+        await new Promise((resolve, reject) => {
+            const request = db.transaction(LUDUS_LOCAL_SYNC_STORE, 'readwrite').objectStore(LUDUS_LOCAL_SYNC_STORE).put(handle, LUDUS_LOCAL_SYNC_KEY);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    } finally { db.close(); }
+}
+
+async function requestLocalSaveFolder() {
+    if (!('showDirectoryPicker' in window)) {
+        throw new Error('Local folder sync needs Chrome or Edge on desktop. You can still use Export and Import.');
+    }
+    let handle = await readLocalSaveFolder().catch(() => null);
+    if (handle) {
+        try {
+            if (await handle.requestPermission({ mode: 'readwrite' }) === 'granted') return handle;
+        } catch (_) { /* a revoked or older handle gets reselected below */ }
+    }
+    handle = await window.showDirectoryPicker({ id: 'ludus-save-folder', mode: 'readwrite' });
+    await rememberLocalSaveFolder(handle);
+    return handle;
+}
+
+function setLocalSaveSyncStatus(message) {
+    const status = document.getElementById('localSaveSyncStatus');
+    if (status) status.textContent = message;
+}
+
+function formatLocalSyncTime(timestamp) {
+    return new Date(timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+async function restoreLocalFolderBackup(file) {
+    let backup;
+    try { backup = JSON.parse(await file.text()); }
+    catch { throw new Error('The existing ludus-save.json is not valid JSON. It was not changed.'); }
+    if (!backup?.storage?.local) throw new Error('The existing ludus-save.json is not a Ludus backup. It was not changed.');
+
+    if (!(await waitForBackupTools())) throw new Error('Save tools are still loading. Please try again in a moment.');
+    await window.restoreLudusBackup(backup, false, true);
+    await refreshLoadedContentAfterSaveImport();
+}
+
+window.syncSaveLocally = async function syncSaveLocally() {
+    const button = document.getElementById('localSaveSyncBtn');
+    if (button?.dataset.syncing === 'true') return;
+    if (typeof window.createLudusBackup !== 'function') {
+        await window.LudusDialog.alert('Save tools are still loading. Please try again in a moment.');
+        return;
+    }
+
+    try {
+        if (button) { button.dataset.syncing = 'true'; button.disabled = true; }
+        setLocalSaveSyncStatus('Opening local save folder…');
+        const folder = await requestLocalSaveFolder();
+        const fileHandle = await folder.getFileHandle(LUDUS_LOCAL_SYNC_FILE, { create: true });
+        const existing = await fileHandle.getFile();
+        const lastSync = Number(localStorage.getItem('ludus_local_save_sync_at') || 0);
+
+        // A file written by another browser/device is restored only after an
+        // explicit choice. This avoids a silent overwrite in either direction.
+        if (existing.size > 0 && existing.lastModified > lastSync + 1000) {
+            const restore = await window.LudusDialog.confirm(
+                `A newer local backup was found (${formatLocalSyncTime(existing.lastModified)}). Load it into this browser? Choosing Cancel keeps this browser's data and saves it to the folder instead.`,
+                { title: 'Local save found', confirmLabel: 'Load local save', cancelLabel: 'Keep this browser' }
+            );
+            if (restore) {
+                await restoreLocalFolderBackup(existing);
+                localStorage.setItem('ludus_local_save_sync_at', String(existing.lastModified));
+                setLocalSaveSyncStatus(`Loaded local save · ${formatLocalSyncTime(existing.lastModified)}`);
+                await window.LudusDialog.alert('Your local save was loaded and the active content was refreshed.', { title: 'Local sync complete' });
+                return;
+            }
+        }
+
+        const backup = await window.createLudusBackup(false);
+        backup.meta = { ...(backup.meta || {}), localSync: { file: LUDUS_LOCAL_SYNC_FILE, savedAt: new Date().toISOString() } };
+        const writable = await fileHandle.createWritable();
+        await writable.write(JSON.stringify(backup, null, 2));
+        await writable.close();
+        const savedFile = await fileHandle.getFile();
+        localStorage.setItem('ludus_local_save_sync_at', String(savedFile.lastModified));
+        setLocalSaveSyncStatus(`Saved locally · ${formatLocalSyncTime(savedFile.lastModified)}`);
+        await window.LudusDialog.alert('A complete Ludus backup was synced to your selected folder.', { title: 'Local sync complete' });
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            setLocalSaveSyncStatus('Local sync cancelled.');
+            return;
+        }
+        console.error('Local save sync failed:', error);
+        setLocalSaveSyncStatus('Local sync needs attention.');
+        await window.LudusDialog.error(error?.message || 'Could not sync the local save folder.', { title: 'Local sync failed' });
+    } finally {
+        if (button) { button.disabled = false; delete button.dataset.syncing; }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const lastSync = Number(localStorage.getItem('ludus_local_save_sync_at') || 0);
+    if (lastSync) setLocalSaveSyncStatus(`Last local sync · ${formatLocalSyncTime(lastSync)}`);
+});
+
+// ── zrok resolver pool ────────────────────────────────────────────────────
+// Every resolver request made through this helper includes zrok's documented
+// share-interstitial opt-out header. Browser security warnings/certificates are
+// deliberately left to the browser; this only keeps valid API requests from
+// being served the zrok HTML interstitial.
+const LUDUS_DEFAULT_RESOLVERS = [
+    'https://u6dhtt3vfobb.shares.zrok.io',
+    'https://recipe-robots-bowl-brick.trycloudflare.com',
+    'https://ncfz2uaj73u9.shares.zrok.io',
+    'https://a3zgc7ce703v.shares.zrok.io'
+];
+const LUDUS_ZROK_HEADER = { skip_zrok_interstitial: 'true' };
+
+function normaliseResolverUrl(url) {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:' ? parsed.origin : null;
+    } catch (_) { return null; }
+}
+
+window.setLudusResolverEndpoints = function setLudusResolverEndpoints(urls) {
+    const endpoints = [...new Set((Array.isArray(urls) ? urls : String(urls || '').split(','))
+        .map(normaliseResolverUrl).filter(Boolean))];
+    localStorage.setItem('ludus_resolver_endpoints', JSON.stringify(endpoints));
+    return endpoints;
+};
+
+window.getLudusResolverEndpoints = function getLudusResolverEndpoints() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('ludus_resolver_endpoints') || '[]');
+        if (Array.isArray(saved) && saved.length) return saved.map(normaliseResolverUrl).filter(Boolean);
+    } catch (_) { /* use the current share below */ }
+    return LUDUS_DEFAULT_RESOLVERS;
+};
+
+window.findFastestLudusResolver = async function findFastestLudusResolver() {
+    const endpoints = window.getLudusResolverEndpoints();
+    const probes = endpoints.map(async endpoint => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const started = performance.now();
+        try {
+            const response = await fetch(`${endpoint}/health`, { headers: LUDUS_ZROK_HEADER, signal: controller.signal, cache: 'no-store' });
+            if (!response.ok) throw new Error(`Health check returned ${response.status}`);
+            const payload = await response.json();
+            if (!payload?.ok) throw new Error('Health check was not accepted');
+            return { endpoint, latency: performance.now() - started };
+        } finally { clearTimeout(timeout); }
+    });
+    const results = await Promise.allSettled(probes);
+    const healthy = results.filter(result => result.status === 'fulfilled').map(result => result.value).sort((a, b) => a.latency - b.latency);
+    if (!healthy.length) throw new Error('No configured resolver is reachable.');
+    const selected = healthy[0].endpoint;
+    localStorage.setItem('ludus_active_resolver', selected);
+    // The music/YouTube app can adopt this message without needing access to
+    // the parent page's storage. Existing versions simply ignore it safely.
+    ['musicFrame', 'youtubeFrame'].forEach(id => document.getElementById(id)?.contentWindow?.postMessage({
+        type: 'LUDUS_RESOLVER_POOL', endpoint: selected, endpoints: healthy.map(item => item.endpoint), headers: LUDUS_ZROK_HEADER
+    }, '*'));
+    return selected;
+};
+
+window.fetchLudusResolver = async function fetchLudusResolver(path, options = {}) {
+    const endpoint = await window.findFastestLudusResolver();
+    const headers = new Headers(options.headers || {});
+    Object.entries(LUDUS_ZROK_HEADER).forEach(([name, value]) => headers.set(name, value));
+    return fetch(`${endpoint}${path.startsWith('/') ? path : `/${path}`}`, { ...options, headers });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Configure an app whenever its iframe finishes loading. The message is
+    // intentionally harmless for older app builds that do not consume it.
+    ['musicFrame', 'youtubeFrame'].forEach(id => document.getElementById(id)?.addEventListener('load', () => {
+        window.findFastestLudusResolver().catch(error => console.warn('Resolver pool is unavailable:', error.message));
+    }));
+});
+
 async function waitForBackupTools() {
     if (typeof window.restoreLudusBackup === 'function') return true;
     return new Promise(resolve => {
@@ -1691,6 +1901,7 @@ const games = [
 {name:"OMORI", path:"./Versions/Assets/Game Data/427-z.html", logo:"./Versions/Assets/Pictures/Non-edited/427.webp", secret: true},
 {name:"Milk Inside a Bag of Milk Inside a Bag of Milk", path:"./Versions/Assets/Game Data/650-f.html", logo:"./Versions/Assets/Pictures/Non-edited/650.webp", secret: true},
   {name:"Yume Nikki", path:"./Versions/Assets/Game Data/433.html", logo:"./Versions/Assets/Pictures/Non-edited/433.webp", secret: true},
+  {name:"Youtube",path:"yt.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
   {name:"Baseball Bros", path:"Versions/Assets/Game Data/Baseball Bros.html", logo:"Versions/Assets/Pictures/Non-edited/Baseball-n.webp"},
@@ -3568,68 +3779,86 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settingsMixerToggle').checked = showMixer;
     document.getElementById('mixer-dock').style.display = showMixer ? 'block' : 'none';
 
-   // 1. Drag and Drop Logic (Main Mixer)
-    const mixer = document.getElementById('mixer-dock');
-    const mixerHeader = document.getElementById('mixer-header');
-    let isDragging = false, initialX, initialY, xOffset = 0, yOffset = 0;
-    let rafPending = false; // <-- ADD THIS
+    // 1. Pointer-based window dragging for both docks. Pointer events give the
+    // mixer the same touch and pen behavior as the game dock, and a release
+    // near an edge snaps it into that corner like a small desktop window.
+    function enableCornerDock(element, handle, storageKey, ignoreButtons) {
+        if (!element || !handle) return;
+        const margin = 20;
+        let dragging = false, pointerId = null, startX = 0, startY = 0, originLeft = 0, originTop = 0;
 
-    if (mixerHeader) {
-        mixerHeader.addEventListener('mousedown', (e) => {
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
-            isDragging = true;
-            mixer.style.transition = 'none';
+        const applyCorner = (corner) => {
+            const isRight = corner.includes('right');
+            const isBottom = corner.includes('bottom');
+            element.style.transform = 'none';
+            element.style.left = isRight ? 'auto' : `${margin}px`;
+            element.style.right = isRight ? `${margin}px` : 'auto';
+            element.style.top = isBottom ? 'auto' : `${margin}px`;
+            element.style.bottom = isBottom ? `${margin}px` : 'auto';
+            localStorage.setItem(storageKey, corner);
+        };
+        const savedCorner = localStorage.getItem(storageKey);
+        if (savedCorner && /^(top|bottom)-(left|right)$/.test(savedCorner)) applyCorner(savedCorner);
+
+        handle.addEventListener('pointerdown', (event) => {
+            if (event.target.closest('button')) return;
+            const rect = element.getBoundingClientRect();
+            dragging = true;
+            pointerId = event.pointerId;
+            startX = event.clientX;
+            startY = event.clientY;
+            originLeft = rect.left;
+            originTop = rect.top;
+            element.style.transition = 'none';
+            element.style.left = `${originLeft}px`;
+            element.style.top = `${originTop}px`;
+            element.style.right = 'auto';
+            element.style.bottom = 'auto';
+            element.style.transform = 'none';
+            handle.setPointerCapture?.(pointerId);
+            event.preventDefault();
         });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            e.preventDefault();
-            
-            xOffset = e.clientX - initialX;
-            yOffset = e.clientY - initialY;
-            
-            // <-- WRAP IN REQUESTANIMATIONFRAME
-            if (!rafPending) {
-                requestAnimationFrame(() => {
-                    mixer.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0)`;
-                    rafPending = false;
-                });
-                rafPending = true;
+        handle.addEventListener('pointermove', (event) => {
+            if (!dragging || event.pointerId !== pointerId) return;
+            const maxLeft = Math.max(margin, window.innerWidth - element.offsetWidth - margin);
+            const maxTop = Math.max(margin, window.innerHeight - element.offsetHeight - margin);
+            const left = Math.min(maxLeft, Math.max(margin, originLeft + event.clientX - startX));
+            const top = Math.min(maxTop, Math.max(margin, originTop + event.clientY - startY));
+            element.style.left = `${left}px`;
+            element.style.top = `${top}px`;
+            event.preventDefault();
+        });
+        const release = (event) => {
+            if (!dragging || (event && event.pointerId !== pointerId)) return;
+            dragging = false;
+            handle.releasePointerCapture?.(pointerId);
+            pointerId = null;
+            const rect = element.getBoundingClientRect();
+            const corner = `${rect.top + rect.height / 2 < window.innerHeight / 2 ? 'top' : 'bottom'}-${rect.left + rect.width / 2 < window.innerWidth / 2 ? 'left' : 'right'}`;
+            element.style.transition = 'left .22s ease, right .22s ease, top .22s ease, bottom .22s ease';
+            applyCorner(corner);
+        };
+        handle.addEventListener('pointerup', release);
+        handle.addEventListener('pointercancel', release);
+        return {
+            snap() {
+                const rect = element.getBoundingClientRect();
+                const corner = `${rect.top + rect.height / 2 < window.innerHeight / 2 ? 'top' : 'bottom'}-${rect.left + rect.width / 2 < window.innerWidth / 2 ? 'left' : 'right'}`;
+                element.style.transition = 'left .22s ease, right .22s ease, top .22s ease, bottom .22s ease';
+                applyCorner(corner);
+            },
+            reset() {
+                localStorage.removeItem(storageKey);
+                element.style.transition = 'left .22s ease, right .22s ease, top .22s ease, bottom .22s ease';
+                applyCorner('bottom-right');
             }
-        });
-        // ... mouseup remains the same
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-            mixer.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        });
+        };
     }
 
-    // 1b. Drag and Drop Logic (Game Dock Controls)
-    const gameDock = document.getElementById('game-floating-dock');
-    const gameDockDrag = document.getElementById('game-dock-header');
-    let gIsDragging = false, gInitialX, gInitialY, gXOffset = 0, gYOffset = 0;
-
-    if(gameDockDrag) {
-        gameDockDrag.addEventListener('mousedown', (e) => {
-            // Check if user clicked a button inside header to skip drag
-            if(e.target.closest('button')) return; 
-            gInitialX = e.clientX - gXOffset;
-            gInitialY = e.clientY - gYOffset;
-            gIsDragging = true;
-        });
-        document.addEventListener('mousemove', (e) => {
-            if (gIsDragging) {
-                e.preventDefault();
-                gXOffset = e.clientX - gInitialX;
-                gYOffset = e.clientY - gInitialY;
-                gameDock.style.transform = `translate3d(${gXOffset}px, ${gYOffset}px, 0)`;
-            }
-        });
-        document.addEventListener('mouseup', () => {
-            gIsDragging = false;
-        });
-    }
+    const mixerDockControl = enableCornerDock(document.getElementById('mixer-dock'), document.getElementById('mixer-header'), 'ludus_mixer_corner', false);
+    enableCornerDock(document.getElementById('game-floating-dock'), document.getElementById('game-dock-header'), 'ludus_game_dock_corner', true);
+    document.getElementById('mixer-snap-corner')?.addEventListener('click', () => mixerDockControl?.snap());
+    document.getElementById('mixer-reset-position')?.addEventListener('click', () => mixerDockControl?.reset());
 
     // --- INJECTED BUTTON TO ICON CONVERTER ---
     const controlsContainer = document.getElementById('viewerControlsContainer');
@@ -3707,6 +3936,47 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = svg;
     }
 
+    function formatMediaTime(seconds) {
+        seconds = Number.isFinite(seconds) && seconds >= 0 ? Math.floor(seconds) : 0;
+        return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+
+    function updateMusicProgress(currentTime, duration) {
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        const progress = Math.max(0, Math.min(100, (currentTime / duration) * 100));
+        [['seek-music', 'music-time-current', 'music-time-total'], ['game-seek-music', 'game-music-time-current', 'game-music-time-total']]
+            .forEach(([seekId, currentId, totalId]) => {
+                const seek = document.getElementById(seekId);
+                if (seek && !seek.dataset.isDragging) seek.value = progress;
+                const current = document.getElementById(currentId);
+                const total = document.getElementById(totalId);
+                if (current) current.textContent = formatMediaTime(currentTime);
+                if (total) total.textContent = formatMediaTime(duration);
+            });
+    }
+
+    function setMusicProgress(percent) {
+        const frame = document.getElementById('musicFrame');
+        if (!frame) return;
+        try {
+            const media = frame.contentDocument?.querySelector('audio, video');
+            if (media?.duration) media.currentTime = (Number(percent) / 100) * media.duration;
+            else frame.contentWindow?.postMessage({ target: 'music', action: 'seekToPercent', percent: Number(percent) }, '*');
+        } catch (_) {
+            frame.contentWindow?.postMessage({ target: 'music', action: 'seekToPercent', percent: Number(percent) }, '*');
+        }
+    }
+
+    function wireMusicSeek(id) {
+        const seek = document.getElementById(id);
+        if (!seek) return;
+        seek.addEventListener('pointerdown', () => { seek.dataset.isDragging = 'true'; });
+        seek.addEventListener('pointerup', () => { setMusicProgress(seek.value); setTimeout(() => delete seek.dataset.isDragging, 100); });
+        seek.addEventListener('input', () => setMusicProgress(seek.value));
+    }
+    wireMusicSeek('seek-music');
+    wireMusicSeek('game-seek-music');
+
 // 2. Event-Driven Audio Stream Detection
 window.addEventListener('message', (event) => {
     const data = event.data;
@@ -3723,6 +3993,12 @@ window.addEventListener('message', (event) => {
         target = 'movie';
     }
     if (!target) return;
+
+    if (target === 'music') {
+        const currentTime = Number(data.currentTime ?? data.position ?? data.current ?? NaN);
+        const duration = Number(data.duration ?? data.totalTime ?? data.length ?? NaN);
+        updateMusicProgress(currentTime, duration);
+    }
 
     const pSvg    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="black"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
     const pauseSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="black"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
@@ -3810,6 +4086,7 @@ window.addEventListener('message', (event) => {
                             }
                         }
                     }
+                    updateMusicProgress(mediaEl.currentTime, mediaEl.duration);
                 } else if (target === 'movie') {
                     const movieTitle = innerDoc.querySelector('.details-title, #detail-title');
                     document.getElementById(titleId).innerText = movieTitle ? movieTitle.innerText : (innerDoc.title || "Unknown Movie");
@@ -3860,10 +4137,12 @@ window.addEventListener('message', (event) => {
     // 4. Input Sliders (Volume & Seek) -- Main Mixer
     document.getElementById('vol-music')?.addEventListener('input', function(e) {
         const frame = document.getElementById('musicFrame');
-        if (frame && frame.contentDocument) {
-            const media = frame.contentDocument.querySelector('audio, video');
-            if (media) media.volume = parseFloat(e.target.value);
-        }
+        const volume = parseFloat(e.target.value);
+        try {
+            const media = frame?.contentDocument?.querySelector('audio, video');
+            if (media) media.volume = volume;
+            else frame?.contentWindow?.postMessage({ target: 'music', action: 'setVolume', volume }, '*');
+        } catch (_) { frame?.contentWindow?.postMessage({ target: 'music', action: 'setVolume', volume }, '*'); }
         if(document.getElementById('game-vol-music')) document.getElementById('game-vol-music').value = e.target.value;
     });
 
@@ -3894,10 +4173,12 @@ window.addEventListener('message', (event) => {
     // 4b. Input Sliders -- Game Mixer
     document.getElementById('game-vol-music')?.addEventListener('input', function(e) {
         const frame = document.getElementById('musicFrame');
-        if (frame && frame.contentDocument) {
-            const media = frame.contentDocument.querySelector('audio, video');
-            if (media) media.volume = parseFloat(e.target.value);
-        }
+        const volume = parseFloat(e.target.value);
+        try {
+            const media = frame?.contentDocument?.querySelector('audio, video');
+            if (media) media.volume = volume;
+            else frame?.contentWindow?.postMessage({ target: 'music', action: 'setVolume', volume }, '*');
+        } catch (_) { frame?.contentWindow?.postMessage({ target: 'music', action: 'setVolume', volume }, '*'); }
         if(document.getElementById('vol-music')) document.getElementById('vol-music').value = e.target.value;
     });
 
