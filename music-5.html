@@ -810,13 +810,6 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
 (() => {
   'use strict';
 
-  // Works when this app is hosted from the Google-site static directory. The
-  // direct Blob path below remains the fallback for iframe/CDN deployments
-  // where a parent site's worker cannot control this separate origin.
-  if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
-    navigator.serviceWorker.register('https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/sw-2.js', { scope: '/' }).catch(() => {});
-  }
-
   const $ = selector => document.querySelector(selector);
   // The built-in music server address lives only here. Only developer accounts can see it in the UI; everyone else
   // sees just the "your own resolver" box. When the tunnel address changes, edit this one line.
