@@ -93,6 +93,17 @@ a { color: var(--accent); }
 .relay-pill i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #f0a15b; box-shadow: 0 0 6px #f0a15b; }
 .relay-pill.online i { background: var(--accent-2); box-shadow: 0 0 6px var(--accent-2); }
 .relay-pill.online { color: rgba(255, 255, 255, .7); }
+.resolver-status-control { position:relative; padding-right:5px; }
+.resolver-status-control > span { white-space:nowrap; }
+#resolver-server-picker { display:grid; place-items:center; width:22px; height:22px; margin-left:2px; padding:0; border:0; border-left:1px solid rgba(255,255,255,.15); background:transparent; color:rgba(255,255,255,.72); cursor:pointer; }
+#resolver-server-picker:hover, #resolver-server-picker[aria-expanded="true"] { color:var(--accent); }
+#resolver-server-picker svg { transition:transform .16s ease; }
+#resolver-server-picker[aria-expanded="true"] svg { transform:rotate(180deg); }
+#resolver-server-menu { position:absolute; z-index:30; top:calc(100% + 8px); right:0; display:grid; min-width:166px; padding:6px; border:1px solid var(--line); border-radius:12px; background:rgba(19,22,28,.98); box-shadow:0 14px 34px rgba(0,0,0,.42); backdrop-filter:blur(18px); }
+#resolver-server-menu[hidden] { display:none; }
+#resolver-server-menu button { display:flex; justify-content:space-between; align-items:center; gap:14px; width:100%; padding:8px 9px; border:0; border-radius:8px; background:transparent; color:rgba(255,255,255,.86); font:650 12px/1.2 inherit; text-align:left; cursor:pointer; }
+#resolver-server-menu button:hover, #resolver-server-menu button.active { background:rgba(0,201,255,.13); color:#fff; }
+#resolver-server-menu button.active::after { content:'Connected'; color:var(--accent); font-size:10px; font-weight:800; }
 
 /* ---------------------------------------------------------
    Library rail (floating glass panel, left)
@@ -647,7 +658,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
           <input id="search-input" autocomplete="off" placeholder="Search songs, albums, artists">
         </form>
 
-        <div class="relay-pill" id="resolver-status"><i></i> Connecting to server…</div>
+        <div class="relay-pill resolver-status-control" id="resolver-status"><i></i><span id="resolver-status-label">Connecting to server…</span><button id="resolver-server-picker" type="button" aria-label="Choose music server" aria-expanded="false" title="Choose music server"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"></path></svg></button><div id="resolver-server-menu" role="menu" hidden></div></div>
 
         <button class="icon-btn" id="resolver-settings" title="Music settings" aria-label="Server settings">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -799,12 +810,26 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
 (() => {
   'use strict';
 
+  // Works when this app is hosted from the Google-site static directory. The
+  // direct Blob path below remains the fallback for iframe/CDN deployments
+  // where a parent site's worker cannot control this separate origin.
+  if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+    navigator.serviceWorker.register('https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/sw-2.js', { scope: '/' }).catch(() => {});
+  }
+
   const $ = selector => document.querySelector(selector);
   // The built-in music server address lives only here. Only developer accounts can see it in the UI; everyone else
   // sees just the "your own resolver" box. When the tunnel address changes, edit this one line.
-  const RESOLVER_URL = 'https://philosophy-lamps-maryland-structured.trycloudflare.com/resolve';
-  const CUSTOM_RESOLVER_KEY = 'ludus_music_custom_resolver'; // a user's own resolver; travels with their account
-  const DEV_RESOLVER_KEY = 'ludus_music_resolver_url';       // developer override of the built-in server; this browser only
+  const RESOLVER_URLS = [
+    'https://u6dhtt3vfobb.shares.zrok.io/resolve',
+    'https://recipe-robots-bowl-brick.trycloudflare.com/resolve',
+    'https://ncfz2uaj73u9.shares.zrok.io/resolve',
+    'https://a3zgc7ce703v.shares.zrok.io/resolve'
+  ];
+  const RESOLVER_URL = RESOLVER_URLS[0];
+  const ZROK_INTERSTITIAL_HEADER = 'skip_zrok_interstitial';
+  const CUSTOM_RESOLVER_KEY = 'ludus_music_custom_resolver';
+  const DEV_RESOLVER_KEY = 'ludus_music_resolver_url';
   const isDeveloper = () => { try { return localStorage.getItem('mathmaster_dev') === 'true' && sessionStorage.getItem('mathmaster_dev_unlocked') === 'true'; } catch { return false; } };
   // Accepts "https://host", "https://host/resolve" or a trailing slash; plain http is only allowed for this computer.
   function normalizeResolverUrl(raw) {
@@ -815,8 +840,13 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     url.search = ''; url.hash = ''; url.pathname = url.pathname.replace(/\/+$/, '').replace(/\/resolve$/, '') + '/resolve';
     return url.href;
   }
-  const storedResolver = key => { try { return normalizeResolverUrl(localStorage.getItem(key)) || ''; } catch { return ''; } };
-  const activeResolver = () => storedResolver(CUSTOM_RESOLVER_KEY) || (isDeveloper() ? storedResolver(DEV_RESOLVER_KEY) : '') || RESOLVER_URL;
+  const resolverList = raw => [...new Set(String(raw || '').split(/[\n,]/).map(normalizeResolverUrl).filter(Boolean))];
+  const storedResolvers = key => { try { return resolverList(localStorage.getItem(key)); } catch { return []; } };
+  let selectedResolver = '';
+  const resolverCandidates = () => [...new Set([...RESOLVER_URLS, ...storedResolvers(CUSTOM_RESOLVER_KEY)])];
+  const activeResolver = () => selectedResolver || resolverCandidates()[0] || RESOLVER_URL;
+  const resolverHeaders = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url)) ? { [ZROK_INTERSTITIAL_HEADER]: 'true' } : {};
+  const resolverFetch = (url, options = {}) => fetch(url, { ...options, headers: { ...resolverHeaders(url), ...(options.headers || {}) } });
   const state = {
     queue: [], index: -1, queueMode: 'collection', radioRequest: 0,
     similarSeed: null, similarSeen: new Set(), similarPromise: null, similarToken: null, similarFailAt: 0, similarWaiting: false,
@@ -827,7 +857,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     shuffle: load('ludus_music_shuffle', false), repeat: load('ludus_music_repeat', 'off'),
     preload: { videoId: null, streamUrl: null, ts: 0 }, pendingResumeVideoId: null, pendingResumeTime: 0,
     lyrics: { videoId: null, lines: [], index: -1, source: '', retryAt: 0 }, captionsCache: {},
-    streamController: null, playbackRequest: 0, previewController: null, previewRequest: 0, lyricRetryTimer: null,
+    streamController: null, streamObjectUrl: null, playbackRequest: 0, previewController: null, previewRequest: 0, lyricRetryTimer: null,
     resolverFallbackOffered: false, musicVideo: null,
     downloadMode: load('ludus_music_download_mode', false), downloadVideos: load('ludus_music_download_videos', false), downloadLyrics: load('ludus_music_download_lyrics', false), compressDownloads: load('ludus_music_compress_downloads', false), compressKbps: [48, 32, 20].includes(load('ludus_music_compress_kbps', 32)) ? load('ludus_music_compress_kbps', 32) : 32, folderHandle: null, compressJob: null, offlineTracks: load('ludus_music_offline_tracks', {}), offlineLyrics: load('ludus_music_offline_lyrics', {}), temporaryCacheId: null, offlineObjectUrl: null,
     queues: load('ludus_music_queues', [{ id: 'main', name: 'Main queue', queue: [], index: -1, queueMode: 'collection' }]), activeQueueId: load('ludus_music_active_queue', 'main'),
@@ -1266,7 +1296,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   async function cacheTrack(song, streamUrl, temporary = false) {
     if (!song?.videoId || !streamUrl || !('indexedDB' in window)) throw new Error('IndexedDB offline storage is unavailable in this browser.');
     if (await storageIsFull()) throw new StorageFullError();
-    const response = await fetch(streamUrl);
+    const response = await resolverFetch(streamUrl);
     if (!response.ok) throw new Error('Could not download this stream.');
     // Check the advertised size first, so a nearly-full store never downloads a whole song just to say no.
     // (Skipped when compressing: the stored copy will be a fraction of the advertised size.)
@@ -1477,7 +1507,14 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   }
 
   function resolverStatus(online, message) {
-    const el = $('#resolver-status'); el.classList.toggle('online', online); el.innerHTML = `<i></i>${safe(message)}`;
+    const el = $('#resolver-status'); el.classList.toggle('online', online); $('#resolver-status-label').textContent = message;
+  }
+  const resolverLabel = resolver => `Server ${Math.max(0, resolverCandidates().indexOf(resolver)) + 1}`;
+  function renderResolverPicker() {
+    const picker = $('#resolver-server-picker'), menu = $('#resolver-server-menu'); if (!picker || !menu) return;
+    const active = activeResolver();
+    menu.innerHTML = resolverCandidates().map((resolver, index) => `<button type="button" role="menuitem" data-resolver-index="${index}" class="${resolver === active ? 'active' : ''}">Server ${index + 1}</button>`).join('');
+    picker.hidden = resolverCandidates().length < 2;
   }
   function offerResolverFallback() {
     if (state.resolverFallbackOffered || !$('#resolver-fallback-dialog')) return;
@@ -1485,11 +1522,19 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     $('#resolver-fallback-dialog').showModal();
   }
   let resolverCheckId = 0;
+  async function selectFastestResolver() {
+    const winner = await Promise.any(resolverCandidates().map(async resolver => {
+      const response = await resolverFetch(`${resolver.replace(/\/resolve\/?$/, '')}/health`, { signal: AbortSignal.timeout(6000) });
+      const data = await response.json().catch(() => ({})); if (!response.ok || data.ok === false) throw new Error('Unhealthy resolver');
+      return resolver;
+    }));
+    selectedResolver = winner; renderResolverPicker(); return winner;
+  }
   async function checkResolver() {
     const check = ++resolverCheckId;
     if (check !== resolverCheckId) return;
-    resolverStatus(false, 'Connecting to server…');
-    try { const response = await fetch(`${baseUrl()}/health`, { signal: AbortSignal.timeout(6000) }); if (!response.ok) throw new Error(); if (check === resolverCheckId) resolverStatus(true, 'Connected to server'); }
+    resolverStatus(false, 'Finding fastest server…');
+    try { const winner = await selectFastestResolver(); if (check === resolverCheckId) resolverStatus(true, `Connected to ${resolverLabel(winner)}`); }
     catch { if (check !== resolverCheckId) return; resolverStatus(false, 'Server unavailable'); offerResolverFallback(); }
   }
   async function search(query) {
@@ -1960,7 +2005,33 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   }
   function stopCurrentStream() {
     state.streamController?.abort(); state.streamController = null;
+    if (state.streamObjectUrl) { URL.revokeObjectURL(state.streamObjectUrl); state.streamObjectUrl = null; }
     audio.pause(); audio.removeAttribute('src'); audio.load();
+  }
+  const isZrokUrl = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url));
+  async function mediaPlayableUrl(url, signal) {
+    if (!isZrokUrl(url)) return url;
+    const response = await resolverFetch(url, { signal });
+    if (!response.ok || !String(response.headers.get('content-type') || '').toLowerCase().startsWith('audio/')) throw new Error('The music server returned an unsupported audio source');
+    const blob = await response.blob(); if (!blob.size) throw new Error('The music server returned an empty audio source');
+    if (state.streamObjectUrl) URL.revokeObjectURL(state.streamObjectUrl);
+    state.streamObjectUrl = URL.createObjectURL(new Blob([blob], { type: blob.type || 'audio/mp4' }));
+    return state.streamObjectUrl;
+  }
+  function orderedResolvers() { const active = activeResolver(); return active ? [active, ...resolverCandidates().filter(item => item !== active)] : resolverCandidates(); }
+  async function resolvePlayableAudio(song, signal) {
+    const failures = [];
+    for (const resolver of orderedResolvers()) {
+      try {
+        const response = await resolverFetch(`${resolver}?v=${encodeURIComponent(song.videoId)}&type=audio`, { signal });
+        const data = await response.json().catch(() => ({}));
+        const stream = (data.adaptiveFormats || []).filter(item => /^audio\/(mp4|aac|mpeg|ogg|webm)/i.test(String(item.type))).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+        if (!response.ok || !stream?.url) throw new Error(data.error || 'No supported audio source');
+        selectedResolver = resolver; renderResolverPicker(); resolverStatus(true, `Connected to ${resolverLabel(resolver)}`);
+        return { url: await mediaPlayableUrl(stream.url, signal), captions: Array.isArray(data.captions) ? data.captions : [] };
+      } catch (error) { if (error?.name === 'AbortError') throw error; failures.push(error?.message || 'Server did not return a playable stream'); }
+    }
+    throw new Error(failures.at(-1) || 'No music server returned a playable source');
   }
   async function playPreview(song) {
     const preview = $('#preview-audio'); const panel = $('#playlist-preview'); if (!preview || !panel) return;
@@ -1970,11 +2041,9 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     panel.hidden = false; panel.innerHTML = `<img src="${safe(song.thumbnail)}" alt=""><div><span class="section-kicker">30-SECOND PREVIEW</span><b>${safe(song.title)}</b><small>${safe(song.artist)}</small></div><button type="button" id="stop-preview" title="Stop preview">×</button>`;
     $('#stop-preview').onclick = () => { preview.pause(); panel.hidden = true; };
     try {
-      const response = await fetch(resolveUrl(song.videoId), { signal: state.previewController.signal }); const data = await response.json().catch(() => ({}));
-      const stream = (data.adaptiveFormats || []).filter(item => String(item.type).startsWith('audio/mp4')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-      if (!response.ok || !stream?.url) throw new Error(data.error || 'No preview stream');
+      const source = await resolvePlayableAudio(song, state.previewController.signal);
       if (request !== state.previewRequest) return;
-      preview.src = stream.url; await preview.play();
+      preview.src = source.url; await preview.play();
     } catch (error) { if (error.name !== 'AbortError' && request === state.previewRequest) { panel.hidden = true; toast('Preview unavailable right now.'); } }
   }
   async function playCurrent({ autoplay = true } = {}) {
@@ -1994,14 +2063,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       let streamUrl = savedOffline || preloaded;
       if (!streamUrl) {
         state.streamController = new AbortController();
-        let response;
-        try { response = await fetch(resolveUrl(song.videoId), { signal: AbortSignal.any([state.streamController.signal, AbortSignal.timeout(30000)]) }); }
+        let source;
+        try { source = await resolvePlayableAudio(song, AbortSignal.any([state.streamController.signal, AbortSignal.timeout(30000)])); }
         catch (networkError) { networkError.serverUnreachable = true; throw networkError; }
-        const data = await response.json().catch(() => ({}));
-        const stream = (data.adaptiveFormats || []).filter(item => String(item.type).startsWith('audio/mp4')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-        if (!response.ok || !stream?.url) throw new Error(data.error || 'Song not found');
-        streamUrl = stream.url;
-        if (Array.isArray(data.captions)) state.captionsCache[song.videoId] = data.captions;
+        streamUrl = source.url; state.captionsCache[song.videoId] = source.captions;
       }
       if (request !== state.playbackRequest) return;
       state.preload = { videoId: null, streamUrl: null, ts: 0 };
@@ -2111,11 +2176,12 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const nextIndex = peekNextIndex(); if (nextIndex == null) return;
     const song = state.queue[nextIndex]; if (!song || state.preload.videoId === song.videoId) return;
     state.preload = { videoId: song.videoId, streamUrl: null, ts: Date.now() };
-    fetch(resolveUrl(song.videoId), { signal: AbortSignal.timeout(20000) }).then(response => response.json()).then(data => {
+    resolverFetch(resolveUrl(song.videoId), { signal: AbortSignal.timeout(20000) }).then(response => response.json()).then(data => {
       if (state.preload.videoId !== song.videoId) return;
       if (Array.isArray(data.captions)) state.captionsCache[song.videoId] = data.captions;
       const stream = (data.adaptiveFormats || []).filter(item => String(item.type).startsWith('audio/mp4')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-      if (stream?.url) state.preload.streamUrl = stream.url; else if (state.preload.videoId === song.videoId) state.preload = { videoId: null, streamUrl: null, ts: 0 };
+      if (stream?.url && !isZrokUrl(stream.url)) state.preload.streamUrl = stream.url;
+      else if (state.preload.videoId === song.videoId) state.preload = { videoId: null, streamUrl: null, ts: 0 };
     }).catch(() => { if (state.preload.videoId === song.videoId) state.preload = { videoId: null, streamUrl: null, ts: 0 }; });
   }
   function next(step = 1, { manual = true } = {}) {
@@ -2693,6 +2759,37 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     if (custom) localStorage.setItem(CUSTOM_RESOLVER_KEY, custom); else localStorage.removeItem(CUSTOM_RESOLVER_KEY);
     if (isDeveloper()) { if (!dev || dev === RESOLVER_URL) localStorage.removeItem(DEV_RESOLVER_KEY); else localStorage.setItem(DEV_RESOLVER_KEY, dev); }
     state.downloadMode = $('#download-mode').checked; state.downloadVideos = $('#download-videos').checked; state.downloadLyrics = $('#download-lyrics').checked; state.compressDownloads = $('#compress-downloads').checked; state.compressKbps = Number($('#compress-quality').value) || 32; localStorage.setItem('ludus_music_compress_downloads', JSON.stringify(state.compressDownloads)); localStorage.setItem('ludus_music_compress_kbps', JSON.stringify(state.compressKbps)); localStorage.setItem('ludus_music_download_mode', JSON.stringify(state.downloadMode)); localStorage.setItem('ludus_music_download_videos', JSON.stringify(state.downloadVideos)); localStorage.setItem('ludus_music_download_lyrics', JSON.stringify(state.downloadLyrics)); state.confirmDownloadDelete = $('#confirm-delete-download').checked; save('ludus_music_confirm_download_delete', state.confirmDownloadDelete); state.captionsCache = {}; state.resolverFallbackOffered = false; updateOfflineStatus(); checkResolver(); };
+  // The older settings handler remains responsible for unrelated download preferences.
+  // Wrap it so personal endpoints are stored as a list after the four built-ins (Server 5+).
+  const legacySaveResolver = $('#save-resolver').onclick;
+  $('#resolver-settings').onclick = () => {
+    $('#custom-resolver-input').value = storedResolvers(CUSTOM_RESOLVER_KEY).join(', ');
+    $('#custom-resolver-note').textContent = 'Your first address is Server 5. Use commas to add more fallback servers; the fastest healthy one is selected.';
+    $('#dev-resolver-block').hidden = true; $('#dev-resolver-block').style.display = 'none';
+    $('#download-mode').checked = state.downloadMode; $('#download-videos').checked = state.downloadVideos; $('#download-lyrics').checked = state.downloadLyrics;
+    $('#confirm-delete-download').checked = state.confirmDownloadDelete; $('#download-lyrics').checked = state.downloadLyrics;
+    $('#resolver-dialog').showModal();
+  };
+  $('#save-resolver').onclick = event => {
+    const raw = $('#custom-resolver-input').value.trim(); const custom = resolverList(raw);
+    const entered = raw ? raw.split(/[\n,]/).map(value => value.trim()).filter(Boolean) : [];
+    if (raw && (!custom.length || custom.length !== new Set(entered.map(normalizeResolverUrl)).size || entered.some(value => !normalizeResolverUrl(value)))) {
+      event.preventDefault(); $('#custom-resolver-note').textContent = 'Use one or more full https:// addresses, separated by commas.'; return;
+    }
+    const input = $('#custom-resolver-input'); const original = input.value; input.value = custom[0] || '';
+    legacySaveResolver.call(event.currentTarget, event);
+    input.value = original;
+    if (custom.length) localStorage.setItem(CUSTOM_RESOLVER_KEY, custom.join(',')); else localStorage.removeItem(CUSTOM_RESOLVER_KEY);
+    selectedResolver = ''; state.resolverFallbackOffered = false; renderResolverPicker(); checkResolver();
+  };
+  $('#resolver-server-picker').onclick = event => { event.stopPropagation(); const menu = $('#resolver-server-menu'); const open = menu.hidden; menu.hidden = !open; event.currentTarget.setAttribute('aria-expanded', String(open)); };
+  $('#resolver-server-menu').onclick = event => {
+    const choice = event.target.closest('[data-resolver-index]'); if (!choice) return;
+    const resolver = resolverCandidates()[Number(choice.dataset.resolverIndex)]; if (!resolver) return;
+    selectedResolver = resolver; $('#resolver-server-menu').hidden = true; $('#resolver-server-picker').setAttribute('aria-expanded', 'false'); renderResolverPicker(); resolverStatus(true, `Connected to ${resolverLabel(resolver)}`);
+  };
+  document.addEventListener('click', event => { if (!$('#resolver-status')?.contains(event.target)) { $('#resolver-server-menu').hidden = true; $('#resolver-server-picker').setAttribute('aria-expanded', 'false'); } });
+  renderResolverPicker();
   $('#clear-offline-cache').onclick = async () => { if (await confirmDialog('Every downloaded song and saved music video will be removed from this browser.', { title: 'Delete all downloads?', confirmLabel: 'Delete all' })) clearOfflineCache(); };
   $('#now-info').onclick = openFullscreen; $('#open-lyrics').onclick = openLyrics; $('#np-close').onclick = closeFullscreen;
   $('#np-lyrics').onclick = () => toggleNpLyrics(); $('#np-lyrics-close').onclick = event => { event.preventDefault(); event.stopPropagation(); toggleNpLyrics(false); };
