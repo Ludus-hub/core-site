@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ludus YouTube</title>
+  <script src="loading-protocol.js"></script>
+  <script src="resolver-servers.js"></script>
   <style>
 /* ─── Ludus YouTube · style.css ──────────────────────────────────────────
    Visual language ported from Ludus Stream (movie.html): near-black base,
@@ -824,6 +826,9 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 .server-dropdown-item:last-child { border-bottom: none; }
 .server-dropdown-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
 .server-dropdown-item.active { color: var(--accent); background: rgba(0,201,255,0.08); font-weight: 700; }
+.server-dropdown-item .server-health { display:block; margin-top:2px; font-size:10px; font-weight:500; opacity:.72; }
+.server-dropdown-item .server-health.healthy { color:#92fe9d; opacity:1; }
+.server-dropdown-item .server-health.unhealthy { color:#ff9292; opacity:1; }
 
 /* Relay player controls — same streamer design as the Ludus Music video player:
    title fades in from the top, one floating pill bar of controls at the bottom. */
@@ -1193,10 +1198,11 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
       </div>
 
       <!-- Server status -->
-      <button id="server-status" class="instance-badge status-control" type="button" title="YouTube server status">
+      <div id="server-status" class="instance-badge status-control" title="YouTube server status">
         <span class="status-dot"></span>
         <span id="instance-host">connecting…</span>
-      </button>
+        <select id="top-server-picker" aria-label="Choose Ludus server" title="Choose Ludus server" style="max-width:118px;border:0;border-left:1px solid currentColor;background:transparent;color:inherit;font:inherit;padding-left:7px;outline:0;"></select>
+      </div>
 
     </header>
 
@@ -1276,14 +1282,30 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 // neutral wording, and only developers can override the built-in server from this browser.
 const isDeveloper = () => { try { return localStorage.getItem('mathmaster_dev') === 'true' && sessionStorage.getItem('mathmaster_dev_unlocked') === 'true'; } catch { return false; } };
 const devText = (developerText, publicText) => isDeveloper() ? developerText : publicText;
-const BUILT_IN_RESOLVER = 'https://philosophy-lamps-maryland-structured.trycloudflare.com/resolve';
+const BUILT_IN_RESOLVER = window.LUDUS_RESOLVER_URLS?.[0] || 'https://u6dhtt3vfobb.shares.zrok.io/resolve';
 const _storedResolver = key => { try { return (localStorage.getItem(key) || '').trim(); } catch { return ''; } };
-const RESOLVER_BASE = (_storedResolver('ludus_music_custom_resolver') ||
+let RESOLVER_BASE = (_storedResolver('ludus_active_resolver') ||
   (isDeveloper() ? (_storedResolver('ludus_music_resolver_url') || _storedResolver('ludusyt_stream_relay_url')) : '') ||
+  _storedResolver('ludus_active_resolver') ||
   BUILT_IN_RESOLVER).replace(/\/+$/, '').replace(/\/resolve$/, '');
 const RESOLVER_TIMEOUT_MS = 30000;
 const SEARCH_PAGE = 15;   // the resolver returns the first N hits; page P is the Pth slice of 15
 const SEARCH_MAX_PAGES = 6;
+const RESOLVER_CANDIDATES = Array.isArray(window.LUDUS_RESOLVER_URLS) ? window.LUDUS_RESOLVER_URLS : [BUILT_IN_RESOLVER];
+let _resolverReady;
+async function ensureResolverServer() {
+  if (_resolverReady) return _resolverReady;
+  _resolverReady = (async () => {
+    const ordered = [...new Set([`${RESOLVER_BASE}/resolve`, ...RESOLVER_CANDIDATES])]; let lastError;
+    for (const resolver of ordered) {
+      const base = String(resolver).replace(/\/+$/, '').replace(/\/resolve$/, ''); const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
+      try { const response = await fetch(`${base}/health`, { signal: controller.signal, headers: /\.shares\.zrok\.io/i.test(base) ? { skip_zrok_interstitial: 'true' } : {} }); if (!response.ok) throw new Error(`HTTP ${response.status}`); RESOLVER_BASE = base; try { localStorage.setItem('ludus_active_resolver', `${base}/resolve`); } catch {} return base; }
+      catch (error) { lastError = error; } finally { clearTimeout(timer); }
+    }
+    throw lastError || new Error('No Ludus server is available.');
+  })();
+  return _resolverReady;
+}
 
 // ── YouTube Data API backup — same keys, quota rules and request costs as yt-api.html / api.js ──
 // Second tier of the fallback chain (Ludus resolver → Data API → Invidious). Rotation, the 10,000-unit
@@ -1345,6 +1367,7 @@ const LudusAPI = (() => {
   }
 
   async function _get(path, params = {}, { timeout = RESOLVER_TIMEOUT_MS } = {}) {
+    await ensureResolverServer();
     const navSignal = _genController.signal, timeoutCtrl = new AbortController();
     const timer = setTimeout(() => timeoutCtrl.abort(), timeout);
     const clean = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
@@ -2876,16 +2899,34 @@ route('*', () => navigate('/'));
 // The first option is your own Cloudflare-tunnelled resolver. It returns a
 // CORS-safe, proxied M4A URL from the local yt-dlp resolver. The remaining
 // Invidious embeds remain available as automatic and manual fallbacks.
-const RELAY_RESOLVER_URL = `${RESOLVER_BASE}/resolve`; // same resolver the metadata layer uses
-// Developers see each server's real name; everyone else gets Server 1, Server 2, …
-const serverLabel = server => isDeveloper() ? server.name : `Server ${MAIN_SERVERS.indexOf(server) + 1}`;
+const RELAY_SERVERS = Array.isArray(window.LUDUS_RESOLVERS) ? window.LUDUS_RESOLVERS : [{ id: 'server-1', label: 'Server 1', url: `${RESOLVER_BASE}/resolve` }];
+// Developers see each server's real identity; everyone else still sees the
+// same numbered, health-checked server choices as Music.
+const serverLabel = server => server.type === 'relay' ? `Ludus server ${server.relayIndex + 1}` : `Backup ${Math.max(1, MAIN_SERVERS.indexOf(server) - RELAY_SERVERS.length + 1)}`;
 const MAIN_SERVERS = [
-  { id: 'relay',      name: 'Ludus Relay', type: 'relay' },
+  ...RELAY_SERVERS.map((resolver, index) => ({ id: resolver.id, name: isDeveloper() ? `${resolver.label} · ${new URL(resolver.url).hostname}` : resolver.label, type: 'relay', resolver: resolver.url, relayIndex: index })),
   { id: 'f5',         name: 'F5',         build: id => `https://invidious.f5.si/embed/${id}?autoplay=1` },
   { id: 'nadeko',     name: 'Nadeko',     build: id => `https://inv.nadeko.net/embed/${id}?autoplay=1` },
   { id: 'tiekoetter', name: 'Tiekoetter', build: id => `https://invidious.tiekoetter.com/embed/${id}?autoplay=1` },
   { id: 'zoomer',     name: 'Zoomerville',build: id => `https://inv.zoomerville.com/embed/${id}?autoplay=1` },
 ];
+const relayHealth = new Map();
+function setServerHealth(server, state, text) {
+  relayHealth.set(server.id, { state, text });
+  const node = document.querySelector(`.server-dropdown-item[data-server="${server.id}"] .server-health`);
+  if (node) { node.className = `server-health ${state}`; node.textContent = text; }
+}
+function activateServer(server) {
+  document.querySelectorAll('.server-dropdown-item').forEach(node => node.classList.toggle('active', node.dataset.server === server.id));
+  const name = document.getElementById('currentServerName'); if (name) name.textContent = server.type === 'relay' ? 'Ludus server' : serverLabel(server);
+  const picker = document.getElementById('top-server-picker'); if (picker && server.type === 'relay') picker.value = server.id;
+}
+function initTopServerPicker() {
+  const picker = document.getElementById('top-server-picker'); if (!picker) return;
+  picker.innerHTML = `<optgroup label="Ludus server">${MAIN_SERVERS.filter(server => server.type === 'relay').map(server => `<option value="${server.id}">${serverLabel(server)}</option>`).join('')}</optgroup><optgroup label="Backups"><option value="auto">Automatic backup</option></optgroup>`;
+  const active = MAIN_SERVERS.find(server => server.type === 'relay' && server.resolver === `${RESOLVER_BASE}/resolve`); if (active) picker.value = active.id;
+  picker.addEventListener('change', async () => { const server = MAIN_SERVERS.find(item => item.id === picker.value); if (!server) return; try { await checkRelay(server); if (_currentVideoId) mountResolvedPlayer(server, _currentVideoId, true); } catch { /* the status and picker keep the unavailable result visible */ } });
+}
 
 // Same locked-down sandbox Ludus Stream uses: the embedded page can run its
 // own scripts and play video, but it cannot navigate this tab or pop new
@@ -2895,20 +2936,8 @@ const LOCKED_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow
 let _currentVideoId = null;
 
 function playerControlsHTML() {
-  return `
-    <div class="server-bar" id="serverControls">
-      <div class="server-controls">
-        <button class="server-dropdown-btn" id="serverDropdownBtn" type="button" aria-expanded="false" aria-controls="serverDropdownMenu">
-          <span id="currentServerName">${escHTML(serverLabel(MAIN_SERVERS[0]))}</span>
-          <span class="chev">▼</span>
-        </button>
-        <div class="server-dropdown-menu" id="serverDropdownMenu" role="menu">
-          ${MAIN_SERVERS.map((s, i) => `
-            <button class="server-dropdown-item${i === 0 ? ' active' : ''}" type="button" role="menuitem" data-server="${s.id}" data-server-name="${escHTML(serverLabel(s))}">${escHTML(serverLabel(s))}</button>`).join('')}
-        </div>
-      </div>
-    </div>
-  `;
+  const backups = MAIN_SERVERS.filter(server => server.type !== 'relay');
+  return `<div class="server-bar" id="serverControls"><div class="server-controls"><button class="server-dropdown-btn" id="serverDropdownBtn" type="button" aria-expanded="false" aria-controls="serverDropdownMenu"><span id="currentServerName">Ludus server</span><span class="chev">▼</span></button><div class="server-dropdown-menu" id="serverDropdownMenu" role="menu"><button class="server-dropdown-item active" type="button" role="menuitem" data-server="ludus"><span>Ludus server</span><small class="server-health">Uses the connected server above</small></button>${backups.map((server, index) => `<button class="server-dropdown-item" type="button" role="menuitem" data-server="${server.id}"><span>Invidious backup ${index + 1}</span><small class="server-health">Fallback player</small></button>`).join('')}</div></div></div>`;
 }
 
 function buildPlayerIframe(url) {
@@ -2977,9 +3006,25 @@ function wirePlayerLoader(wrap) {
   }, { once: true });
 }
 
-function relayEndpoint(videoId) {
-  const base = RELAY_RESOLVER_URL.replace(/\/+$/, '');
+function relayEndpoint(resolver, videoId) {
+  const base = String(resolver || RELAY_SERVERS[0]?.url || '').replace(/\/+$/, '');
   return `${base}?v=${encodeURIComponent(videoId)}&type=video`;
+}
+
+async function checkRelay(server) {
+  const base = String(server.resolver || '').replace(/\/resolve\/?$/, '');
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
+  const started = performance.now(); setServerHealth(server, 'checking', 'Checking…');
+  try {
+    const response = await fetch(`${base}/health`, { signal: controller.signal, headers: /\.shares\.zrok\.io/i.test(base) ? { skip_zrok_interstitial: 'true' } : {} });
+    if (!response.ok) throw new Error(`${serverLabel(server)} is unavailable.`);
+    RESOLVER_BASE = base;
+    try { localStorage.setItem('ludus_active_resolver', server.resolver); } catch {}
+    setServerHealth(server, 'healthy', `Available · ${Math.round(performance.now() - started)} ms`);
+  } catch (error) {
+    setServerHealth(server, 'unhealthy', 'Unavailable');
+    throw error;
+  } finally { clearTimeout(timer); }
 }
 
 function qualityRank(format) {
@@ -2991,7 +3036,8 @@ function qualityRank(format) {
 // every remaining source is an Invidious embed.
 async function resolveStreamUrl(server, videoId) {
   if (server.type === 'relay') {
-    const response = await fetch(relayEndpoint(videoId), { signal: AbortSignal.timeout(30000) });
+    await checkRelay(server);
+    const response = await fetch(relayEndpoint(server.resolver, videoId), { signal: AbortSignal.timeout(30000), headers: /\.shares\.zrok\.io/i.test(server.resolver) ? { skip_zrok_interstitial: 'true' } : {} });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || devText(`Ludus Relay returned HTTP ${response.status}`, `The server returned an error (HTTP ${response.status}).`));
     const formats = data.adaptiveFormats || [];
@@ -3161,7 +3207,8 @@ function loadingPlayerHTML(label = 'Connecting…') {
 async function mountResolvedPlayer(server, videoId, allowFallback = false) {
   const wrap = document.getElementById('ludus-player-wrap');
   if (!wrap) return;
-  wrap.innerHTML = loadingPlayerHTML(server.type === 'relay' ? devText('Connecting to Ludus Relay…', 'Connecting to server…') : 'Connecting…');
+  activateServer(server);
+  wrap.innerHTML = loadingPlayerHTML(server.type === 'relay' ? 'Loading Ludus server…' : 'Trying backup player…');
   try {
     const resolved = await resolveStreamUrl(server, videoId);
     const player = resolved.kind === 'relay'
@@ -3180,8 +3227,10 @@ async function mountResolvedPlayer(server, videoId, allowFallback = false) {
     }
   } catch (error) {
     if (allowFallback) {
-      console.warn('[Ludus] Relay unavailable; falling back to Invidious:', error);
-      return mountResolvedPlayer(MAIN_SERVERS[1], videoId, false);
+      const nextRelay = MAIN_SERVERS.slice(MAIN_SERVERS.indexOf(server) + 1).find(candidate => candidate.type === 'relay');
+      if (nextRelay) return mountResolvedPlayer(nextRelay, videoId, true);
+      const fallback = MAIN_SERVERS.find(candidate => candidate.type !== 'relay');
+      if (fallback) return mountResolvedPlayer(fallback, videoId, false);
     }
     wrap.innerHTML = `<div class="yt-player-error">${escHTML(error.message || 'Unable to start playback.')}</div>`;
   }
@@ -3191,27 +3240,23 @@ async function mountPlayer(videoId) {
   _currentVideoId = videoId;
   await mountResolvedPlayer(MAIN_SERVERS[0], videoId, true);
 
-  document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
-  const first = document.querySelector(`.server-dropdown-item[data-server="${MAIN_SERVERS[0].id}"]`);
-  if (first) first.classList.add('active');
-  const nameEl = document.getElementById('currentServerName');
-  if (nameEl) nameEl.textContent = serverLabel(MAIN_SERVERS[0]);
 }
 
 async function selectMainServer(serverId, name, el) {
-  document.querySelectorAll('.server-dropdown-item').forEach(i => i.classList.remove('active'));
-  if (el) el.classList.add('active');
-  const nameEl = document.getElementById('currentServerName');
-  if (nameEl) nameEl.textContent = name;
+  const picked = serverId === 'ludus'
+    ? MAIN_SERVERS.find(server => server.id === document.getElementById('top-server-picker')?.value) || MAIN_SERVERS[0]
+    : MAIN_SERVERS.find(s => s.id === serverId);
+  if (picked) activateServer(picked);
   document.getElementById('serverDropdownMenu')?.classList.remove('open');
 
-  const server = MAIN_SERVERS.find(s => s.id === serverId);
+  const server = picked;
   if (!server || !_currentVideoId) return;
   await mountResolvedPlayer(server, _currentVideoId, server.type === 'relay');
 }
 
 // Server menu + outside-click handling — registered once via delegation.
 (function initServerControlsGlobalHandlers() {
+  initTopServerPicker();
   document.addEventListener('click', e => {
     const dropdownButton = e.target.closest('#serverDropdownBtn');
     if (dropdownButton) {
