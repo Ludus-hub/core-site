@@ -749,12 +749,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // share-interstitial opt-out header. Browser security warnings/certificates are
 // deliberately left to the browser; this only keeps valid API requests from
 // being served the zrok HTML interstitial.
-const LUDUS_DEFAULT_RESOLVERS = [
+const LUDUS_DEFAULT_RESOLVERS = (window.LUDUS_RESOLVER_URLS || [
     'https://u6dhtt3vfobb.shares.zrok.io',
     'https://recipe-robots-bowl-brick.trycloudflare.com',
     'https://ncfz2uaj73u9.shares.zrok.io',
     'https://a3zgc7ce703v.shares.zrok.io'
-];
+]).map(url => String(url).replace(/\/resolve\/?$/, ''));
 const LUDUS_ZROK_HEADER = { skip_zrok_interstitial: 'true' };
 
 function normaliseResolverUrl(url) {
@@ -797,7 +797,9 @@ window.findFastestLudusResolver = async function findFastestLudusResolver() {
     const healthy = results.filter(result => result.status === 'fulfilled').map(result => result.value).sort((a, b) => a.latency - b.latency);
     if (!healthy.length) throw new Error('No configured resolver is reachable.');
     const selected = healthy[0].endpoint;
-    localStorage.setItem('ludus_active_resolver', selected);
+    // Apps consume a complete resolver URL; this helper itself works with the
+    // origin because it calls several endpoints such as /health and /search.
+    localStorage.setItem('ludus_active_resolver', `${selected}/resolve`);
     // The music/YouTube app can adopt this message without needing access to
     // the parent page's storage. Existing versions simply ignore it safely.
     ['musicFrame', 'youtubeFrame'].forEach(id => document.getElementById(id)?.contentWindow?.postMessage({
@@ -1901,7 +1903,6 @@ const games = [
 {name:"OMORI", path:"./Versions/Assets/Game Data/427-z.html", logo:"./Versions/Assets/Pictures/Non-edited/427.webp", secret: true},
 {name:"Milk Inside a Bag of Milk Inside a Bag of Milk", path:"./Versions/Assets/Game Data/650-f.html", logo:"./Versions/Assets/Pictures/Non-edited/650.webp", secret: true},
   {name:"Yume Nikki", path:"./Versions/Assets/Game Data/433.html", logo:"./Versions/Assets/Pictures/Non-edited/433.webp", secret: true},
-  {name:"Youtube",path:"yt.html", logo:"Versions/Assets/Pictures/Non-edited/youtube.png", isApp: true, appColor: "#fe0000"},
   {name:"Love Meter", path:"Versions/Assets/Game Data/love_meter.html", logo:"Versions/Assets/Pictures/Non-edited/LoveMeter-n.webp"},
   {name:"12 Mini Battles", path:"Versions/Assets/Game Data/12 Mini Battles.html", logo:"Versions/Assets/Pictures/Non-edited/12MiniBattles-n.webp"},
   {name:"Baseball Bros", path:"Versions/Assets/Game Data/Baseball Bros.html", logo:"Versions/Assets/Pictures/Non-edited/Baseball-n.webp"},
@@ -4114,7 +4115,7 @@ window.addEventListener('message', (event) => {
 
         try {
             const innerDoc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
-            if (!innerDoc) return;
+            if (!innerDoc) throw new Error('Frame is not ready');
 
             const mediaEl = innerDoc.querySelector('audio, video');
 
@@ -4128,6 +4129,10 @@ window.addEventListener('message', (event) => {
                 if (frame.contentWindow) {
                     frame.contentWindow.postMessage({ target, action }, '*');
                 }
+            } else if (frame.contentWindow) {
+                // A just-loaded cross-origin app has no readable media element yet. Its own
+                // message handler receives this command once its player is ready.
+                frame.contentWindow.postMessage({ target, action }, '*');
             }
         } catch (e) {
             if (frame.contentWindow) frame.contentWindow.postMessage({ target, action }, '*');
