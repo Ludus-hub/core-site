@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Ludus Music</title>
+  <script src="loading-protocol.js"></script>
   <style>
 /* =========================================================
    Ludus Music — glass theme
@@ -101,9 +102,12 @@ a { color: var(--accent); }
 #resolver-server-picker[aria-expanded="true"] svg { transform:rotate(180deg); }
 #resolver-server-menu { position:absolute; z-index:30; top:calc(100% + 8px); right:0; display:grid; min-width:166px; padding:6px; border:1px solid var(--line); border-radius:12px; background:rgba(19,22,28,.98); box-shadow:0 14px 34px rgba(0,0,0,.42); backdrop-filter:blur(18px); }
 #resolver-server-menu[hidden] { display:none; }
-#resolver-server-menu button { display:flex; justify-content:space-between; align-items:center; gap:14px; width:100%; padding:8px 9px; border:0; border-radius:8px; background:transparent; color:rgba(255,255,255,.86); font:650 12px/1.2 inherit; text-align:left; cursor:pointer; }
+#resolver-server-menu button { display:grid; grid-template-columns:1fr auto; align-items:center; gap:2px 14px; width:100%; padding:8px 9px; border:0; border-radius:8px; background:transparent; color:rgba(255,255,255,.86); font:650 12px/1.2 inherit; text-align:left; cursor:pointer; }
 #resolver-server-menu button:hover, #resolver-server-menu button.active { background:rgba(0,201,255,.13); color:#fff; }
 #resolver-server-menu button.active::after { content:'Connected'; color:var(--accent); font-size:10px; font-weight:800; }
+#resolver-server-menu .server-health { grid-column:1 / -1; color:rgba(255,255,255,.56); font-size:10px; font-weight:600; }
+#resolver-server-menu .server-health.healthy { color:#92fe9d; }
+#resolver-server-menu .server-health.unhealthy { color:#ff8a8a; }
 
 /* ---------------------------------------------------------
    Library rail (floating glass panel, left)
@@ -723,7 +727,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     </div>
   </footer>
 
-  <audio id="audio" preload="auto"></audio><audio id="preview-audio" preload="none"></audio>
+  <audio id="audio" preload="metadata"></audio><audio id="preview-audio" preload="none"></audio>
 
   <aside class="side-panel" id="queue" hidden>
     <header><span>Queues</span><button class="panel-x" id="close-queue" aria-label="Close queue"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"></line><line x1="16" y1="4" x2="4" y2="16"></line></svg></button></header>
@@ -772,8 +776,8 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       <div class="yt-player-loader" id="music-video-loading"><div class="yt-player-loader-spinner"></div><span>Buffering music video…</span></div>
       <div class="relay-player" id="music-relay-player">
         <div class="relay-player-title" id="music-video-title">Music video</div>
-        <video id="music-video" class="relay-player-video" muted playsinline preload="auto"></video>
-        <audio id="music-video-audio" preload="auto"></audio>
+        <video id="music-video" class="relay-player-video" muted playsinline preload="metadata"></video>
+        <audio id="music-video-audio" preload="metadata"></audio>
         <div class="relay-controls" id="music-video-controls">
           <div class="relay-controls-row">
             <button type="button" class="relay-control" id="music-video-play" data-video-action="toggle">▶</button>
@@ -792,7 +796,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     </div>
   </div>
 
-  <dialog id="resolver-dialog"><form method="dialog"><h2>Music settings</h2><div class="offline-settings"><div class="section-sep" style="margin-top:0;padding-top:0;border-top:0">Your own resolver</div><small>Want to use your own server instead? Run the Ludus resolver (<code>yt.js</code> with yt-dlp) yourself and paste its https address. Leave this empty to use the built-in server.</small><input id="custom-resolver-input" type="url" placeholder="https://your-resolver.example.com/resolve" autocomplete="off" spellcheck="false" style="margin:0"><small id="custom-resolver-note"></small><div id="dev-resolver-block" hidden style="display:grid;gap:9px"><div class="section-sep">Built-in server · developers only</div><input id="resolver-input" type="url" autocomplete="off" spellcheck="false" style="margin:0"><small>Only developer accounts see this. Clearing it goes back to the address in the code.</small></div></div><div class="offline-settings"><label><input id="download-mode" type="checkbox"> Download mode</label><small>After a song starts cleanly, keep a temporary browser copy and remove it when playback finishes.</small><label><input id="download-videos" type="checkbox"> Include music videos</label><small>Also saves a lower-resolution music video where available. Video bundles use far more of your 1 GB download space, so fewer songs will fit.</small><label><input id="download-lyrics" type="checkbox"> Include lyrics</label><small>Saves available lyrics with each download. Lyrics use very little space.</small><label><input id="confirm-delete-download" type="checkbox"> Ask before deleting a download</label><small>Clicking the check mark on a downloaded song removes it. Leave this on to get a confirmation first.</small><label><input id="compress-downloads" type="checkbox"> Compress new downloads</label><small id="compress-note">Re-encodes each song to Opus so it takes roughly 3–6× less space (more songs fit in your 1 GB). It is lossy, so quality drops a little. Off by default.</small><label class="select-row">Compression level <select id="compress-quality"><option value="48">Light · 48 kbps stereo</option><option value="32">Small · 32 kbps mono</option><option value="20">Smallest · 20 kbps mono</option></select></label><button type="button" id="compress-existing">Compress existing downloads</button><div class="section-sep">Keep downloads on any address</div><small>Browser storage belongs to a single web address, so downloads don't follow you to a different domain. Export a file, or link a folder on your computer, and your music works from any address.</small><div class="offline-row"><button type="button" id="export-downloads">Export to file</button><button type="button" id="import-downloads">Import from file</button><input id="import-downloads-file" type="file" accept=".ludusmusic" hidden></div><div id="folder-controls"><small id="folder-status"></small><small>Songs are saved in the folder as protected .ludus files that only this app can open. Older plain song files are converted automatically, or when you press Sync now.</small><div class="offline-row"><button type="button" id="pick-download-folder">Choose backup folder…</button><button type="button" id="sync-folder" hidden>Sync now</button><button type="button" id="unlink-folder" hidden>Unlink</button></div></div><small>Downloads stay on this device. They are never included in cloud saves or in site backup exports, since they would make those files huge. Your playlists, likes and settings are still backed up.</small><small id="offline-cache-status">Offline library: checking…</small><button type="button" id="clear-offline-cache">Clear offline cache</button></div><div class="dialog-actions"><button value="cancel">Cancel</button><button id="save-resolver" class="primary" value="default">Save</button></div></form></dialog>
+  <dialog id="resolver-dialog"><form method="dialog"><h2>Music settings</h2><div class="offline-settings"><div class="section-sep" style="margin-top:0;padding-top:0;border-top:0">Your own resolver</div><small>Want to use your own server instead? Run the Ludus resolver (<code>yt.js</code> with yt-dlp) yourself and paste its https address. Leave this empty to use the built-in server.</small><input id="custom-resolver-input" type="url" placeholder="https://your-resolver.example.com/resolve" autocomplete="off" spellcheck="false" style="margin:0"><small id="custom-resolver-note"></small><div id="dev-resolver-block" hidden style="display:grid;gap:9px"><div class="section-sep">Built-in server · developers only</div><input id="resolver-input" type="url" autocomplete="off" spellcheck="false" style="margin:0"><small>Only developer accounts see this. Clearing it goes back to the address in the code.</small></div></div><div class="offline-settings"><label><input id="download-mode" type="checkbox"> Download mode</label><small>After a song starts cleanly, keep a temporary browser copy and remove it when playback finishes.</small><label><input id="download-videos" type="checkbox"> Include music videos</label><small>Also saves a lower-resolution music video where available. Video bundles use far more of your 256 MB download space, so fewer songs will fit.</small><label><input id="download-lyrics" type="checkbox"> Include lyrics</label><small>Saves available lyrics with each download. Lyrics use very little space.</small><label><input id="confirm-delete-download" type="checkbox"> Ask before deleting a download</label><small>Clicking the check mark on a downloaded song removes it. Leave this on to get a confirmation first.</small><label><input id="compress-downloads" type="checkbox"> Compress new downloads</label><small id="compress-note">Re-encodes each song to Opus so it takes roughly 3–6× less space (more songs fit in your 256 MB). It is lossy, so quality drops a little. Off by default.</small><label class="select-row">Compression level <select id="compress-quality"><option value="48">Light · 48 kbps stereo</option><option value="32">Small · 32 kbps mono</option><option value="20">Smallest · 20 kbps mono</option></select></label><button type="button" id="compress-existing">Compress existing downloads</button><div class="section-sep">Keep downloads on any address</div><small>Browser storage belongs to a single web address, so downloads don't follow you to a different domain. Export a file, or link a folder on your computer, and your music works from any address.</small><div class="offline-row"><button type="button" id="export-downloads">Export to file</button><button type="button" id="import-downloads">Import from file</button><input id="import-downloads-file" type="file" accept=".ludusmusic" hidden></div><div id="folder-controls"><small id="folder-status"></small><small>Songs are saved in the folder as protected .ludus files that only this app can open. Older plain song files are converted automatically, or when you press Sync now.</small><div class="offline-row"><button type="button" id="pick-download-folder">Choose backup folder…</button><button type="button" id="sync-folder" hidden>Sync now</button><button type="button" id="unlink-folder" hidden>Unlink</button><button type="button" id="open-standalone-music" hidden>Open music in a new tab</button></div></div><small>Downloads stay on this device. They are never included in cloud saves or in site backup exports, since they would make those files huge. Your playlists, likes and settings are still backed up.</small><small id="offline-cache-status">Offline library: checking…</small><button type="button" id="clear-offline-cache">Clear offline cache</button></div><div class="dialog-actions"><button value="cancel">Cancel</button><button id="save-resolver" class="primary" value="default">Save</button></div></form></dialog>
   <dialog id="resolver-fallback-dialog"><form method="dialog"><h2>Music server is unavailable</h2><p>Would you like to open Monochrome instead, or stay here and keep trying this music server?</p><div class="dialog-actions"><button id="resolver-fallback-stay" value="stay">Stay here</button><button id="resolver-fallback-redirect" class="primary" type="button">Open Monochrome</button></div></form></dialog>
   <dialog id="folder-restore-dialog"><form method="dialog"><h2>Load your downloads?</h2><p id="folder-restore-message"></p><small>Your browser will ask for permission to open the folder. Your songs then load the same way as Sync now.</small><div class="dialog-actions"><button value="later">Not now</button><button id="folder-restore-ok" class="primary" type="button">Choose folder…</button></div></form></dialog>
   <dialog id="confirm-dialog"><form method="dialog"><h2 id="confirm-title">Are you sure?</h2><p id="confirm-message"></p><label class="confirm-check" id="confirm-check-row" hidden><input type="checkbox" id="confirm-check"><span id="confirm-check-label"></span></label><div class="dialog-actions"><button value="cancel">Cancel</button><button id="confirm-ok" class="danger" value="confirm">Delete</button></div></form></dialog>
@@ -806,6 +810,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   
 
+  <script src="resolver-servers.js"></script>
   <script>
 (() => {
   'use strict';
@@ -813,7 +818,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   const $ = selector => document.querySelector(selector);
   // The built-in music server address lives only here. Only developer accounts can see it in the UI; everyone else
   // sees just the "your own resolver" box. When the tunnel address changes, edit this one line.
-  const RESOLVER_URLS = [
+  const RESOLVER_URLS = Array.isArray(window.LUDUS_RESOLVER_URLS) ? [...window.LUDUS_RESOLVER_URLS] : [
     'https://u6dhtt3vfobb.shares.zrok.io/resolve',
     'https://recipe-robots-bowl-brick.trycloudflare.com/resolve',
     'https://ncfz2uaj73u9.shares.zrok.io/resolve',
@@ -835,7 +840,9 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   }
   const resolverList = raw => [...new Set(String(raw || '').split(/[\n,]/).map(normalizeResolverUrl).filter(Boolean))];
   const storedResolvers = key => { try { return resolverList(localStorage.getItem(key)); } catch { return []; } };
-  let selectedResolver = '';
+  // Prefer the last verified site-wide selection so Music agrees with Movie,
+  // YouTube, and Drive when a visitor moves between apps.
+  let selectedResolver = (() => { try { return normalizeResolverUrl(localStorage.getItem('ludus_active_resolver')) || ''; } catch { return ''; } })();
   const resolverCandidates = () => [...new Set([...RESOLVER_URLS, ...storedResolvers(CUSTOM_RESOLVER_KEY)])];
   const activeResolver = () => selectedResolver || resolverCandidates()[0] || RESOLVER_URL;
   const resolverHeaders = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url)) ? { [ZROK_INTERSTITIAL_HEADER]: 'true' } : {};
@@ -852,7 +859,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     lyrics: { videoId: null, lines: [], index: -1, source: '', retryAt: 0 }, captionsCache: {},
     streamController: null, streamObjectUrl: null, playbackRequest: 0, previewController: null, previewRequest: 0, lyricRetryTimer: null,
     resolverFallbackOffered: false, musicVideo: null,
-    downloadMode: load('ludus_music_download_mode', false), downloadVideos: load('ludus_music_download_videos', false), downloadLyrics: load('ludus_music_download_lyrics', false), compressDownloads: load('ludus_music_compress_downloads', false), compressKbps: [48, 32, 20].includes(load('ludus_music_compress_kbps', 32)) ? load('ludus_music_compress_kbps', 32) : 32, folderHandle: null, compressJob: null, offlineTracks: load('ludus_music_offline_tracks', {}), offlineLyrics: load('ludus_music_offline_lyrics', {}), temporaryCacheId: null, offlineObjectUrl: null,
+    downloadMode: load('ludus_music_download_mode', false), downloadVideos: load('ludus_music_download_videos', false), downloadLyrics: load('ludus_music_download_lyrics', false), compressDownloads: load('ludus_music_compress_downloads', false), compressKbps: [48, 32, 20].includes(load('ludus_music_compress_kbps', 32)) ? load('ludus_music_compress_kbps', 32) : 32, folderHandle: null, compressJob: null, offlineTracks: load('ludus_music_offline_tracks', {}), offlineLyrics: load('ludus_music_offline_lyrics', {}), temporaryCacheId: null, offlineObjectUrl: null, offlineVideoObjectUrl: null,
     queues: load('ludus_music_queues', [{ id: 'main', name: 'Main queue', queue: [], index: -1, queueMode: 'collection' }]), activeQueueId: load('ludus_music_active_queue', 'main'),
     get resolver() { return activeResolver(); }
   };
@@ -874,10 +881,12 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   function toast(message) { const el = $('#toast'); if (!el) return; el.textContent = message; el.hidden = false; el.classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => { el.classList.remove('show'); setTimeout(() => { el.hidden = true; }, 180); }, 2600); }
 
   // Offline media lives in IndexedDB, separate from the lightweight library metadata in localStorage.
-  // A hard 1 GB app limit keeps downloads predictable even when the browser quota is larger.
+  // Keep stored media modest: browser decoders and Blob URLs can temporarily duplicate it in memory.
   const OFFLINE_DB = 'ludus-music-offline-v2';
   const OFFLINE_STORE = 'media';
-  const OFFLINE_MAX_BYTES = 1024 * 1024 * 1024;
+  const OFFLINE_MAX_BYTES = 256 * 1024 * 1024;
+  const MAX_OFFLINE_TRACK_BYTES = 32 * 1024 * 1024;
+  const MAX_BUFFERED_STREAM_BYTES = 32 * 1024 * 1024;
   const DOWNLOADS_PLAYLIST_ID = 'ludus-downloads';
   const LIKED_PLAYLIST_ID = 'ludus-liked';
   const downloadGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11"></path><path d="m7.5 10 4.5 4.5 4.5-4.5"></path><path d="M5 20h14"></path></svg>';
@@ -956,10 +965,12 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const record = await offlineRecord(offlineKey('video', song.videoId));
     if (!record?.blob) return '';
     const blob = record.blob;
-    return URL.createObjectURL(blob);
+    if (blob.size > MAX_OFFLINE_TRACK_BYTES) return '';
+    state.offlineVideoObjectUrl && URL.revokeObjectURL(state.offlineVideoObjectUrl);
+    state.offlineVideoObjectUrl = URL.createObjectURL(blob); return state.offlineVideoObjectUrl;
   }
   const MIN_TRACK_BYTES = 256 * 1024; // anything smaller than this can't be a real track, so the store counts as full
-  class StorageFullError extends Error { constructor(message) { super(message || 'Download storage is full (1 GB). Delete a download to make room.'); this.name = 'StorageFullError'; this.storageFull = true; } }
+  class StorageFullError extends Error { constructor(message) { super(message || 'Download storage is full (256 MB). Delete a download to make room.'); this.name = 'StorageFullError'; this.storageFull = true; } }
   const formatBytes = bytes => bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2)} GB` : `${Math.max(0, bytes / 1024 / 1024).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
   async function storageIsFull() { return (await offlineUsage().catch(() => 0)) >= OFFLINE_MAX_BYTES - MIN_TRACK_BYTES; }
   function isSavedOffline(id) { const item = state.offlineTracks[id]; return Boolean(item && !item.temporary); }
@@ -1260,6 +1271,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     toast(`Synced: ${imported} loaded from the folder, ${copied} copied to it${protectedCount ? `, ${protectedCount} older file${protectedCount === 1 ? '' : 's'} protected` : ''}${full ? ' · storage is full' : ''}.`);
   }
   async function chooseDownloadFolder({ expectedName = '' } = {}) {
+    if (window.top !== window) { toast('Google Sites cannot open a folder picker inside an embed. Open music in its own tab to link and sync a folder.'); return; }
     if (typeof window.showDirectoryPicker !== 'function') { toast("This browser can't link a folder. Use Export to file instead."); return; }
     try {
       const handle = await window.showDirectoryPicker({ id: 'ludus-music', mode: 'readwrite' });
@@ -1272,6 +1284,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   async function renderFolderStatus() {
     const controls = $('#folder-controls'); if (!controls) return;
     const supported = typeof window.showDirectoryPicker === 'function'; controls.hidden = !supported; if (!supported) return;
+    const embedded = window.top !== window, openStandalone = $('#open-standalone-music');
+    if (openStandalone) openStandalone.hidden = !embedded;
+    if (embedded) { $('#folder-status').textContent = 'Google Sites blocks folder access inside this embedded app. Open music in its own tab to link or sync a backup folder.'; $('#pick-download-folder').disabled = true; $('#sync-folder').disabled = true; return; }
+    $('#pick-download-folder').disabled = false; $('#sync-folder').disabled = false;
     const linked = Boolean(state.folderHandle); $('#sync-folder').hidden = !linked; $('#unlink-folder').hidden = !linked;
     let note = 'No backup folder linked.';
     if (linked) note = (await folderHandleReady()) ? `Copying new downloads to “${state.folderHandle.name}”.` : `“${state.folderHandle.name}” needs permission again. Press Sync now.`;
@@ -1283,9 +1299,20 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     $('#import-downloads').onclick = () => $('#import-downloads-file').click();
     $('#import-downloads-file').onchange = async event => { const files = [...event.target.files]; event.target.value = ''; for (const file of files) await importDownloadsFile(file); };
     $('#pick-download-folder').onclick = chooseDownloadFolder; $('#sync-folder').onclick = syncFolder; $('#unlink-folder').onclick = unlinkDownloadFolder;
+    $('#open-standalone-music').onclick = () => window.open(location.href, '_blank', 'noopener');
     loadFolderHandle().then(handle => { state.folderHandle = handle; renderFolderStatus(); if (handle) rememberBackupFolder(handle); if (handle) migrateFolderFiles().then(count => { if (count) toast(`Protected ${count} older song file${count === 1 ? '' : 's'} in your backup folder.`); }); });
   }
 
+  async function boundedBlob(response, maxBytes, label = 'Media') {
+    const declared = Number(response.headers.get('content-length') || 0);
+    if (declared > maxBytes) { response.body?.cancel?.().catch?.(() => {}); throw new Error(`${label} is too large to buffer safely.`); }
+    if (!response.body) { const blob = await response.blob(); if (blob.size > maxBytes) throw new Error(`${label} is too large to buffer safely.`); return blob; }
+    const reader = response.body.getReader(), chunks = []; let total = 0;
+    try {
+      while (true) { const { done, value } = await reader.read(); if (done) break; total += value.byteLength; if (total > maxBytes) { await reader.cancel(); throw new Error(`${label} is too large to buffer safely.`); } chunks.push(value); }
+      return new Blob(chunks, { type: response.headers.get('content-type') || 'application/octet-stream' });
+    } finally { reader.releaseLock(); }
+  }
   async function cacheTrack(song, streamUrl, temporary = false) {
     if (!song?.videoId || !streamUrl || !('indexedDB' in window)) throw new Error('IndexedDB offline storage is unavailable in this browser.');
     if (await storageIsFull()) throw new StorageFullError();
@@ -1295,8 +1322,9 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     // (Skipped when compressing: the stored copy will be a fraction of the advertised size.)
     const compressing = !temporary && state.compressDownloads && audioCompressionSupported();
     const declared = Number(response.headers.get('content-length') || 0);
+    if (declared > MAX_OFFLINE_TRACK_BYTES) { response.body?.cancel?.()?.catch?.(() => {}); throw new StorageFullError('A single download is limited to 32 MB to keep memory use low.'); }
     if (declared && !compressing && ((await offlineUsage().catch(() => 0)) + declared > OFFLINE_MAX_BYTES)) { response.body?.cancel?.()?.catch?.(() => {}); throw new StorageFullError(); }
-    let blob = await response.blob(); const originalBytes = blob.size; let compressed = false;
+    let blob = await boundedBlob(response, MAX_OFFLINE_TRACK_BYTES, 'This download'); const originalBytes = blob.size; let compressed = false;
     if (compressing) { const smaller = await maybeCompress(blob); if (smaller) { blob = smaller; compressed = true; } }
     await putOfflineBlob(offlineKey('audio', song.videoId), blob, { type: 'audio', videoId: song.videoId, temporary });
     state.offlineTracks[song.videoId] = { ...song, temporary, cachedAt: Date.now(), bytes: blob.size, ...(compressed ? { codec: 'opus', kbps: state.compressKbps, originalBytes } : {}) };
@@ -1319,13 +1347,13 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     if (!state.downloadVideos || !song?.videoId || !('indexedDB' in window)) return;
     const match = await findOfficialMusicVideo(song);
     if (!match?.videoId) return;
-    const response = await fetch(resolveUrl(match.videoId, 'video'), { signal: AbortSignal.timeout(30000) });
+    const response = await resolverFetch(resolveUrl(match.videoId, 'video'), { signal: AbortSignal.timeout(30000) });
     const data = await response.json().catch(() => ({}));
     const formats = (data.adaptiveFormats || []).filter(item => item.url && String(item.type).startsWith('video/mp4')).sort((a, b) => (a.bitrate || 0) - (b.bitrate || 0));
     const format = formats.find(item => /360p/i.test(item.qualityLabel || '')) || formats[0];
     if (!response.ok || !format?.url) return;
-    const media = await fetch(format.url); if (!media.ok) return;
-    const blob = await media.blob(); await putOfflineBlob(offlineKey('video', song.videoId), blob, { type: 'video', videoId: song.videoId });
+    const media = await resolverFetch(format.url); if (!media.ok) return;
+    const blob = await boundedBlob(media, MAX_OFFLINE_TRACK_BYTES, 'This music video'); await putOfflineBlob(offlineKey('video', song.videoId), blob, { type: 'video', videoId: song.videoId });
     state.offlineTracks[song.videoId] = { ...state.offlineTracks[song.videoId], videoCached: true, musicVideoId: match.videoId, videoBytes: blob.size };
     save('ludus_music_offline_tracks', state.offlineTracks);
   }
@@ -1341,7 +1369,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const items = Object.values(state.offlineTracks); const saved = items.filter(item => !item.temporary).length; const temp = items.filter(item => item.temporary).length;
     const used = await offlineUsage().catch(() => 0);
     const status = $('#offline-cache-status');
-    if (status) status.textContent = `Downloads: ${saved} saved track${saved === 1 ? '' : 's'}${temp ? ` · ${temp} temporary` : ''} · ${formatBytes(used)} of 1 GB used${used >= OFFLINE_MAX_BYTES - MIN_TRACK_BYTES ? ' · full' : ''}`;
+    if (status) status.textContent = `Downloads: ${saved} saved track${saved === 1 ? '' : 's'}${temp ? ` · ${temp} temporary` : ''} · ${formatBytes(used)} of ${formatBytes(OFFLINE_MAX_BYTES)} used${used >= OFFLINE_MAX_BYTES - MIN_TRACK_BYTES ? ' · full' : ''}`;
     renderStorageMeters(used, saved);
     const button = $('#cache-current');
     if (button) { const current = state.queue[state.index]?.videoId; const isSaved = Boolean(current) && isSavedOffline(current); button.classList.toggle('active', isSaved); button.innerHTML = isSaved ? downloadedGlyph : downloadGlyph; button.title = isSaved ? 'Downloaded — click to remove' : 'Download this song'; }
@@ -1350,7 +1378,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     state.lastUsage = used;
     const pct = Math.min(100, used / OFFLINE_MAX_BYTES * 100); const full = used >= OFFLINE_MAX_BYTES - MIN_TRACK_BYTES;
     document.querySelectorAll('.storage-meter').forEach(meter => { meter.classList.toggle('full', full); const bar = meter.querySelector('i'); if (bar) bar.style.width = `${pct}%`; });
-    document.querySelectorAll('[data-storage-text]').forEach(el => { el.textContent = `${formatBytes(used)} of 1 GB${full ? ' · full' : ''}`; });
+    document.querySelectorAll('[data-storage-text]').forEach(el => { el.textContent = `${formatBytes(used)} of ${formatBytes(OFFLINE_MAX_BYTES)}${full ? ' · full' : ''}`; });
     const count = $('#rail-downloads-count'); if (count) count.textContent = String(savedCount);
     if (state.route?.type === 'home') refreshHomeLocalSections();
   }
@@ -1419,11 +1447,11 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     // Resolves to 'saved' | 'exists' | 'full' | 'failed' so bulk downloads know when to stop.
     if (!song?.videoId) return 'failed';
     if (isSavedOffline(song.videoId)) { if (!quiet) toast('This song is already downloaded.'); return 'exists'; }
-    if (await storageIsFull()) { toast('Download storage is full (1 GB). Delete a download to make room.'); return 'full'; }
+    if (await storageIsFull()) { toast(`Download storage is full (${formatBytes(OFFLINE_MAX_BYTES)}). Delete a download to make room.`); return 'full'; }
     const original = button?.innerHTML; if (button) { button.disabled = true; button.textContent = '…'; }
     let outcome = 'failed';
     try {
-      const response = await fetch(resolveUrl(song.videoId), { signal: AbortSignal.timeout(30000) }); const data = await response.json().catch(() => ({}));
+      const response = await resolverFetch(resolveUrl(song.videoId), { signal: AbortSignal.timeout(30000) }); const data = await response.json().catch(() => ({}));
       const stream = (data.adaptiveFormats || []).filter(item => String(item.type).startsWith('audio/mp4')).sort((a,b) => (b.bitrate||0)-(a.bitrate||0))[0];
       if (!response.ok || !stream?.url) throw new Error(data.error || 'No stream available');
       const info = await cacheTrack(song, stream.url, false);
@@ -1448,7 +1476,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     if (state.downloadJob) { state.downloadJob.cancelled = true; toast('Stopping after the current song…'); return; }
     const songs = playlist.songs.filter(song => song?.videoId && !isSavedOffline(song.videoId));
     if (!songs.length) { toast('Every track in this playlist is already downloaded.'); return; }
-    if (await storageIsFull()) { toast('Download storage is full (1 GB). Delete a download to make room.'); return; }
+    if (await storageIsFull()) { toast(`Download storage is full (${formatBytes(OFFLINE_MAX_BYTES)}). Delete a download to make room.`); return; }
     const job = { cancelled: false }; state.downloadJob = job;
     const label = button?.innerHTML; button?.classList.add('busy');
     let saved = 0, failed = 0, stoppedFull = false;
@@ -1503,10 +1531,27 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const el = $('#resolver-status'); el.classList.toggle('online', online); $('#resolver-status-label').textContent = message;
   }
   const resolverLabel = resolver => `Server ${Math.max(0, resolverCandidates().indexOf(resolver)) + 1}`;
+  // Health is measured per address. Selecting a server never claims success until this request succeeds.
+  const resolverHealth = new Map();
+  const healthEndpoint = resolver => resolver.replace(/\/resolve\/?$/, '/health');
+  const healthLabel = health => !health ? 'Not checked yet' : health.checking ? 'Checking…' : health.online ? `Available · ${health.ms} ms` : 'Unavailable';
+  async function probeResolver(resolver) {
+    resolverHealth.set(resolver, { checking: true }); renderResolverPicker();
+    const started = performance.now();
+    try {
+      const response = await resolverFetch(healthEndpoint(resolver), { signal: AbortSignal.timeout(6000) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error('Unhealthy resolver');
+      const result = { online: true, ms: Math.round(performance.now() - started), checkedAt: Date.now() };
+      resolverHealth.set(resolver, result); renderResolverPicker(); return resolver;
+    } catch (error) {
+      resolverHealth.set(resolver, { online: false, checkedAt: Date.now() }); renderResolverPicker(); throw error;
+    }
+  }
   function renderResolverPicker() {
     const picker = $('#resolver-server-picker'), menu = $('#resolver-server-menu'); if (!picker || !menu) return;
     const active = activeResolver();
-    menu.innerHTML = resolverCandidates().map((resolver, index) => `<button type="button" role="menuitem" data-resolver-index="${index}" class="${resolver === active ? 'active' : ''}">Server ${index + 1}</button>`).join('');
+    menu.innerHTML = resolverCandidates().map((resolver, index) => { const health = resolverHealth.get(resolver); const state = health?.checking ? '' : health?.online ? 'healthy' : health ? 'unhealthy' : ''; return `<button type="button" role="menuitem" data-resolver-index="${index}" class="${resolver === active ? 'active' : ''}"><span>Server ${index + 1}</span><small class="server-health ${state}">${healthLabel(health)}</small></button>`; }).join('');
     picker.hidden = resolverCandidates().length < 2;
   }
   function offerResolverFallback() {
@@ -1516,12 +1561,8 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   }
   let resolverCheckId = 0;
   async function selectFastestResolver() {
-    const winner = await Promise.any(resolverCandidates().map(async resolver => {
-      const response = await resolverFetch(`${resolver.replace(/\/resolve\/?$/, '')}/health`, { signal: AbortSignal.timeout(6000) });
-      const data = await response.json().catch(() => ({})); if (!response.ok || data.ok === false) throw new Error('Unhealthy resolver');
-      return resolver;
-    }));
-    selectedResolver = winner; renderResolverPicker(); return winner;
+    const winner = await Promise.any(resolverCandidates().map(probeResolver));
+    selectedResolver = winner; try { localStorage.setItem('ludus_active_resolver', winner); } catch {} renderResolverPicker(); return winner;
   }
   async function checkResolver() {
     const check = ++resolverCheckId;
@@ -1531,7 +1572,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     catch { if (check !== resolverCheckId) return; resolverStatus(false, 'Server unavailable'); offerResolverFallback(); }
   }
   async function search(query) {
-    const response = await fetch(searchUrl(query), { signal: AbortSignal.timeout(30000) });
+    const response = await resolverFetch(searchUrl(query), { signal: AbortSignal.timeout(30000) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || 'Music search unavailable');
     return Array.isArray(data.results) ? data.results.filter(item => item?.videoId) : [];
@@ -1808,7 +1849,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     const results = await search(query); searchCache.set(query, { ts: Date.now(), results }); return results;
   }
   async function fetchMix(id) {
-    const data = await fetch(mixUrl(id), { signal: AbortSignal.timeout(25000) }).then(response => response.ok ? response.json() : { results: [] });
+    const data = await resolverFetch(mixUrl(id), { signal: AbortSignal.timeout(25000) }).then(response => response.ok ? response.json() : { results: [] });
     return Array.isArray(data.results) ? data.results.filter(item => item?.videoId) : [];
   }
 
@@ -2006,7 +2047,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     if (!isZrokUrl(url)) return url;
     const response = await resolverFetch(url, { signal });
     if (!response.ok || !String(response.headers.get('content-type') || '').toLowerCase().startsWith('audio/')) throw new Error('The music server returned an unsupported audio source');
-    const blob = await response.blob(); if (!blob.size) throw new Error('The music server returned an empty audio source');
+    const blob = await boundedBlob(response, MAX_BUFFERED_STREAM_BYTES, 'This audio stream'); if (!blob.size) throw new Error('The music server returned an empty audio source');
     if (state.streamObjectUrl) URL.revokeObjectURL(state.streamObjectUrl);
     state.streamObjectUrl = URL.createObjectURL(new Blob([blob], { type: blob.type || 'audio/mp4' }));
     return state.streamObjectUrl;
@@ -2067,7 +2108,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       audio.src = streamUrl;
       if (autoplay) await audio.play(); else { audio.load(); setPlayIcon(false); }
       if (request !== state.playbackRequest) return;
-      if (state.downloadMode && !savedOffline) cacheTrack(song, streamUrl, true).catch(error => { if (!error?.storageFull) toast('Temporary cache could not be saved.'); });
+      if (state.downloadMode && !savedOffline && !String(streamUrl).startsWith('blob:')) cacheTrack(song, streamUrl, true).catch(error => { if (!error?.storageFull) toast('Temporary cache could not be saved.'); });
       state.sessionPlayed.add(song.videoId); state.history = [song, ...state.history.filter(item => item.videoId !== song.videoId)].slice(0, 50); save('ludus_music_history', state.history); setPlayIcon(autoplay); renderQueue();
     } catch (error) {
       if (error.name === 'AbortError' || request !== state.playbackRequest) return;
@@ -2333,7 +2374,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       if (providerLines.length) { state.lyrics.lines = providerLines; state.lyrics.source = 'Lyrics · provider'; renderLyricsLines(); return; }
       let captions = state.captionsCache[song.videoId];
       if (!captions) {
-        const response = await fetch(resolveUrl(song.videoId), { signal: AbortSignal.timeout(30000) });
+        const response = await resolverFetch(resolveUrl(song.videoId), { signal: AbortSignal.timeout(30000) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Unable to load captions');
         captions = Array.isArray(data.captions) ? data.captions : [];
@@ -2369,6 +2410,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     active.video?.pause(); active.videoAudio?.pause();
     if (active.video) { active.video.removeAttribute('src'); active.video.load(); }
     if (active.videoAudio) { active.videoAudio.removeAttribute('src'); active.videoAudio.load(); }
+    if (state.offlineVideoObjectUrl) { URL.revokeObjectURL(state.offlineVideoObjectUrl); state.offlineVideoObjectUrl = null; }
     state.musicVideo = null; $('#music-video-shell').hidden = true;
     if (resume && state.queue[state.index]?.videoId === active.song.videoId) {
       if (Number.isFinite(position) && audio.src) audio.currentTime = position;
@@ -2400,7 +2442,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
         const musicVideoResult = await findOfficialMusicVideo(song);
         if (!musicVideoResult?.videoId) throw new Error('No official music video match was found');
         let response;
-        try { response = await fetch(resolveUrl(musicVideoResult.videoId, 'video'), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) }); }
+        try { response = await resolverFetch(resolveUrl(musicVideoResult.videoId, 'video'), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) }); }
         catch (networkError) { networkError.serverUnreachable = true; throw networkError; }
         const data = await response.json().catch(() => ({}));
         formats = (data.adaptiveFormats || []).filter(item => item.url && String(item.type).startsWith('video/mp4')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
@@ -2779,7 +2821,8 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   $('#resolver-server-menu').onclick = event => {
     const choice = event.target.closest('[data-resolver-index]'); if (!choice) return;
     const resolver = resolverCandidates()[Number(choice.dataset.resolverIndex)]; if (!resolver) return;
-    selectedResolver = resolver; $('#resolver-server-menu').hidden = true; $('#resolver-server-picker').setAttribute('aria-expanded', 'false'); renderResolverPicker(); resolverStatus(true, `Connected to ${resolverLabel(resolver)}`);
+    selectedResolver = resolver; $('#resolver-server-menu').hidden = true; $('#resolver-server-picker').setAttribute('aria-expanded', 'false'); renderResolverPicker(); resolverStatus(false, `Checking ${resolverLabel(resolver)}…`);
+    probeResolver(resolver).then(() => { if (selectedResolver === resolver) { try { localStorage.setItem('ludus_active_resolver', resolver); } catch {} resolverStatus(true, `Connected to ${resolverLabel(resolver)}`); } }).catch(() => { if (selectedResolver === resolver) { resolverStatus(false, `${resolverLabel(resolver)} unavailable`); } });
   };
   document.addEventListener('click', event => { if (!$('#resolver-status')?.contains(event.target)) { $('#resolver-server-menu').hidden = true; $('#resolver-server-picker').setAttribute('aria-expanded', 'false'); } });
   renderResolverPicker();
