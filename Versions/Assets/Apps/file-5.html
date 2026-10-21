@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludus Drive</title>
+    <script src="loading-protocol.js"></script>
+    <script src="resolver-servers.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -102,6 +104,15 @@
             height: 64px; padding: 0 24px; display: flex; align-items: center;
             border-bottom: 1px solid var(--border);
         }
+
+        .conduit-status { display:flex; align-items:center; gap:8px; margin-left:auto; }
+        .conduit-status-btn { border:1px solid var(--glass-border); border-radius:999px; padding:6px 10px; background:var(--glass); color:var(--text-secondary); font:600 11px inherit; cursor:pointer; }
+        .conduit-status-btn:hover { border-color:var(--accent-color); color:var(--text-primary); }
+        .conduit-status-btn::before { content:''; width:7px; height:7px; border-radius:50%; background:#606060; display:inline-block; margin-right:6px; }
+        .conduit-status-btn.ok::before { background:#92FE9D; box-shadow:0 0 6px #92FE9D; }
+        .conduit-status-btn.fail::before { background:#ff6b6b; }
+        .conduit-status-btn.pending::before { animation: conduitPulse 1s ease-in-out infinite; }
+        @keyframes conduitPulse { 0%,100% { opacity:.35; transform:scale(.8); } 50% { opacity:1; transform:scale(1.15); } }
 
         .breadcrumb { font-size: 14px; color: var(--text-secondary); display: flex; align-items: center; }
         .breadcrumb span[onclick] { cursor: pointer; transition: 0.2s; }
@@ -969,6 +980,11 @@
     <main class="main-content">
         <div class="top-bar">
             <div class="breadcrumb" id="breadcrumb-container"></div>
+            <div class="conduit-status">
+                <button id="resolver-status" class="conduit-status-btn pending" type="button" title="Resolver status">Connecting to server…</button>
+                <select id="resolver-server-picker" aria-label="Choose Ludus server" style="max-width:150px;padding:6px 8px;border:1px solid var(--glass-border);border-radius:999px;background:var(--glass);color:var(--text-primary);font:600 11px inherit;"></select>
+                <button id="proxy-status" class="conduit-status-btn pending" type="button" aria-pressed="true" title="Conduit is starting">Starting Conduit…</button>
+            </div>
         </div>
         <div class="file-grid" id="file-grid"></div>
         <div class="loading-overlay" id="loading">Processing Files...</div>
@@ -1218,7 +1234,187 @@
         <div class="fc-body"><div class="fc-wrap" id="fc-main"></div></div>
     </div>
 
+    <script src="/p/scram/scramjet.all.js"></script>
     <script>
+        'use strict';
+
+        let _conduitController = null;
+        let _conduitResolve, _conduitReject;
+        const _newConduitPromise = () => { const p = new Promise((resolve, reject) => { _conduitResolve = resolve; _conduitReject = reject; }); p.catch(() => {}); return p; };
+        let _conduitReady = _newConduitPromise();
+        let _conduitState = 'pending';
+        let _conduitStage = 'Starting Conduit…';
+        let _conduitError = '';
+        let _conduitStarting = false;
+        // Conduit is ON by default: only an explicit click on its pill ever stores a value. Own key (not the one
+        // shared with Ludus Music), so an 'off' saved by another app can't silently disable it here.
+        const _conduitPreferenceKey = 'ludus_drive_conduit';
+        const conduitEnabled = () => { try { return localStorage.getItem(_conduitPreferenceKey) !== 'off'; } catch { return true; } };
+        const setConduitEnabled = enabled => { try { localStorage.setItem(_conduitPreferenceKey, enabled ? 'on' : 'off'); } catch {} };
+        const nativeFetch = window.fetch.bind(window);
+        // One resolver (yt.js behind the tunnel) serves the YouTube converter and the Quizlet importer.
+        // Both are plain fetch() calls, so both go through the Conduit-gated fetch installed below.
+        let RESOLVER_BASE = (localStorage.getItem('ludus_active_resolver') || window.LUDUS_RESOLVER_URLS?.[0] ||
+            'https://u6dhtt3vfobb.shares.zrok.io/resolve').replace(/\/+$/, '').replace(/\/resolve$/, '');
+        function initResolverPicker() {
+            const picker = document.getElementById('resolver-server-picker'); if (!picker) return;
+            const servers = Array.isArray(window.LUDUS_RESOLVERS) ? window.LUDUS_RESOLVERS : [{ id: 'server-1', label: 'Server 1', url: `${RESOLVER_BASE}/resolve` }];
+            picker.innerHTML = servers.map((server, index) => `<option value="${server.url}">Ludus server ${index + 1}</option>`).join('');
+            picker.value = `${RESOLVER_BASE}/resolve`;
+            picker.addEventListener('change', async () => {
+                const next = picker.value, base = next.replace(/\/resolve\/?$/, ''); picker.disabled = true;
+                try { const health = await nativeFetch(`${base}/health`, { signal: AbortSignal.timeout(8000), headers: /\.shares\.zrok\.io/i.test(base) ? { skip_zrok_interstitial: 'true' } : {} }); if (!health.ok) throw new Error(); RESOLVER_BASE = base; localStorage.setItem('ludus_active_resolver', next); checkResolver(); }
+                catch { picker.value = `${RESOLVER_BASE}/resolve`; } finally { picker.disabled = false; }
+            });
+        }
+        initResolverPicker();
+        const isLocalHost = host => /^(localhost|\[?::1\]?|127(\.\d+){3}|10(\.\d+){3}|192\.168(\.\d+){2}|172\.(1[6-9]|2\d|3[01])(\.\d+){2}|[^.]+\.local)$/i.test(host);
+
+        const renderConduitStatus = () => {
+            const proxy = document.getElementById('proxy-status');
+            if (!proxy) return;
+            const state = !conduitEnabled() ? 'off' : _conduitState;
+            const text = !conduitEnabled() ? 'Conduit off' : state === 'ok' ? 'Conduit on' : state === 'fail' ? 'Conduit unavailable' : _conduitStage;
+            proxy.className = `conduit-status-btn ${state}`;
+            proxy.textContent = text;
+            proxy.title = !conduitEnabled() ? 'Conduit is off — click to turn it on'
+                : state === 'ok' ? 'Conduit is on — click to use the server directly'
+                : state === 'fail' ? `Conduit failed: ${_conduitError || 'unknown error'} — click to retry` : text;
+            proxy.setAttribute('aria-pressed', String(conduitEnabled()));
+        };
+        const setResolverStatus = (state, text) => {
+            const resolver = document.getElementById('resolver-status');
+            if (!resolver) return;
+            resolver.className = `conduit-status-btn ${state}`;
+            resolver.textContent = text;
+        };
+
+        // Installed before the Drive tools run. Cloudflare resolver calls wait
+        // for Conduit/service-worker initialisation, just like Ludus Music.
+        window.fetch = async function conduitFetch(resource, options) {
+            let target;
+            try { target = new URL(resource instanceof Request ? resource.url : resource, location.href); } catch {}
+            if (!target || !conduitEnabled() || !/^https?:$/.test(target.protocol) || target.origin === location.origin || isLocalHost(target.hostname)) return nativeFetch(resource, options);
+            try {
+                const controller = await Promise.race([_conduitReady, new Promise((_, reject) => setTimeout(() => reject(new Error('Conduit start timed out')), 20000))]);
+                const proxied = location.origin + controller.encodeUrl(target.href);
+                return resource instanceof Request ? nativeFetch(new Request(proxied, resource), options) : nativeFetch(proxied, options);
+            } catch { return nativeFetch(resource, options); }
+        };
+
+        const _within = (promise, ms, message) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+        const _pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Same boot as yt.html: every step has a timeout (the pill can't sit on "Starting…" forever) and the
+        // worker/init steps get one automatic retry. Safe to call again after a failure.
+        async function startConduit() {
+            if (_conduitStarting) return;
+            _conduitStarting = true;
+            if (_conduitState === 'fail') _conduitReady = _newConduitPromise();
+            _conduitState = 'pending'; _conduitError = ''; _conduitStage = 'Loading Conduit…';
+            renderConduitStatus();
+            try {
+                if (typeof $scramjetLoadController !== 'function') throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
+                if (!('serviceWorker' in navigator)) throw new Error('Service workers are unavailable in this context.');
+                if (!_conduitController) {
+                    const { ScramjetController } = $scramjetLoadController();
+                    _conduitController = new ScramjetController({
+                        prefix: '/scramjet/', wisp: 'wss://nebulaproxy.io/wisp/',
+                        files: { wasm: '/p/scram/scramjet.wasm.wasm', all: '/p/scram/scramjet.all.js', sync: '/p/scram/scramjet.sync.js' },
+                    });
+                }
+                let failure = null;
+                for (let attempt = 1; attempt <= 2; attempt++) {
+                    try {
+                        if (!navigator.serviceWorker.controller) {
+                            _conduitStage = 'Starting service worker…'; renderConduitStatus();
+                            await _within(navigator.serviceWorker.register('/sw.js', { scope: '/' }), 10000, 'Service worker registration timed out.');
+                            await _within(navigator.serviceWorker.ready, 10000, 'Service worker did not activate.');
+                            if (!navigator.serviceWorker.controller) {
+                                await Promise.race([new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })), _pause(2500)]);
+                            }
+                            if (!navigator.serviceWorker.controller) throw new Error('Service worker is active but not controlling this page yet — reload once.');
+                        }
+                        _conduitStage = 'Starting Conduit…'; renderConduitStatus();
+                        await _within(_conduitController.init(), 15000, 'Conduit init timed out.');
+                        failure = null;
+                        break;
+                    } catch (error) { failure = error; if (attempt < 2) await _pause(1500); }
+                }
+                if (failure) throw failure;
+                _conduitState = 'ok';
+                _conduitResolve(_conduitController);
+            } catch (error) {
+                console.warn('[Ludus Drive] Conduit init error:', error);
+                _conduitState = 'fail';
+                _conduitError = error?.message || String(error);
+                _conduitReject(error);
+            } finally {
+                _conduitStarting = false;
+                renderConduitStatus();
+                window.dispatchEvent(new CustomEvent('ludus:conduit-settled'));
+            }
+        }
+        startConduit();
+        document.getElementById('proxy-status')?.addEventListener('click', () => {
+            if (conduitEnabled() && _conduitState === 'fail') { startConduit(); return; }
+            const on = !conduitEnabled();
+            setConduitEnabled(on);
+            if (on && _conduitState === 'fail') startConduit();
+            renderConduitStatus();
+        });
+        renderConduitStatus();
+    </script>
+    <script>
+        'use strict';
+        // Same process as yt.html: Conduit boots first (above, in its own script), then every resolver and
+        // stream request goes through resolverFetch(), which waits for Conduit before the timeout clock starts.
+        const conduitSettled = () => _conduitReady.then(() => true, () => false);
+        const _sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function resolverFetch(url, { timeout, ...options } = {}) {
+            if (conduitEnabled()) await Promise.race([conduitSettled(), _sleep(20000)]);
+            const init = timeout ? { ...options, signal: AbortSignal.timeout(timeout) } : options;
+            try { return await fetch(url, init); }
+            catch (error) {
+                // The Conduit route itself failed at the network level (e.g. the wisp server is down): try once directly.
+                if (!(error instanceof TypeError) || init.signal?.aborted || !conduitEnabled() || _conduitState !== 'ok') throw error;
+                return nativeFetch(url, init);
+            }
+        }
+
+        async function resolverJSON(path, params = {}) {
+            let res;
+            try { res = await resolverFetch(`${RESOLVER_BASE}/${path}?${new URLSearchParams(params)}`, { timeout: 30000 }); }
+            catch (error) {
+                throw new Error(error.name === 'TimeoutError' || error.name === 'AbortError'
+                    ? 'The server took too long to answer.'
+                    : 'Could not reach the server — check that yt.js is running and the tunnel URL is current.');
+            }
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data) throw new Error(data?.error || `The server returned HTTP ${res.status}.`);
+            return data;
+        }
+
+        let _resolverChecking = false;
+        async function checkResolver() {
+            if (_resolverChecking) return;
+            _resolverChecking = true;
+            setResolverStatus('pending', 'Connecting to server…');
+            try { await resolverJSON('health'); setResolverStatus('ok', 'Server connected'); }
+            catch (error) { setResolverStatus('fail', 'Server unavailable'); console.warn('[Ludus Drive] Resolver check:', error.message); }
+            finally { _resolverChecking = false; }
+        }
+        // Check on load (after Conduit settles) and again whenever Conduit is retried or toggled, so the pill tells the truth.
+        (async () => { await Promise.race([conduitSettled(), _sleep(20000)]); checkResolver(); })();
+        window.addEventListener('ludus:conduit-settled', () => setTimeout(checkResolver, 0));
+        document.getElementById('resolver-status')?.addEventListener('click', checkResolver);
+        document.getElementById('proxy-status')?.addEventListener('click', () => setTimeout(checkResolver, 0));
+
+        // CDN globals are intentionally accessed through window so VS Code's
+        // JavaScript validator does not flag them as undefined symbols.
+        const JSZip = window['JSZip'];
+
         // --- 1. Custom Console Logic (Local DOM + Global iframe Pipe) ---
         const devConsole = document.getElementById('dev-console');
         const conOutput  = document.getElementById('dev-console-output');
@@ -3079,7 +3275,7 @@
             try {
                 const { blob, filename } = await convertFile(convFile, convSelectedFormat);
                 downloadBlob(blob, filename);
-                convStatus.textContent = window.__cmpNote ? '✓ ' + window.__cmpNote : '✓ Done! Downloading…'; window.__cmpNote = '';
+                convStatus.textContent = cmpNote ? '✓ ' + cmpNote : '✓ Done! Downloading…'; cmpNote = '';
                 convStatus.className = 'conv-status success';
             } catch(err) {
                 console.error('Conversion error:', err);
@@ -4065,12 +4261,31 @@
         // ═══════════════════════════════════════════════════════════════════
         //  FILE COMPRESSOR — the "Smaller file" option in the converter
         // ═══════════════════════════════════════════════════════════════════
+        let cmpNote = ''; // summary line shown after a "Smaller file" conversion
+
+        /**
+         * @param {string} t
+         * @param {string} mime
+         * @returns {string}
+         */
         function minifyText(t, mime) {
-            if (mime === 'application/json') { try { return JSON.stringify(JSON.parse(t)); } catch (e) {} }
-            if (/xml|svg/.test(mime)) t = t.replace(/<!--[\s\S]*?-->/g, '');
+            if (mime === 'application/json') {
+                try { return JSON.stringify(JSON.parse(t)); } catch (e) { /* not valid JSON: tidy it as plain text below */ }
+            }
+            // Built from pieces so the script never contains a literal HTML comment marker,
+            // which HTML tokenizers (browsers and editors) treat specially inside <script>.
+            if (/(?:xml|svg)/i.test(mime)) t = t.replace(new RegExp('<' + '!--[\\s\\S]*?--' + '>', 'g'), '');
             return t.replace(/[ \t]+$/gm, '').replace(/\n{3,}/g, '\n\n');
         }
+
+        /**
+         * @param {File} file
+         * @param {string} baseName
+         * @param {string} mime
+         * @returns {Promise<{blob: Blob, filename: string}>}
+         */
         async function compressFile(file, baseName, mime) {
+            /** @type {{blob: Blob, filename: string} | null} */
             let r = null;
             try {
                 if (mime.startsWith('video/')) r = await resizeVideoConvert(file, baseName);
@@ -4080,13 +4295,15 @@
             if (!r) { // documents, data, SVG, GIF, audio, anything else: tidy text, then maximum DEFLATE
                 const opt = { compression: 'DEFLATE', compressionOptions: { level: 9 } };
                 const zip = new JSZip();
-                zip.file(file.name, /^text\/|json|xml|svg/.test(mime) ? minifyText(await file.text(), mime) : file, opt);
+                const isText = mime.startsWith('text/') || /(?:json|xml|svg)/i.test(mime);
+                zip.file(file.name, isText ? minifyText(await file.text(), mime) : file, opt);
                 r = { blob: await zip.generateAsync(Object.assign({ type: 'blob' }, opt)), filename: baseName + '.zip' };
             }
-            const same = r.blob.size >= file.size;
-            window.__cmpNote = same ? `Already as small as it gets (${formatBytes(file.size)}), returned unchanged`
-                : `${formatBytes(file.size)} → ${formatBytes(r.blob.size)} · ${Math.round((1 - r.blob.size / file.size) * 100)}% smaller`;
-            return same ? { blob: file, filename: file.name } : r;
+            const smaller = r.blob.size < file.size;
+            cmpNote = smaller
+                ? `${formatBytes(file.size)} → ${formatBytes(r.blob.size)} · ${Math.round((1 - r.blob.size / file.size) * 100)}% smaller`
+                : `Already as small as it gets (${formatBytes(file.size)}), returned unchanged`;
+            return smaller ? r : { blob: file, filename: file.name };
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -4170,16 +4387,19 @@
                 return m ? m[1] : null;
             }
 
-            const RESOLVER_URL = localStorage.getItem('ludus_yt_resolver_url') || 'https://tokyo-suspended-sorts-prot.trycloudflare.com/resolve';
+            const RESOLVER_URL = `${RESOLVER_BASE}/resolve`;
 
             async function getInfo(videoId) {
-                const r = await fetch(`${RESOLVER_URL}?v=${encodeURIComponent(videoId)}&type=video`, {
-                    signal: AbortSignal.timeout(30000)
-                });
-                const data = await r.json().catch(() => ({}));
-                if (!r.ok) throw new Error(data.error || `Local resolver returned HTTP ${r.status}`);
-                if (!data.adaptiveFormats?.length) throw new Error('Local resolver returned no compatible streams');
-                return data;
+                setResolverStatus('pending', 'Connecting to server…');
+                try {
+                    const data = await resolverJSON('resolve', { v: videoId, type: 'video' });
+                    if (!data.adaptiveFormats?.length) throw new Error('Resolver returned no compatible streams');
+                    setResolverStatus('ok', 'Server connected');
+                    return data;
+                } catch (error) {
+                    setResolverStatus('fail', 'Server unavailable');
+                    throw error;
+                }
             }
 
             const langBase = code => String(code || '').toLowerCase().split(/[-_]/)[0];
@@ -4211,7 +4431,7 @@
             }
 
             async function fetchBuf(url, onProgress) {
-                const r = await fetch(url);
+                const r = await resolverFetch(url);
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const total = parseInt(r.headers.get('Content-Length') || '0');
                 const reader = r.body.getReader();
@@ -4550,10 +4770,11 @@
 
             const setStatus = msg => { if (statEl) statEl.innerHTML = msg; };
             btn.disabled = true; btn.textContent = '⧖ Fetching…';
-            setStatus('Connecting to local server…');
+            setStatus('Connecting to the resolver…');
+            setResolverStatus('pending', 'Connecting to server…');
 
             try {
-                const resp = await fetch('https://tokyo-suspended-sorts-prot.trycloudflare.com/quizlet?url=' + encodeURIComponent(url));
+                const resp = await resolverFetch(`${RESOLVER_BASE}/quizlet?url=${encodeURIComponent(url)}`);
                 const data = await resp.json();
                 if (!resp.ok) {
                     // Surface the FlareSolverr hint if Cloudflare blocked
@@ -4563,8 +4784,10 @@
                     throw new Error((data.error || 'Server error ' + resp.status) + hint);
                 }
                 if (!data.cards || data.cards.length < 2) throw new Error('No cards returned.');
+                setResolverStatus('ok', 'Server connected');
                 fcCreateDeck(data.cards, data.title || 'Quizlet Import');
             } catch(err) {
+                setResolverStatus('fail', 'Server unavailable');
                 const net = err instanceof TypeError;
                 setStatus('⚠️ ' + (net
                     ? 'yt.js server not running &mdash; start it with <code>node yt.js</code>'
