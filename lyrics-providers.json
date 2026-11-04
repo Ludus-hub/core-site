@@ -1,0 +1,8 @@
+{
+  "_help": "Backup lyrics sources. They are tried only when LRCLIB and YouTube both have nothing, in the order listed. Put the request address in 'url' to turn one on (an empty url keeps it off). Placeholders, URL-encoded for you: {title} {artist} {album} {duration} (seconds) {durationMs} {query} (title + artist) {videoId}. The answer can be LRC text, TTML (Apple-style) or JSON. Optional: \"headers\": { \"Authorization\": \"...\" }. This file is re-read automatically; no restart needed.",
+  "providers": [
+    { "id": "lrcred", "label": "lrc.red",     "url": "" },
+    { "id": "qapple", "label": "QApple",      "url": "" },
+    { "id": "bini",   "label": "Bini Lyrics", "url": "" }
+  ]
+}
