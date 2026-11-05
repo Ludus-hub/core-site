@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludus Stream</title>
-    <script src="loading-protocol.js"></script>
-    <script src="resolver-servers.js"></script>
+    <script src="ludus-servers.js"></script>
+    <script src="ludus-core.js?v=379570e499"></script>
     <style>
         :root {
             --bg-base: #040404;
@@ -725,6 +725,37 @@
             color: rgba(255, 255, 255, 0.45);
         }
 
+        /* ── Conduit Toggle Switch ── */
+        .cduit-toggle-wrap {
+            display: inline-flex; align-items: center; gap: 7px;
+            cursor: pointer; user-select: none; padding: 2px 0;
+        }
+        .cduit-toggle-label {
+            font-size: 11px; font-weight: 700;
+            color: rgba(255,255,255,0.4); transition: color 0.25s;
+        }
+        #conduitToggle.active .cduit-toggle-label { color: #92FE9D; }
+        .cduit-switch { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+        .cduit-switch-track {
+            width: 34px; height: 18px; border-radius: 9px;
+            background: rgba(255,255,255,0.1);
+            border: 1.5px solid rgba(255,255,255,0.2);
+            transition: background 0.25s, border-color 0.25s;
+        }
+        .cduit-switch-thumb {
+            position: absolute; top: 2px; left: 2px;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: rgba(255,255,255,0.35);
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.25s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+        #conduitToggle.active .cduit-switch-track {
+            background: rgba(146,254,157,0.22); border-color: #92FE9D;
+        }
+        #conduitToggle.active .cduit-switch-thumb {
+            transform: translateX(16px); background: #92FE9D;
+        }
+
         /* --- Server Controls Group --- */
         .server-controls {
             position: relative;
@@ -800,6 +831,33 @@
             to   { opacity: 1; transform: translateY(0); }
         }
 
+        /* Conduit controls inside panel */
+        .sandbox-controls {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.02);
+        }
+        .sandbox-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: default;
+        }
+        .sandbox-header h4 {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+        .sandbox-header .sandbox-hint {
+            font-size: 10px;
+            color: #92FE9D;
+        }
+        .sandbox-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .sandbox-chip { display:none; }
+        .sandbox-dot { display:none; }
+        .sandbox-apply-btn { display:none; }
 
         /* Warning Banner */
         .servers-warning {
@@ -1066,7 +1124,10 @@
         .trailer-close { position: fixed; top: 20px; right: 24px; z-index: 5; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); color: #fff; }
         .trailer-close:hover { background: var(--accent-soft); border-color: rgba(0, 201, 255, .32); color: var(--accent); }
         .trailer-wrap { position: relative; width: min(1180px, 100%); aspect-ratio: 16 / 9; background: #000; border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-lg); }
-        .trailer-loader { position: absolute; z-index: 3; inset: 0; display: grid; place-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--muted); background: #050506; }
+        /* The loader only covers the video; the controls (and the server switcher) stay on top and usable while it loads or fails. */
+        .trailer-loader { position: absolute; z-index: 1; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px 24px 84px; text-align: center; color: var(--muted); background: #050506; pointer-events: none; }
+        .trailer-retry { padding: 0 16px; pointer-events: auto; }
+        .trailer-server-slot { display: flex; min-width: 0; }
         .trailer-spinner { width: 30px; height: 30px; margin: auto; border: 3px solid rgba(255, 255, 255, .15); border-top-color: var(--accent); border-radius: 50%; animation: trailerSpin .8s linear infinite; }
         .trailer-loader.is-failed .trailer-spinner { display: none; }
         @keyframes trailerSpin { to { transform: rotate(360deg); } }
@@ -1262,6 +1323,13 @@
                     <div class="servers-header">
                         <h3>Servers</h3>
                         <input class="servers-search" id="serverSearch" type="text" placeholder="Search…" oninput="filterServers(this.value)">
+                        <div id="conduitToggle" class="cduit-toggle-wrap active" style="flex-shrink:0;">
+                            <div class="cduit-switch">
+                                <div class="cduit-switch-track"></div>
+                                <div class="cduit-switch-thumb"></div>
+                            </div>
+                            <span class="cduit-toggle-label">Conduit</span>
+                        </div>
                         <button class="modal-close-btn" onclick="closeServersPanel()">&#x2715;</button>
                     </div>
 
@@ -1290,6 +1358,20 @@
         const W1280_IMG = 'https://image.tmdb.org/t/p/w1280';
         const W500_IMG  = 'https://image.tmdb.org/t/p/w500';
 
+        // ── Early service-worker warm-up ─────────────────────────────────────
+        // Start SW registration immediately on first load so it installs in
+        // parallel with content loading. The conduit init (which runs much later,
+        // after scramjet.all.js loads) can then just await this existing promise
+        // instead of starting from scratch.
+        let _swReadyPromise = null;
+        if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+            _swReadyPromise = navigator.serviceWorker
+                .register('/sw.js', { scope: '/' })
+                .then(() => navigator.serviceWorker.ready)
+                .catch(() => null);
+        }
+        // ────────────────────────────────────────────────────────────────────
+        
         let currentItem = null;
         let currentNav = 'home';
         let currentActiveServerId = 'yapgrid';
@@ -1809,6 +1891,9 @@
             // Tell the parent frame to minimize the dock, mixer and any other panels
             window.parent.postMessage({ source: 'ludus-movie', action: 'playerOpened' }, '*');
 
+            // Proxy on by default every time the player opens
+            document.getElementById('conduitToggle')?.classList.add('active');
+
             // ── Restore saved server & show resume toast ──────────────────
             const _cwList = JSON.parse(localStorage.getItem(CW_KEY) || '[]');
             const _cwEntry = _cwList.find(i => {
@@ -1843,7 +1928,7 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(() => playerView.classList.add('idle'), IDLE_DELAY);
             };
-            // Topbar hover trigger — fires in parent doc even when the stream iframe swallows mouse events
+            // Topbar hover trigger — fires in parent doc even when conduit frame swallows mouse events
             const topbarTrigger = document.getElementById('player-topbar-trigger');
             const topbarEl      = document.querySelector('.player-topbar');
             const serversPanel  = document.getElementById('serversPanel');
@@ -2323,22 +2408,148 @@ const videoEl = document.getElementById('movie-player');
 
     </script>
 
+<script src="/p/scram/scramjet.all.js"></script>
+<script>
+        // ── Conduit init ────────────────────────────────────────────────
+        // Self-contained Scramjet init — no parent dependency.
+        // Registers its own service worker and inits its own controller,
+        // same pattern as insta.html, tiky.html, and yt/app.js.
+        // ────────────────────────────────────────────────────────────────
+        let _sc = null;
+        let _scResolve, _scReject;
+        const _conduitReady = new Promise((res, rej) => {
+            _scResolve = res;
+            _scReject  = rej;
+        });
+
+        (async () => {
+            try {
+                if (typeof $scramjetLoadController !== 'function') {
+                    throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
+                }
+                const { ScramjetController } = $scramjetLoadController();
+                _sc = new ScramjetController({
+                    prefix: '/scramjet/',
+                    wisp: window.LudusServers?.proxy?.active?.()?.url,
+                    files: {
+                        wasm: '/p/scram/scramjet.wasm.wasm',
+                        all:  '/p/scram/scramjet.all.js',
+                        sync: '/p/scram/scramjet.sync.js',
+                    }
+                });
+                if ('serviceWorker' in navigator) {
+                    if (navigator.serviceWorker.controller) {
+                        // SW is already active and controlling this page —
+                        // skip registration and ready-wait entirely.
+                    } else if (_swReadyPromise) {
+                        // Registration was started early in the main script;
+                        // just await the result rather than starting over.
+                        await _swReadyPromise;
+                    } else {
+                        // Fallback: start fresh (shouldn't normally hit this path).
+                        await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                        await navigator.serviceWorker.ready;
+                    }
+                }
+                await _sc.init();
+                _scResolve(_sc);
+            } catch(e) {
+                console.warn('[Ludus] Conduit failed to init:', e);
+                _scReject(e);
+                const toggle = document.getElementById('conduitToggle');
+                if (toggle && toggle.classList.contains('active')) {
+                    toggle.classList.remove('active');
+                    toggle.title = 'Conduit unavailable — proxy servers will load directly';
+                    const panel = document.getElementById('serversPanel');
+                    if (panel && panel.classList.contains('open') && typeof filterServers === 'function') {
+                        filterServers(document.getElementById('serverSearch')?.value || '');
+                    }
+                    if (typeof EXTRA_SERVERS !== 'undefined' && typeof loadExtraServer === 'function') {
+                        const active = EXTRA_SERVERS.find(s => s.id === currentActiveServerId);
+                        if (active && active.nonProxyHidden) loadExtraServer('yapgrid');
+                    }
+                }
+            }
+        })();
+    </script>
+
+
     <script>
 
         // ===== Servers Data =====
+        // proxyHidden: true    = hidden when conduit ON  (shows only when proxy is OFF)
+        // nonProxyHidden: true = hidden when conduit OFF (shows only when proxy is ON)
+        // Developers see every server whatever the proxy switch says (to test them all); everyone else keeps the proxy-on / proxy-off sets.
+        const _seeAllServers = () => { try { return Boolean(window.LudusCore?.isDeveloper?.()); } catch { return false; } };
+        // ── Sandbox tokens used by iframe-based embed servers ──────────────
+        // Gives each embed its own security boundary while still letting
+        // JS-driven players, fullscreen, popups and autoplay work correctly.
+        const _EMBED_SANDBOX = [
+            'allow-scripts',                           // JS players
+            'allow-same-origin',                       // keep the embed's own origin (cookies / storage)
+            'allow-forms',                             // some players post forms
+            'allow-popups',                            // ad / auth popups from embed
+            'allow-popups-to-escape-sandbox',          // new windows opened by the embed aren't re-sandboxed
+            'allow-modals',                            // alert / confirm inside embed
+            'allow-presentation',                      // Presentation API (fullscreen on some browsers)
+            'allow-top-navigation-by-user-activation', // let user-initiated links navigate the top frame
+            'allow-pointer-lock',                      // some video players use Pointer Lock
+        ].join(' ');
+
+        // Helper: build the iframe attribute string for sandboxed servers.
+        // extra = any additional HTML attributes the provider needs (e.g. scrolling="no")
+        const _sandboxAttrs = (extra = '') =>
+            `${extra} allowfullscreen allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *" sandbox="${_EMBED_SANDBOX}"`.trim();
+
+        // Helper: standard (non-sandboxed) iframe attributes.
+        const _stdAttrs = (extra = '') =>
+            `${extra} allowfullscreen allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"`.trim();
+
         const EXTRA_SERVERS = [
 
-            { id: 'yapgrid',   name: 'YapGrid',    domain: 'yapgrid.com',  badge: 'Recommended',
+            // ── Visible in both modes ──────────────────────────────────────
+            { id: 'yapgrid', name: 'YapGrid', domain: 'yapgrid.com', badge: 'Recommended', proxyBottom: true,
+              iframeAttrs: _sandboxAttrs(),
               movieUrl: id => `https://yapgrid.com/embed/movie/${id}`,
               tvUrl:    (id,s,e) => `https://yapgrid.com/embed/tv/${id}/${s}/${e}` },
 
-            { id: 'movienigh', name: 'Movie Night', domain: 'movienig.ht', badge: '', useImdb: true,
-              movieUrl: id => `https://movienig.ht/watch/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://movienig.ht/watch/series/${id}/${s}/${e}` },
+            // ── Proxy ON only ──────────────────────────────────────────────
+            { id: 'vidzy-proxy', name: 'Vidzy', domain: 'vidzy.org', badge: '', nonProxyHidden: true,
+              iframeAttrs: _sandboxAttrs(),
+              movieUrl: id => `https://vidzy.org/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidzy.org/tv/${id}/${s}/${e}` },
 
-            { id: 'streamvault', name: 'StreamVault', domain: 'streamvaultsrc.click', badge: 'Not Recommended',
-              movieUrl: id => `https://streamvaultsrc.click/embed/movie/${id}`,
-              tvUrl:    (id,s,e) => `https://streamvaultsrc.click/embed/tv/${id}/${s}/${e}` },
+            { id: 'vidrock', name: 'VidRock', domain: 'vidrock.to', badge: 'Recommended', nonProxyHidden: true,
+              movieUrl: id => `https://vidrock.to/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidrock.to/embed/tv/${id}/${s}/${e}` },
+
+            // VidCore — Proxy ON
+            { id: 'vidcore-proxy', name: 'VidCore', domain: 'vidcore.org', badge: '', nonProxyHidden: true,
+              movieUrl: id => `https://vidcore.org/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidcore.org/embed/tv/${id}/${s}/${e}` },
+
+            // VaPlayer — Proxy ON
+            { id: 'vaplayer-proxy', name: 'VaPlayer', domain: 'vaplayer.ru', badge: '', nonProxyHidden: true,
+              movieUrl: id => `https://vaplayer.ru/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vaplayer.ru/embed/tv/${id}/${s}/${e}` },
+
+            // NontonGo — Proxy OFF
+            { id: 'nontongo', name: 'NontonGo', domain: 'nontongo.win', badge: '', proxyHidden: true,
+              iframeAttrs: _sandboxAttrs(),
+              movieUrl: id => `https://www.nontongo.win/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://www.nontongo.win/embed/tv/${id}/${s}/${e}` },
+
+            // AutoEmbed.me — Proxy ON
+            { id: 'autoembed-me', name: 'AutoEmbed.me', domain: 'autoembed.me', badge: '', nonProxyHidden: true,
+              iframeAttrs: _sandboxAttrs(),
+              movieUrl: id => `https://autoembed.me/movie/tmdb/${id}`,
+              tvUrl:    (id,s,e) => `https://autoembed.me/tv/tmdb/${id}-${s}-${e}` },
+
+            // ── Proxy OFF only ─────────────────────────────────────────────
+            // VidCore — Proxy OFF
+            { id: 'vidcore', name: 'VidCore', domain: 'vidcore.org', badge: '', proxyHidden: true,
+              movieUrl: id => `https://vidcore.org/embed/movie/${id}`,
+              tvUrl:    (id,s,e) => `https://vidcore.org/embed/tv/${id}/${s}/${e}` },
 
         ];
 
@@ -2346,12 +2557,14 @@ const videoEl = document.getElementById('movie-player');
 
         function renderServersGrid(list) {
             const grid = document.getElementById('serversGrid');
+            const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
             if (list.length === 0) {
                 grid.innerHTML = '<div class="server-no-results">No servers match your search.</div>';
                 return;
             }
             grid.innerHTML = list.map(s => {
-                const badgeHtml = (s.badge === 'Recommended')
+                // Only show Rec badge when conduit is OFF; always show Not Recommended
+                const badgeHtml = (!conduitOn && s.badge === 'Recommended')
                     ? `<div class="s-badge s-badge-rec">Rec</div>`
                     : (s.badge === 'Not Recommended')
                     ? `<div class="s-badge s-badge-notreq">Not Rec</div>`
@@ -2367,18 +2580,63 @@ const videoEl = document.getElementById('movie-player');
         }
 
         function filterServers(query) {
+            const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
             const q = query.toLowerCase().trim();
-            filteredServers = !q ? [...EXTRA_SERVERS] : EXTRA_SERVERS.filter(s =>
-                s.name.toLowerCase().includes(q) ||
-                s.domain.toLowerCase().includes(q) ||
-                (s.badge && s.badge.toLowerCase().includes(q))
-            );
+            let base = EXTRA_SERVERS.filter(s => {
+                if (!_seeAllServers() && conduitOn  && s.proxyHidden)    return false; // proxy-off-only → hide when ON
+                if (!_seeAllServers() && !conduitOn && s.nonProxyHidden) return false; // proxy-on-only  → hide when OFF
+                return true;
+            });
+            if (q) {
+                base = base.filter(s =>
+                    s.name.toLowerCase().includes(q) ||
+                    s.domain.toLowerCase().includes(q) ||
+                    (s.badge && s.badge.toLowerCase().includes(q))
+                );
+            }
+            // In conduit mode push unstable servers to the bottom so stable ones lead
+            if (conduitOn) {
+                base = [
+                    ...base.filter(s => !s.proxyBottom),
+                    ...base.filter(s =>  s.proxyBottom),
+                ];
+            }
+            filteredServers = base;
             renderServersGrid(filteredServers);
         }
 
         // ===== Sandbox helpers — removed (sandbox is now locked) =====
 
         function toggleSandboxSection() {} // kept as no-op for any stale references
+
+        document.addEventListener('click', e => {
+            // Conduit toggle — re-mount stream and refresh server grid instantly
+            const cTgl = e.target.closest('#conduitToggle');
+            if (cTgl) {
+                cTgl.classList.toggle('active');
+                const isNowRoute = cTgl.classList.contains('active');
+
+                // Refresh server panel if open
+                const panel = document.getElementById('serversPanel');
+                if (panel.classList.contains('open')) {
+                    filterServers(document.getElementById('serverSearch').value || '');
+                }
+
+                if (currentItem) {
+                    const activeServer = EXTRA_SERVERS.find(s => s.id === currentActiveServerId);
+                    const nowHidden = activeServer && (
+                        (isNowRoute  && activeServer.proxyHidden)    || // turned ON, server is proxy-off-only
+                        (!isNowRoute && activeServer.nonProxyHidden)    // turned OFF, server is proxy-on-only
+                    );
+                    if (nowHidden) {
+                        loadExtraServer('yapgrid');
+                    } else {
+                        changeServer();
+                    }
+                }
+                return;
+            }
+        });
 
         // applySandboxNow removed — sandbox is hardcoded
 
@@ -2391,7 +2649,19 @@ const videoEl = document.getElementById('movie-player');
                 closeServersPanel();
             } else {
                 document.getElementById('serverSearch').value = '';
-                filteredServers = [...EXTRA_SERVERS];
+                const conduitOn = document.getElementById('conduitToggle')?.classList.contains('active');
+                let visibleServers = EXTRA_SERVERS.filter(s => {
+                    if (!_seeAllServers() && conduitOn  && s.proxyHidden)    return false;
+                    if (!_seeAllServers() && !conduitOn && s.nonProxyHidden) return false;
+                    return true;
+                });
+                if (conduitOn) {
+                    visibleServers = [
+                        ...visibleServers.filter(s => !s.proxyBottom),
+                        ...visibleServers.filter(s =>  s.proxyBottom),
+                    ];
+                }
+                filteredServers = visibleServers;
                 renderServersGrid(filteredServers);
                 panel.classList.add('open');
                 btn.classList.add('open');
@@ -2435,9 +2705,9 @@ async function loadExtraServer(serverId) {
                     console.warn('[Ludus] ID lookup failed:', err);
                 }
             }
-            const streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
+            let streamUrl = isTV ? server.tvUrl(contentId, s, e) : server.movieUrl(contentId);
 
-            // Show the loader immediately
+            // Show loader immediately — covers any conduit init wait time
             const extraIframeId = 'player-iframe-' + Date.now();
             const extraContainer = document.getElementById('player-container');
             extraContainer.innerHTML = `
@@ -2446,15 +2716,58 @@ async function loadExtraServer(serverId) {
                     <span class="player-loader-label" id="player-loader-label">Loading…</span>
                 </div>`;
 
+            // CONDUIT INJECTION — await full init before encoding
+            const useRoute = document.getElementById('conduitToggle')?.classList.contains('active');
+            if (useRoute) {
+                try {
+                    const loaderLabel = document.getElementById('player-loader-label');
+                    if (loaderLabel) loaderLabel.textContent = 'Initialising conduit…';
+                    const sc = await _conduitReady;
+                    streamUrl = location.origin + sc.encodeUrl(streamUrl);
+                    if (loaderLabel) loaderLabel.textContent = 'Connecting via conduit…';
+                } catch(err) {
+                    console.warn('[Ludus] Route encoding failed:', err);
+                }
+            }
+
+            // Per-server iframe attributes: sandboxed embed servers (2embed, vidsrc.buzz, …)
+            // carry their own iframeAttrs string; every other server uses the standard defaults.
+            const iframeAttrs = server.iframeAttrs
+                || 'allowfullscreen allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"';
+
             extraContainer.insertAdjacentHTML('beforeend', `
                 <iframe id="${extraIframeId}" src="${streamUrl}"
                         width="100%" height="100%" style="border:none;"
-                        allowfullscreen allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`);
+                        ${iframeAttrs}></iframe>`);
             const extraLoaderEl = document.getElementById('player-loader');
-            document.getElementById(extraIframeId).addEventListener('load', () => {
+            const extraIframeEl = document.getElementById(extraIframeId);
+            extraIframeEl.addEventListener('load', () => {
                 extraLoaderEl.classList.add('fade-out');
                 setTimeout(() => extraLoaderEl.remove(), 320);
             }, { once: true });
+
+            // ── Stream-extraction hook ────────────────────────────────────
+            // Cross-origin iframes (even proxied ones) cannot be directly
+            // inspected via JS. Full extraction requires the Scramjet service
+            // worker (/sw.js) to intercept outgoing fetch/XHR calls from
+            // inside the iframe and broadcast stream URLs back to this page
+            // via postMessage.  The listener below is wired and ready; enable
+            // it by posting  { source: 'ludus-sw', iframeId, url }  from the SW.
+            //
+            // Once a raw HLS (.m3u8) or MP4 URL is received, replace the
+            // iframe with a native <video> element (+ Hls.js for HLS) to gain
+            // full control: custom seek-bar, PiP, speed, download, CC, etc.
+            //
+            // const _extractHandler = e => {
+            //     if (!e.data || e.data.source !== 'ludus-sw') return;
+            //     if (e.data.iframeId !== extraIframeId) return;
+            //     const { url } = e.data;
+            //     if (!/\.(m3u8|mp4|mkv|mpd)(\?|$)/i.test(url)) return;
+            //     console.log('[Ludus] Extracted stream:', url);
+            //     window.removeEventListener('message', _extractHandler);
+            //     // TODO: swap iframe → native <video> + Hls.js / DASH.js here
+            // };
+            // window.addEventListener('message', _extractHandler);
 
             // Panel stays open so user can quickly switch again
         }
@@ -2464,17 +2777,17 @@ async function loadExtraServer(serverId) {
         });
     </script>
 <script>
-/* Ludus Movie — official trailers, resolved through the Ludus relay (direct requests). */
-window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || window.LUDUS_RESOLVER_URLS?.[0] || "https://u6dhtt3vfobb.shares.zrok.io/resolve";
-
+/* Ludus Movie — official trailers.
+   Trailers are resolved through the Ludus relay. The server list comes from ludus-servers.js via
+   ludus-core.js (nothing is hard-coded in this file), requests fail over to another server on their own,
+   and the relay is contacted directly: tunnel addresses are never routed through the conduit. */
+window.LUDUS_YT_RELAY_URL = LudusCore.resolver.active();
 </script>
 <script>
 (() => {
     'use strict';
-    const RELAY_SERVERS = Array.isArray(window.LUDUS_RESOLVER_URLS) ? window.LUDUS_RESOLVER_URLS : [window.LUDUS_YT_RELAY_URL];
-    let selectedResolver = (() => { try { return localStorage.getItem('ludus_active_resolver') || RELAY_SERVERS[0]; } catch { return RELAY_SERVERS[0]; } })();
-    const rootFor = resolver => String(resolver || RELAY_SERVERS[0]).replace(/\/resolve\/?$/, '');
-    const resolverName = resolver => window.ludusResolverInfo?.(resolver)?.label || `Server ${Math.max(0, RELAY_SERVERS.indexOf(resolver)) + 1}`;
+    let selectedResolver = LudusCore.resolver.active();
+    const resolverName = resolver => LudusCore.resolver.label(resolver);
     let player, active, toastTimer;
 
     const esc = v => String(v ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -2484,38 +2797,22 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
     const year = v => String(v?.release_date || v?.first_air_date || '').slice(0, 4);
     const formatTime = s => Number.isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '0:00';
 
-    // Check the streamer first, so a dead tunnel cannot produce a blank trailer.
-    async function prepareStreamer(resolver = selectedResolver, allowFallback = true) {
-        const candidates = allowFallback ? [resolver, ...RELAY_SERVERS.filter(item => item !== resolver)] : [resolver];
-        let lastError;
-        for (const candidate of candidates) {
-            const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
-            try {
-                const response = await fetch(`${rootFor(candidate)}/health`, { signal: controller.signal, headers: /\.shares\.zrok\.io/i.test(candidate) ? { skip_zrok_interstitial: 'true' } : {} });
-                if (!response.ok) throw new Error(`${resolverName(candidate)} is unavailable.`);
-                selectedResolver = candidate;
-                try { localStorage.setItem('ludus_active_resolver', candidate); } catch {}
-                const picker = player?.querySelector('[data-role="server"]'); if (picker) picker.value = candidate;
-                return candidate;
-            } catch (error) { lastError = error; } finally { clearTimeout(timer); }
-        }
-        throw lastError || new Error('No trailer server is available.');
-    }
     // ── Relay requests ──────────────────────────────────────────────────
     async function request(path, params) {
         const status = (state, text) => window.dispatchEvent(new CustomEvent('ludus:resolver-status', { detail: { state, text } }));
         status('pending', 'Connecting to server…');
-        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 30000);
         try {
-            const response = await fetch(`${rootFor(selectedResolver)}${path}?${new URLSearchParams(params)}`, { signal: controller.signal, headers: /\.shares\.zrok\.io/i.test(selectedResolver) ? { skip_zrok_interstitial: 'true' } : {} });
+            // Fails over to another server by itself if this one is down (network error / tunnel error page).
+            const response = await LudusCore.resolver.request(path, params, { timeout: 30000 });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.error || `Relay error (${response.status})`);
+            selectedResolver = LudusCore.resolver.active(); // follow a failover
             status('ok', 'Server connected');
             return data;
         } catch (error) {
             status('fail', 'Server unavailable');
             throw error;
-        } finally { clearTimeout(timer); }
+        }
     }
     async function search(query) {
         const data = await request('/search', { q: query.slice(0, 120) });
@@ -2549,15 +2846,19 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
         const box = player?.querySelector('.trailer-loader'); if (!box) return;
         box.hidden = false; box.classList.toggle('is-failed', !!failed);
         box.querySelector('span').textContent = text;
+        const retry = box.querySelector('.trailer-retry'); if (retry) retry.hidden = !failed;
     }
     function close() {
         if (active) {
+            active.token++; active.picker?.destroy();
             active.video.pause(); active.audio.pause();
             active.video.removeAttribute('src'); active.video.load();
             active.audio.removeAttribute('src'); active.audio.load();
         }
         player?.remove(); player = null; active = null;
     }
+    // The streamer interface (controls, server switcher) is built and usable straight away; the video is loaded
+    // into it afterwards. If a server fails, the switcher is already there: pick another and the video reloads.
     function shell(label) {
         close();
         player = document.createElement('div');
@@ -2566,7 +2867,7 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
         player.innerHTML = `
             <button type="button" class="trailer-close" title="Close trailer" aria-label="Close trailer"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="20" y2="20"></line><line x1="20" y1="4" x2="4" y2="20"></line></svg></button>
             <div class="trailer-wrap">
-                <div class="trailer-loader"><div class="trailer-spinner"></div><span>Finding the official trailer…</span></div>
+                <div class="trailer-loader"><div class="trailer-spinner"></div><span>Connecting to server…</span><button type="button" class="trailer-control trailer-retry" hidden>Try again</button></div>
                 <div class="trailer-player">
                     <div class="trailer-title">${esc(label)}</div>
                     <div class="trailer-controls">
@@ -2577,7 +2878,7 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
                             <span class="trailer-time">0:00 / 0:00</span>
                             <input class="trailer-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
                             <label class="trailer-volume">VOL <input class="trailer-vol" type="range" min="0" max="1" value=".9" step=".01" aria-label="Volume"></label>
-                            <select class="trailer-select" data-role="server" aria-label="Trailer server"></select>
+                            <span class="trailer-server-slot" data-role="server"></span>
                             <select class="trailer-select" data-role="quality" aria-label="Video quality"></select>
                             <select class="trailer-select" data-role="captions" aria-label="Captions" hidden><option value="">CC off</option></select>
                             <select class="trailer-select" data-role="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
@@ -2589,39 +2890,36 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
                 <div class="trailer-toast" hidden></div>
             </div>`;
         document.body.append(player);
-        player.querySelector('.trailer-close').onclick = close;
-        const serverPicker = player.querySelector('[data-role="server"]');
-        serverPicker.innerHTML = RELAY_SERVERS.map(resolver => `<option value="${esc(resolver)}"${resolver === selectedResolver ? ' selected' : ''}>${esc(resolverName(resolver))}</option>`).join('');
-        serverPicker.onchange = async () => {
-            selectedResolver = serverPicker.value;
-            setLoader(`Checking ${resolverName(selectedResolver)}…`);
-            try { await prepareStreamer(selectedResolver, false); setLoader(`${resolverName(selectedResolver)} is ready. Loading trailer…`); }
-            catch (error) { setLoader(error.message || 'Server unavailable.', true); }
-        };
-    }
-    function mount(data, label) {
-        const byBitrate = (a, b) => (b.bitrate || 0) - (a.bitrate || 0);
-        const formats = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : [];
-        const videos = formats.filter(f => f.url && String(f.type).startsWith('video/mp4')).sort(byBitrate);
-        const audios = formats.filter(f => f.url && String(f.type).startsWith('audio/mp4')).sort(byBitrate);
-        if (!videos.length || !audios.length) throw new Error('No compatible trailer streams were returned.');
-
         const $ = s => player.querySelector(s);
+        $('.trailer-close').onclick = close;
+        const video = document.createElement('video'), audio = document.createElement('audio');
+        video.className = 'trailer-video'; video.muted = true; video.playsInline = true; video.preload = 'metadata';
+        audio.preload = 'metadata'; audio.volume = Number($('.trailer-vol').value);
+        $('.trailer-player').prepend(video);
+        const S = active = { video, audio, label, value: null, videoId: null, token: 0, loaded: false, failed: false, autoplayNext: false, videos: [], tracks: [], picker: null };
+        wire(S);
+        // "Music app setup": the shared monitor checks every server, shows their speeds, connects to the fastest and
+        // keeps re-checking. A person's pick (or a failover while nothing is playing) reloads the video on that server.
+        S.picker = LudusCore.servers.mountPicker($('[data-role="server"]'), {
+            skin: 'streamer', compact: true, menuDirection: 'up',
+            onChange: (url, { manual }) => {
+                selectedResolver = url;
+                if (active !== S) return;
+                if (manual) load(S, { resumeAt: S.loaded ? S.video.currentTime : 0 });
+                else if (S.failed || !S.loaded) load(S);
+            },
+        });
+        $('.trailer-retry').onclick = () => load(S);
+        return S;
+    }
+    function wire(S) {
+        const $ = s => player.querySelector(s);
+        const { video, audio } = S;
         const frame = $('.trailer-player'), loader = $('.trailer-loader');
         const play = $('[data-action="toggle"]'), seek = $('.trailer-seek'), volume = $('.trailer-vol'), clock = $('.trailer-time');
         const quality = $('[data-role="quality"]'), captions = $('[data-role="captions"]'), speed = $('[data-role="speed"]');
-        const video = document.createElement('video'), audio = document.createElement('audio');
-        video.className = 'trailer-video'; video.muted = true; video.playsInline = true; video.preload = 'metadata';
-        audio.preload = 'metadata'; audio.volume = Number(volume.value);
-        frame.prepend(video);
-        active = { video, audio, label };
 
-        quality.innerHTML = videos.map((f, i) => `<option value="${i}">${esc(f.qualityLabel || 'Auto')} MP4</option>`).join('');
-        const tracks = Array.isArray(data.captions) ? data.captions : [];
-        tracks.forEach((c, i) => captions.add(new Option(c.label || c.language || `Caption ${i + 1}`, String(i))));
-        captions.hidden = !tracks.length;
-
-        const ready = () => { loader.hidden = true; };
+        const ready = () => { S.loaded = true; S.failed = false; loader.hidden = true; };
         const sync = () => { if (Math.abs(video.currentTime - audio.currentTime) > .35) audio.currentTime = video.currentTime; };
         const update = () => {
             play.textContent = video.paused ? '▶' : '❚❚'; play.setAttribute('aria-label', video.paused ? 'Play' : 'Pause');
@@ -2629,25 +2927,31 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
             clock.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
             mixer();
         };
-        const jump = s => { if (Number.isFinite(video.duration)) { video.currentTime = Math.max(0, Math.min(video.duration, s)); audio.currentTime = video.currentTime; } };
+        const jump = t => { if (Number.isFinite(video.duration)) { video.currentTime = Math.max(0, Math.min(video.duration, t)); audio.currentTime = video.currentTime; } };
         const toggle = () => {
+            if (!video.getAttribute('src')) return toast('Still loading. Pick another server below if this takes too long.');
             if (video.paused) { audio.play().catch(() => {}); video.play().catch(() => toast('Press play once more to begin.')); }
             else { video.pause(); audio.pause(); }
         };
 
-        video.addEventListener('loadedmetadata', () => { ready(); update(); video.play().catch(() => toast('Press play to begin.')); }, { once: true });
-        video.addEventListener('loadeddata', ready, { once: true });
-        video.addEventListener('playing', ready, { once: true });
+        video.addEventListener('loadedmetadata', () => {
+            ready(); update();
+            if (S.autoplayNext) { S.autoplayNext = false; video.play().catch(() => toast('Press play to begin.')); }
+        });
+        video.addEventListener('loadeddata', ready);
+        video.addEventListener('playing', ready);
         video.addEventListener('play', () => { ready(); audio.play().catch(() => {}); update(); });
         video.addEventListener('pause', () => { audio.pause(); update(); });
         video.addEventListener('seeking', sync);
         video.addEventListener('timeupdate', () => { sync(); update(); });
         video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; speed.value = String(video.playbackRate); });
         video.addEventListener('ended', () => { audio.pause(); update(); });
-        video.addEventListener('error', () => setLoader('Trailer stream could not be played.', true));
-        audio.addEventListener('error', () => toast('Trailer audio could not be played.'));
-
-        video.src = videos[0].url; audio.src = audios[0].url;
+        video.addEventListener('error', () => {
+            if (!video.getAttribute('src') || active !== S) return;
+            fail(S, 'Trailer stream could not be played.');
+            LudusCore.servers.monitor.refresh(); // if this server just died the monitor fails over, and onChange reloads the video
+        });
+        audio.addEventListener('error', () => { if (audio.getAttribute('src')) toast('Trailer audio could not be played.'); });
 
         play.onclick = toggle;
         $('[data-action="back"]').onclick = () => jump(video.currentTime - 10);
@@ -2656,14 +2960,14 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
         volume.oninput = () => { audio.volume = Number(volume.value); mixer(); };
         speed.onchange = () => { video.playbackRate = audio.playbackRate = Number(speed.value); };
         quality.onchange = () => {
-            const source = videos[Number(quality.value)], at = video.currentTime, was = !video.paused;
+            const source = S.videos[Number(quality.value)], at = video.currentTime, was = !video.paused;
             if (!source) return;
             video.src = source.url;
             video.addEventListener('loadedmetadata', () => { jump(at); if (was) video.play().catch(() => {}); }, { once: true });
         };
         captions.onchange = () => {
             video.querySelectorAll('track[data-ludus]').forEach(t => t.remove());
-            const c = tracks[Number(captions.value)]; if (!c) return;
+            const c = S.tracks[Number(captions.value)]; if (!c) return;
             const track = document.createElement('track');
             track.dataset.ludus = 'caption'; track.kind = 'subtitles'; track.srclang = c.language || 'en';
             track.label = c.label || c.language || 'Captions'; track.src = c.url; track.default = true;
@@ -2677,26 +2981,62 @@ window.LUDUS_YT_RELAY_URL = localStorage.getItem('ludus_active_resolver') || win
         };
         update();
     }
+    function fail(S, message) {
+        if (active !== S) return;
+        S.failed = true;
+        setLoader(`${message} Pick another server below, or try again.`, true);
+    }
+    // Puts the resolved streams into the already-visible interface.
+    function attachSources(S, data, resumeAt = 0) {
+        const byBitrate = (a, b) => (b.bitrate || 0) - (a.bitrate || 0);
+        const formats = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : [];
+        const videos = formats.filter(f => f.url && String(f.type).startsWith('video/mp4')).sort(byBitrate);
+        const audios = formats.filter(f => f.url && String(f.type).startsWith('audio/mp4')).sort(byBitrate);
+        if (!videos.length || !audios.length) throw new Error('No compatible trailer streams were returned.');
+        const $ = s => player.querySelector(s);
+        const quality = $('[data-role="quality"]'), captions = $('[data-role="captions"]');
+        S.videos = videos;
+        quality.innerHTML = videos.map((f, i) => `<option value="${i}">${esc(f.qualityLabel || 'Auto')} MP4</option>`).join('');
+        S.tracks = Array.isArray(data.captions) ? data.captions : [];
+        captions.innerHTML = '<option value="">CC off</option>';
+        S.tracks.forEach((c, i) => captions.add(new Option(c.label || c.language || `Caption ${i + 1}`, String(i))));
+        captions.hidden = !S.tracks.length;
+        S.video.querySelectorAll('track[data-ludus]').forEach(t => t.remove());
+        S.autoplayNext = true;
+        S.video.src = videos[0].url; S.audio.src = audios[0].url;
+        if (resumeAt > 1) S.video.addEventListener('loadedmetadata', () => { S.video.currentTime = resumeAt; S.audio.currentTime = resumeAt; }, { once: true });
+    }
+    // (Re)loads the trailer on whichever server is active. Safe to call again: a newer call cancels an older one.
+    async function load(S, { resumeAt = 0 } = {}) {
+        const token = ++S.token;
+        S.loaded = false; S.failed = false;
+        const stale = () => active !== S || S.token !== token;
+        S.video.removeAttribute('src'); S.audio.removeAttribute('src'); S.video.load(); S.audio.load();
+        try {
+            setLoader(`Connecting to ${resolverName(selectedResolver)}…`);
+            await LudusCore.resolver.ready(); // a server that is up: the active one, or the fastest of the rest
+            if (stale()) return;
+            if (!S.videoId) {
+                setLoader('Finding the official trailer…');
+                const result = await trailerFor(S.value);
+                if (stale()) return;
+                if (!result?.videoId) throw new Error('No matching official trailer was found.');
+                S.videoId = result.videoId;
+            }
+            setLoader('Loading trailer…');
+            const data = await request('/resolve', { v: S.videoId, type: 'video' });
+            if (stale()) return;
+            attachSources(S, data, resumeAt);
+        } catch (error) {
+            if (!stale()) fail(S, error.message || 'Trailer unavailable.');
+        }
+    }
     async function playTrailer() {
         const value = item();
         if (!title(value)) return alert('Open a title first.');
-        const label = `${title(value)} — Official Trailer`;
-        shell(label);
-        const mine = player;
-        try {
-            setLoader(`Starting ${resolverName(selectedResolver)}…`);
-            await prepareStreamer();
-            if (player !== mine) return;
-            const result = await trailerFor(value);
-            if (player !== mine) return;
-            if (!result?.videoId) throw new Error('No matching official trailer was found.');
-            setLoader('Loading trailer…');
-            const data = await request('/resolve', { v: result.videoId, type: 'video' });
-            if (player !== mine) return;
-            mount(data, label);
-        } catch (error) {
-            if (player === mine) setLoader(error.message || 'Trailer unavailable.', true);
-        }
+        const S = shell(`${title(value)} — Official Trailer`);
+        S.value = value;
+        load(S);
     }
 
     // ── Hooks ───────────────────────────────────────────────────────────
