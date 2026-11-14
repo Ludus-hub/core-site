@@ -26,6 +26,7 @@
   if (window.LudusCore) return;
 
   const ZROK_HEADER = 'skip_zrok_interstitial';
+  const NGROK_HEADER = 'ngrok-skip-browser-warning'; // ngrok free plan's browser-warning opt-out
   const store = {
     get(key) { try { return localStorage.getItem(key); } catch { return null; } },
     set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } },
@@ -78,7 +79,8 @@
   }
   const baseOf = url => String(url || '').replace(/\/resolve\/?$/, '').replace(/\/+$/, '');
   const isZrok = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url));
-  const headersFor = url => (isZrok(url) ? { [ZROK_HEADER]: 'true' } : {});
+  const isNgrok = url => { try { return /(?:^|\.)(?:ngrok-free\.(?:dev|app)|ngrok\.(?:io|app|dev))$/i.test(new URL(String(url)).hostname); } catch { return false; } };
+  const headersFor = url => (isZrok(url) ? { [ZROK_HEADER]: 'true' } : isNgrok(url) ? { [NGROK_HEADER]: 'true' } : {});
 
   let missingShown = false;
   function reportMissing() {
