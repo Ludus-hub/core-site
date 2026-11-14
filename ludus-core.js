@@ -26,6 +26,7 @@
   if (window.LudusCore) return;
 
   const ZROK_HEADER = 'skip_zrok_interstitial';
+  const NGROK_HEADER = 'ngrok-skip-browser-warning'; // ngrok free plan's browser-warning opt-out
   const store = {
     get(key) { try { return localStorage.getItem(key); } catch { return null; } },
     set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } },
