@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ludus YouTube</title>
-  <script src="loading-protocol.js"></script>
-  <script src="resolver-servers.js"></script>
+  <script src="ludus-servers.js"></script>
+  <script src="ludus-core.js?v=379570e499"></script>
   <style>
 /* ─── Ludus YouTube · style.css ──────────────────────────────────────────
    Visual language ported from Ludus Stream (movie.html): near-black base,
@@ -295,6 +295,10 @@ input  { font-family: inherit; }
 }
 button.status-control { cursor: pointer; }
 button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--text); }
+.status-control.pending .status-dot { animation: conduitPulse 1s ease-in-out infinite; }
+.status-control.off .status-dot { background: var(--text3); box-shadow: none; }
+.status-control.fail .status-dot { background: var(--red); }
+@keyframes conduitPulse { 0%,100% { opacity:.35; transform:scale(.8); } 50% { opacity:1; transform:scale(1.15); } }
 
 .status-dot {
   width: 7px; height: 7px;
@@ -307,10 +311,7 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 .status-dot.warn { background: var(--amber); }
 .status-dot.err  { background: var(--red); }
 
-#instance-host {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.server-status-host { display: flex; align-items: center; flex: none; min-width: 0; }
 
 /* ─────────────────────────────────────────────────────────────────────── */
 /* Page Content                                                             */
@@ -570,6 +571,19 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
   align-items: start;
 }
 .watch-main { min-width: 0; }
+.watch-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--text2);
+  font: 700 12px var(--font);
+}
+.watch-back:hover { color: var(--accent); border-color: var(--accent); background: var(--hover); }
 
 .player-wrap {
   position: relative;
@@ -829,6 +843,34 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 .server-dropdown-item .server-health { display:block; margin-top:2px; font-size:10px; font-weight:500; opacity:.72; }
 .server-dropdown-item .server-health.healthy { color:#92fe9d; opacity:1; }
 .server-dropdown-item .server-health.unhealthy { color:#ff9292; opacity:1; }
+
+/* Conduit toggle — sits directly in the server bar */
+.cduit-toggle-wrap {
+  display: inline-flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none; padding: 4px 0;
+  background: transparent; border: 0;
+}
+.cduit-toggle-label {
+  font-size: 13px; font-weight: 700;
+  color: rgba(255,255,255,0.45); transition: color 0.25s;
+}
+#conduitToggle.active .cduit-toggle-label { color: var(--accent-l); }
+.cduit-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.cduit-switch-track {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  transition: background 0.25s, border-color 0.25s;
+}
+.cduit-switch-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+#conduitToggle.active .cduit-switch-track { background: rgba(146,254,157,0.22); border-color: var(--accent-l); }
+#conduitToggle.active .cduit-switch-thumb { transform: translateX(18px); background: var(--accent-l); }
 
 /* Relay player controls — same streamer design as the Ludus Music video player:
    title fades in from the top, one floating pill bar of controls at the bottom. */
@@ -1197,12 +1239,13 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
         <div id="suggestions" hidden></div>
       </div>
 
-      <!-- Server status -->
-      <div id="server-status" class="instance-badge status-control" title="YouTube server status">
+      <!-- Server and Conduit status controls -->
+      <!-- Merged "connected to server" + server selector: the shared control from ludus-core.js is mounted here. -->
+      <div id="server-status" class="server-status-host"></div>
+      <button id="proxy-status" class="instance-badge status-control pending" type="button" aria-pressed="true" title="Conduit is starting">
         <span class="status-dot"></span>
-        <span id="instance-host">connecting…</span>
-        <select id="top-server-picker" aria-label="Choose Ludus server" title="Choose Ludus server" style="max-width:118px;border:0;border-left:1px solid currentColor;background:transparent;color:inherit;font:inherit;padding-left:7px;outline:0;"></select>
-      </div>
+        <span>Starting Conduit…</span>
+      </button>
 
     </header>
 
@@ -1235,7 +1278,7 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
         <span class="field-label">Data Source</span>
         <span class="field-hint" style="margin-top:0">
           Search, trending, video info, and channel pages are all loaded
-          from the Ludus server. If it's unavailable, the official
+          from the Ludus server (through Conduit when it's on). If it's unavailable, the official
           YouTube Data API (then public backup servers) takes over for search, trending and
           channels; video info and recommendations only use the API when you click to load
           them, to save quota. If a video won't play, try another
@@ -1267,6 +1310,119 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 </div><!-- /settings-modal -->
 
 
+<!-- Conduit is ready-gated before the metadata app starts so Cloudflare resolver
+     traffic can never race ahead of Scramjet/service-worker initialisation. -->
+<script src="/p/scram/scramjet.all.js"></script>
+<script>
+'use strict';
+
+let _sc = null;
+let _scResolve, _scReject;
+const _newConduitPromise = () => { const p = new Promise((resolve, reject) => { _scResolve = resolve; _scReject = reject; }); p.catch(() => {}); return p; };
+let _conduitReady = _newConduitPromise();
+let _conduitState = 'pending';
+let _conduitStage = 'Starting Conduit…';
+let _conduitError = '';
+let _conduitStarting = false;
+// Conduit is ON by default: only an explicit click on the toggle ever stores a value. This is its own key
+// (not the one shared with Ludus Music), so an 'off' saved by another app can't silently disable it here.
+const _conduitPreferenceKey = 'ludusyt_conduit';
+const conduitEnabled = () => { try { return localStorage.getItem(_conduitPreferenceKey) !== 'off'; } catch { return true; } };
+const setConduitEnabled = enabled => { try { localStorage.setItem(_conduitPreferenceKey, enabled ? 'on' : 'off'); } catch {} };
+const setConduitStage = text => {
+  _conduitStage = text;
+  window.dispatchEvent(new CustomEvent('ludus:conduit-stage'));
+};
+const isLocalHost = host => /^(localhost|\[?::1\]?|127(\.\d+){3}|10(\.\d+){3}|192\.168(\.\d+){2}|172\.(1[6-9]|2\d|3[01])(\.\d+){2}|[^.]+\.local)$/i.test(host);
+const nativeFetch = window.fetch.bind(window);
+
+// Resolver tunnels proxy their own requests; routing them through Conduit
+// delayed first-load API calls until backup mode was selected.
+const isResolverTunnel = host => /(?:\.shares\.zrok\.io|\.trycloudflare\.com)$/i.test(host);
+window.fetch = async function conduitFetch(resource, options) {
+  let target;
+  try { target = new URL(resource instanceof Request ? resource.url : resource, location.href); } catch {}
+  if (!target || !conduitEnabled() || !/^https?:$/.test(target.protocol) || target.origin === location.origin || isLocalHost(target.hostname) || isResolverTunnel(target.hostname)) {
+    return nativeFetch(resource, options);
+  }
+  try {
+    const controller = await Promise.race([
+      _conduitReady,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Conduit start timed out')), 20000)),
+    ]);
+    const proxied = location.origin + controller.encodeUrl(target.href);
+    return resource instanceof Request ? nativeFetch(new Request(proxied, resource), options) : nativeFetch(proxied, options);
+  } catch {
+    // Keep the app usable if Conduit is unavailable, matching Ludus Music.
+    return nativeFetch(resource, options);
+  }
+};
+
+const _within = (promise, ms, message) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+const _pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Boots Scramjet + the service worker. Every step has a timeout (so the badge can never sit on "Starting…"
+// forever) and the worker/init steps get one automatic retry. Safe to call again after a failure.
+async function startConduit() {
+  if (_conduitStarting) return;
+  _conduitStarting = true;
+  if (_conduitState === 'fail') _conduitReady = _newConduitPromise();
+  _conduitState = 'pending';
+  _conduitError = '';
+  setConduitStage('Loading Conduit…');
+  try {
+    if (typeof $scramjetLoadController !== 'function') throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
+    if (!('serviceWorker' in navigator)) throw new Error('Service workers are unavailable in this context.');
+    if (!_sc) {
+      const { ScramjetController } = $scramjetLoadController();
+      _sc = new ScramjetController({
+        prefix: '/scramjet/', wisp: window.LudusServers?.proxy?.active?.()?.url,
+        files: { wasm: '/p/scram/scramjet.wasm.wasm', all: '/p/scram/scramjet.all.js', sync: '/p/scram/scramjet.sync.js' },
+      });
+    }
+    let failure = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        if (!navigator.serviceWorker.controller) {
+          setConduitStage('Starting service worker…');
+          await _within(navigator.serviceWorker.register('/sw.js', { scope: '/' }), 10000, 'Service worker registration timed out.');
+          await _within(navigator.serviceWorker.ready, 10000, 'Service worker did not activate.');
+          if (!navigator.serviceWorker.controller) {
+            await Promise.race([new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })), _pause(2500)]);
+          }
+          if (!navigator.serviceWorker.controller) throw new Error('Service worker is active but not controlling this page yet — reload once.');
+        }
+        setConduitStage('Starting Conduit…');
+        await _within(_sc.init(), 15000, 'Conduit init timed out.');
+        failure = null;
+        break;
+      } catch (error) { failure = error; if (attempt < 2) await _pause(1500); }
+    }
+    if (failure) throw failure;
+    _conduitState = 'ok';
+    _scResolve(_sc);
+  } catch (error) {
+    console.warn('[Ludus YouTube] Conduit init error:', error);
+    _conduitState = 'fail';
+    _conduitError = error?.message || String(error);
+    _scReject(error);
+  } finally {
+    _conduitStarting = false;
+    window.dispatchEvent(new CustomEvent('ludus:conduit-stage'));
+  }
+}
+
+// Used by both toggles (header badge + player route switch). Turning it back on after a failure retries the boot.
+function toggleConduit() {
+  const on = !conduitEnabled();
+  setConduitEnabled(on);
+  if (on && _conduitState === 'fail') startConduit();
+  window.dispatchEvent(new CustomEvent('ludus:conduit-toggle'));
+}
+
+startConduit();
+</script>
+
 <script>
 'use strict';
 
@@ -1276,35 +1432,29 @@ button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--
 // official YouTube Data API steps in as the first backup — same API keys, key rotation and
 // daily quota limits as yt-api.html — and public Invidious instances are the last resort. Video info and
 // recommendations only use the Data API when the person clicks to load them, to save quota.
-// Requests go straight to the
-// resolver.
+// Requests go through the
+// Conduit-gated fetch installed above, so each one waits for Scramjet and the
+// service worker to finish starting before it leaves the browser.
 // Server names and addresses are only shown to developer accounts (same rule as Ludus Music). Everyone else sees
 // neutral wording, and only developers can override the built-in server from this browser.
-const isDeveloper = () => { try { return localStorage.getItem('mathmaster_dev') === 'true' && sessionStorage.getItem('mathmaster_dev_unlocked') === 'true'; } catch { return false; } };
+const isDeveloper = () => LudusCore.isDeveloper();
 const devText = (developerText, publicText) => isDeveloper() ? developerText : publicText;
-const BUILT_IN_RESOLVER = window.LUDUS_RESOLVER_URLS?.[0] || 'https://u6dhtt3vfobb.shares.zrok.io/resolve';
-const _storedResolver = key => { try { return (localStorage.getItem(key) || '').trim(); } catch { return ''; } };
-let RESOLVER_BASE = (_storedResolver('ludus_active_resolver') ||
-  (isDeveloper() ? (_storedResolver('ludus_music_resolver_url') || _storedResolver('ludusyt_stream_relay_url')) : '') ||
-  _storedResolver('ludus_active_resolver') ||
-  BUILT_IN_RESOLVER).replace(/\/+$/, '').replace(/\/resolve$/, '');
+// The server list lives ONLY in ludus-servers.js (read through ludus-core.js). No address is hard-coded here,
+// and the old developer URL overrides (which could never take effect) are gone.
+let RESOLVER_BASE = LudusCore.resolver.baseOf(LudusCore.resolver.active());
 const RESOLVER_TIMEOUT_MS = 30000;
 const SEARCH_PAGE = 15;   // the resolver returns the first N hits; page P is the Pth slice of 15
 const SEARCH_MAX_PAGES = 6;
-const RESOLVER_CANDIDATES = Array.isArray(window.LUDUS_RESOLVER_URLS) ? window.LUDUS_RESOLVER_URLS : [BUILT_IN_RESOLVER];
+const RESOLVER_CANDIDATES = LudusCore.resolver.all();
 let _resolverReady;
+// Picks a server that is up (shared, cached health check) and remembers it. A failed start is no longer cached
+// forever: the next call tries again, so the page recovers when a server comes back or another one is available.
 async function ensureResolverServer() {
   if (_resolverReady) return _resolverReady;
-  _resolverReady = (async () => {
-    const ordered = [...new Set([`${RESOLVER_BASE}/resolve`, ...RESOLVER_CANDIDATES])]; let lastError;
-    for (const resolver of ordered) {
-      const base = String(resolver).replace(/\/+$/, '').replace(/\/resolve$/, ''); const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
-      try { const response = await fetch(`${base}/health`, { signal: controller.signal, headers: /\.shares\.zrok\.io/i.test(base) ? { skip_zrok_interstitial: 'true' } : {} }); if (!response.ok) throw new Error(`HTTP ${response.status}`); RESOLVER_BASE = base; try { localStorage.setItem('ludus_active_resolver', `${base}/resolve`); } catch {} return base; }
-      catch (error) { lastError = error; } finally { clearTimeout(timer); }
-    }
-    throw lastError || new Error('No Ludus server is available.');
-  })();
-  return _resolverReady;
+  const attempt = LudusCore.resolver.ready().then(base => { RESOLVER_BASE = base; return base; });
+  _resolverReady = attempt;
+  attempt.catch(() => { if (_resolverReady === attempt) _resolverReady = null; });
+  return attempt;
 }
 
 // ── YouTube Data API backup — same keys, quota rules and request costs as yt-api.html / api.js ──
@@ -1354,25 +1504,22 @@ const LudusAPI = (() => {
     return merged.signal;
   }
 
+  // The picker itself shows which server is connected (from the shared monitor). This only adds a note when this
+  // page is NOT using the relay: backup players show "Connected to backup server", a failed request "Server unavailable".
   function _setStatus(state) {
-    const dot  = document.querySelector('.status-dot');
-    const host = document.getElementById('instance-host');
-    const control = document.getElementById('server-status');
-    if (dot) dot.className = 'status-dot ' + (state === 'err' ? 'err' : 'ok');
-    if (host) host.textContent = state === 'ok' ? devText('Ludus resolver', 'Connected to server')
-      : state === 'api' ? devText('Backup · YouTube Data API', 'Connected to backup server')
-      : state === 'backup' ? devText(`Backup · ${_invGood ? new URL(_invGood).hostname : 'Invidious'}`, 'Connected to backup server')
-      : devText('resolver unavailable', 'Server unavailable');
-    if (control) control.title = host?.textContent || 'YouTube server status';
+    const picker = window.LudusYtPicker; if (!picker) return;
+    if (state === 'ok') return picker.clearNote();
+    if (state === 'api') return picker.setNote('warn', devText('Backup · YouTube Data API', 'Connected to backup server'));
+    if (state === 'backup') return picker.setNote('warn', devText(`Backup · ${_invGood ? new URL(_invGood).hostname : 'Invidious'}`, 'Connected to backup server'));
+    picker.setNote('offline', devText('resolver unavailable', 'Server unavailable'));
   }
 
   async function _get(path, params = {}, { timeout = RESOLVER_TIMEOUT_MS } = {}) {
-    await ensureResolverServer();
-    const navSignal = _genController.signal, timeoutCtrl = new AbortController();
-    const timer = setTimeout(() => timeoutCtrl.abort(), timeout);
-    const clean = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    const navSignal = _genController.signal;
     try {
-      const res = await fetch(`${RESOLVER_BASE}/${path}?${new URLSearchParams(clean)}`, { signal: _combineSignals(timeoutCtrl.signal, navSignal) });
+      // The core picks a healthy server and, if this one dies mid-session, fails over to another by itself.
+      const res = await LudusCore.resolver.request(path, params, { timeout, signal: navSignal });
+      RESOLVER_BASE = LudusCore.resolver.baseOf(LudusCore.resolver.active());
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data?.error || devText(`The Ludus resolver returned HTTP ${res.status}.`, `The server returned an error (HTTP ${res.status}).`));
       _setStatus('ok');
@@ -1380,10 +1527,11 @@ const LudusAPI = (() => {
     } catch (e) {
       if (navSignal.aborted) { const ne = new Error('cancelled'); ne.navCancelled = true; throw ne; }
       _setStatus('err');
-      if (e.name === 'AbortError') throw Object.assign(new Error(devText('The Ludus resolver took too long to answer.', 'The server took too long to answer.')), { timedOut: true });
+      if (e.resolverListMissing) throw e;
+      if (e.name === 'AbortError' || e.name === 'TimeoutError') throw Object.assign(new Error(devText('The Ludus resolver took too long to answer.', 'The server took too long to answer.')), { timedOut: true });
       if (e instanceof TypeError) throw Object.assign(new Error(devText('Could not reach the Ludus resolver — check that yt.js is running and the tunnel URL is current.', 'Could not reach the server. Try again in a moment.')), { unreachable: true });
       throw e;
-    } finally { clearTimeout(timer); }
+    }
   }
 
   // ── format helpers ─────────────────────────────────────────────────────
@@ -1810,7 +1958,7 @@ const LudusAPI = (() => {
   };
 
   // ── Invidious backup ───────────────────────────────────────────────────
-  // Last resort, after the resolver and the YouTube Data API above. Public Invidious instances.
+  // Last resort, after the resolver and the YouTube Data API above. Public Invidious instances are reached through the same Conduit-gated fetch.
   const INV_SEED = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.nerdvpn.de', 'https://invidious.privacyredirect.com'];
   const INV_CACHE_KEY = 'ludusyt_invidious_hosts';
   let _invHosts = null, _invGood = null, _resolverDownUntil = 0;
@@ -2009,6 +2157,8 @@ function smallThumb(arr) {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const _routes = {};
+let _currentRoute = '/';
+let _watchReturnRoute = '/';
 
 function route(path, handler) { _routes[path] = handler; }
 
@@ -2018,7 +2168,23 @@ function navigate(dest) {
   const sep    = normalized.indexOf('?');
   const path   = sep === -1 ? normalized : normalized.slice(0, sep);
   const qs     = sep === -1 ? '' : normalized.slice(sep + 1);
+  if (path === '/watch' && _currentRoute !== '/watch') _watchReturnRoute = _currentRoute || '/';
+  if (path !== '/watch' && _currentRoute === '/watch') stopWatchPlayback();
+  _currentRoute = normalized || '/';
   dispatch(path, Object.fromEntries(new URLSearchParams(qs)));
+}
+
+function stopWatchPlayback() {
+  document.querySelectorAll('#ludus-player-wrap video, #ludus-player-wrap audio').forEach(media => {
+    try { media.pause(); media.removeAttribute('src'); media.load(); } catch {}
+  });
+  _activeRelay = null;
+  _currentVideoId = null;
+}
+
+function exitWatch() {
+  const destination = _watchReturnRoute && _watchReturnRoute !== '/watch' ? _watchReturnRoute : '/';
+  navigate(destination);
 }
 
 function dispatch(path, params) {
@@ -2573,6 +2739,7 @@ async function renderWatch(params = {}) {
   setHTML(`
     <div class="watch-layout">
       <div class="watch-main">
+        <button class="watch-back" type="button" onclick="exitWatch()" aria-label="Back to videos">← Back</button>
         <div class="player-wrap" id="ludus-player-wrap"></div>
         ${playerControlsHTML()}
         <div id="watch-meta"></div>
@@ -2883,9 +3050,28 @@ route('*', () => navigate('/'));
    API STATUS BADGE  (init on load)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-(function initStatus() {
-  const host = document.getElementById('instance-host');
-  if (host) host.textContent = LudusAPI.getInstance();
+
+(function initConduitStatus() {
+  const control = document.getElementById('proxy-status');
+  if (!control) return;
+  const render = () => {
+    const enabled = conduitEnabled();
+    const state = !enabled ? 'off' : _conduitState;
+    const label = !enabled ? 'Conduit off' : state === 'ok' ? 'Conduit on' : state === 'fail' ? 'Conduit unavailable' : _conduitStage;
+    control.className = `instance-badge status-control ${state}`;
+    control.innerHTML = `<span class="status-dot"></span><span>${escHTML(label)}</span>`;
+    control.setAttribute('aria-pressed', String(enabled));
+    control.title = !enabled ? 'Conduit is off — click to turn it on'
+      : state === 'ok' ? 'Conduit is on — click to use the server directly'
+      : state === 'fail' ? `Conduit failed: ${_conduitError || 'unknown error'} — click to retry` : label;
+  };
+  control.addEventListener('click', () => {
+    if (conduitEnabled() && _conduitState === 'fail') startConduit(); else toggleConduit();
+    render();
+  });
+  window.addEventListener('ludus:conduit-stage', render);
+  window.addEventListener('ludus:conduit-toggle', render);
+  render();
 })();
 
 
@@ -2893,16 +3079,27 @@ route('*', () => navigate('/'));
    STREAMING — routing 3rd-party embed servers for actual playback
 
    Four servers, no extra/fallback tier. Every server (and every switch
-   between them) loads directly, picked from the server dropdown.
+   between them) is routed through the conduit — the conduit toggle sits right
+   next to the server dropdown and is on by default.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// 'melmac' (iv.melmac.space) was dropped — it's TLS-handshaking with a
+// straight EOF through Scramjet (hyper "tls handshake eof"), which means
+// the instance itself is rejecting/dropping Scramjet's connection at the
+// TLS layer. That's not something fixable from this app's code — it's
+// either the instance's TLS config or something about how it's blocking
+// proxied connections — so it's out rather than "fixed". 'pixora' and
+// 'chocomoo' are out per request. Same for any instance here in the
+// future: if Scramjet can't complete a TLS handshake with it, no
+// client-side change here will help; swap it for a different instance
+// instead.
 // The first option is your own Cloudflare-tunnelled resolver. It returns a
 // CORS-safe, proxied M4A URL from the local yt-dlp resolver. The remaining
 // Invidious embeds remain available as automatic and manual fallbacks.
-const RELAY_SERVERS = Array.isArray(window.LUDUS_RESOLVERS) ? window.LUDUS_RESOLVERS : [{ id: 'server-1', label: 'Server 1', url: `${RESOLVER_BASE}/resolve` }];
+const RELAY_SERVERS = LudusCore.resolver.servers();
 // Developers see each server's real identity; everyone else still sees the
 // same numbered, health-checked server choices as Music.
-const serverLabel = server => server.type === 'relay' ? `Ludus server ${server.relayIndex + 1}` : `Backup ${Math.max(1, MAIN_SERVERS.indexOf(server) - RELAY_SERVERS.length + 1)}`;
+const serverLabel = server => server.type === 'relay' ? `Server ${server.relayIndex + 1}` : `Backup ${Math.max(1, MAIN_SERVERS.indexOf(server) - RELAY_SERVERS.length + 1)}`;
 const MAIN_SERVERS = [
   ...RELAY_SERVERS.map((resolver, index) => ({ id: resolver.id, name: isDeveloper() ? `${resolver.label} · ${new URL(resolver.url).hostname}` : resolver.label, type: 'relay', resolver: resolver.url, relayIndex: index })),
   { id: 'f5',         name: 'F5',         build: id => `https://invidious.f5.si/embed/${id}?autoplay=1` },
@@ -2919,13 +3116,17 @@ function setServerHealth(server, state, text) {
 function activateServer(server) {
   document.querySelectorAll('.server-dropdown-item').forEach(node => node.classList.toggle('active', node.dataset.server === server.id));
   const name = document.getElementById('currentServerName'); if (name) name.textContent = server.type === 'relay' ? 'Ludus server' : serverLabel(server);
-  const picker = document.getElementById('top-server-picker'); if (picker && server.type === 'relay') picker.value = server.id;
 }
+// "Music app setup" for YouTube: the shared monitor checks every server, measures their speed, connects to the fastest
+// and keeps re-checking; this page only mounts the shared control and follows the active server.
 function initTopServerPicker() {
-  const picker = document.getElementById('top-server-picker'); if (!picker) return;
-  picker.innerHTML = `<optgroup label="Ludus server">${MAIN_SERVERS.filter(server => server.type === 'relay').map(server => `<option value="${server.id}">${serverLabel(server)}</option>`).join('')}</optgroup><optgroup label="Backups"><option value="auto">Automatic backup</option></optgroup>`;
-  const active = MAIN_SERVERS.find(server => server.type === 'relay' && server.resolver === `${RESOLVER_BASE}/resolve`); if (active) picker.value = active.id;
-  picker.addEventListener('change', async () => { const server = MAIN_SERVERS.find(item => item.id === picker.value); if (!server) return; try { await checkRelay(server); if (_currentVideoId) mountResolvedPlayer(server, _currentVideoId, true); } catch { /* the status and picker keep the unavailable result visible */ } });
+  const host = document.getElementById('server-status'); if (!host || window.LudusYtPicker) return;
+  window.LudusYtPicker = LudusCore.servers.mountPicker(host, { skin: 'music', onChange: (url, { manual }) => {
+    RESOLVER_BASE = LudusCore.resolver.baseOf(url);
+    // A person picked a server while a video is open: replay it through that server.
+    if (manual && _currentVideoId) { const server = MAIN_SERVERS.find(item => item.type === 'relay' && item.resolver === url); if (server) mountResolvedPlayer(server, _currentVideoId, true); }
+  } });
+  LudusCore.servers.monitor.subscribe(snap => { RESOLVER_BASE = LudusCore.resolver.baseOf(snap.active); });
 }
 
 // Same locked-down sandbox Ludus Stream uses: the embedded page can run its
@@ -2946,7 +3147,7 @@ function buildPlayerIframe(url) {
     html: `
       <div class="yt-player-loader" id="yt-player-loader">
         <div class="yt-player-loader-spinner"></div>
-        <span class="yt-player-loader-label">Connecting…</span>
+        <span class="yt-player-loader-label">Connecting via conduit…</span>
       </div>
       <iframe id="${iframeId}" src="${escHTML(url)}" width="100%" height="100%" style="border:none;"
               sandbox="${LOCKED_SANDBOX}" allowfullscreen
@@ -2970,9 +3171,9 @@ function buildRelayPlayer(videoUrl, audioUrl, title, videoFormats = [], captions
       </div>
       <div class="relay-player" id="yt-relay-player">
         <div class="relay-player-title">${escHTML(title || 'YouTube video')}</div>
-        <video id="yt-relay-video" class="relay-player-video" crossorigin="anonymous" muted playsinline
+        <video id="yt-relay-video" class="relay-player-video" crossorigin="anonymous" muted playsinline data-ludus-eager
                preload="auto" src="${escHTML(videoUrl)}"></video>
-        <audio id="yt-relay-audio" crossorigin="anonymous" preload="auto" src="${escHTML(audioUrl)}"></audio>
+        <audio id="yt-relay-audio" crossorigin="anonymous" data-ludus-eager preload="auto" src="${escHTML(audioUrl)}"></audio>
         <div class="relay-controls" aria-label="Video controls">
           <div class="relay-controls-row">
             <button type="button" class="relay-control relay-play" data-relay-action="toggle" aria-label="Play">▶</button>
@@ -3013,18 +3214,17 @@ function relayEndpoint(resolver, videoId) {
 
 async function checkRelay(server) {
   const base = String(server.resolver || '').replace(/\/resolve\/?$/, '');
-  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 8000);
-  const started = performance.now(); setServerHealth(server, 'checking', 'Checking…');
+  setServerHealth(server, 'checking', 'Checking…');
   try {
-    const response = await fetch(`${base}/health`, { signal: controller.signal, headers: /\.shares\.zrok\.io/i.test(base) ? { skip_zrok_interstitial: 'true' } : {} });
-    if (!response.ok) throw new Error(`${serverLabel(server)} is unavailable.`);
-    RESOLVER_BASE = base;
-    try { localStorage.setItem('ludus_active_resolver', server.resolver); } catch {}
-    setServerHealth(server, 'healthy', `Available · ${Math.round(performance.now() - started)} ms`);
+    // A server the person picks is re-checked for real (not answered from the shared cache).
+    const result = await LudusCore.resolver.probe(server.resolver, { timeout: 8000, force: true });
+    RESOLVER_BASE = base; _resolverReady = null;
+    LudusCore.servers.monitor.adopt(server.resolver); // becomes the active server everywhere, and the picker follows
+    setServerHealth(server, 'healthy', `Available · ${result.ms} ms`);
   } catch (error) {
     setServerHealth(server, 'unhealthy', 'Unavailable');
-    throw error;
-  } finally { clearTimeout(timer); }
+    throw new Error(`${serverLabel(server)} is unavailable.`);
+  }
 }
 
 function qualityRank(format) {
@@ -3033,7 +3233,7 @@ function qualityRank(format) {
 }
 
 // The relay is always first. It produces a direct, proxied audio stream;
-// every remaining source is an Invidious embed.
+// every remaining source preserves the existing Invidious + Conduit route.
 async function resolveStreamUrl(server, videoId) {
   if (server.type === 'relay') {
     await checkRelay(server);
@@ -3053,6 +3253,15 @@ async function resolveStreamUrl(server, videoId) {
   }
 
   const raw = server.build(videoId);
+  const useRoute = document.getElementById('conduitToggle')?.classList.contains('active');
+  if (useRoute) {
+    try {
+      const sc = await _conduitReady;
+      return { kind: 'iframe', url: location.origin + sc.encodeUrl(raw) };
+    } catch (err) {
+      console.warn('[Ludus] Route encoding failed:', err);
+    }
+  }
   return { kind: 'iframe', url: raw };
 }
 
@@ -3204,9 +3413,17 @@ function loadingPlayerHTML(label = 'Connecting…') {
   </div>`;
 }
 
+// Relay servers in the order to try them: fastest first (from the shared monitor), unreachable ones last.
+let _relayTried = new Set();
+function relayRanking() {
+  const snap = LudusCore.servers.monitor.snapshot();
+  const rank = url => { const s = snap.servers.find(item => item.url === url); return !s || s.state === 'down' ? 1e9 : s.state === 'up' ? s.ms : 5e8; };
+  return MAIN_SERVERS.filter(server => server.type === 'relay').sort((a, b) => rank(a.resolver) - rank(b.resolver));
+}
 async function mountResolvedPlayer(server, videoId, allowFallback = false) {
   const wrap = document.getElementById('ludus-player-wrap');
   if (!wrap) return;
+  if (server.type === 'relay') _relayTried.add(server.id);
   activateServer(server);
   wrap.innerHTML = loadingPlayerHTML(server.type === 'relay' ? 'Loading Ludus server…' : 'Trying backup player…');
   try {
@@ -3227,7 +3444,7 @@ async function mountResolvedPlayer(server, videoId, allowFallback = false) {
     }
   } catch (error) {
     if (allowFallback) {
-      const nextRelay = MAIN_SERVERS.slice(MAIN_SERVERS.indexOf(server) + 1).find(candidate => candidate.type === 'relay');
+      const nextRelay = relayRanking().find(candidate => !_relayTried.has(candidate.id)); // next-fastest server not tried yet
       if (nextRelay) return mountResolvedPlayer(nextRelay, videoId, true);
       const fallback = MAIN_SERVERS.find(candidate => candidate.type !== 'relay');
       if (fallback) return mountResolvedPlayer(fallback, videoId, false);
@@ -3238,23 +3455,28 @@ async function mountResolvedPlayer(server, videoId, allowFallback = false) {
 
 async function mountPlayer(videoId) {
   _currentVideoId = videoId;
-  await mountResolvedPlayer(MAIN_SERVERS[0], videoId, true);
+  _relayTried = new Set();
+  // Start on the server the shared monitor connected to (the fastest), not always on Server 1.
+  const start = MAIN_SERVERS.find(server => server.type === 'relay' && server.resolver === LudusCore.resolver.active()) || relayRanking()[0] || MAIN_SERVERS[0];
+  await mountResolvedPlayer(start, videoId, true);
 
 }
 
 async function selectMainServer(serverId, name, el) {
   const picked = serverId === 'ludus'
-    ? MAIN_SERVERS.find(server => server.id === document.getElementById('top-server-picker')?.value) || MAIN_SERVERS[0]
+    ? MAIN_SERVERS.find(server => server.type === 'relay' && server.resolver === LudusCore.resolver.active()) || MAIN_SERVERS[0]
     : MAIN_SERVERS.find(s => s.id === serverId);
   if (picked) activateServer(picked);
   document.getElementById('serverDropdownMenu')?.classList.remove('open');
 
   const server = picked;
+  _relayTried = new Set();
   if (!server || !_currentVideoId) return;
   await mountResolvedPlayer(server, _currentVideoId, server.type === 'relay');
 }
 
-// Server menu + outside-click handling — registered once via delegation.
+// Conduit toggle (re-mounts the current server through/around Scramjet) +
+// outside-click handling — registered once via delegation.
 (function initServerControlsGlobalHandlers() {
   initTopServerPicker();
   document.addEventListener('click', e => {
@@ -3269,6 +3491,20 @@ async function selectMainServer(serverId, name, el) {
     const serverItem = e.target.closest('.server-dropdown-item');
     if (serverItem) {
       selectMainServer(serverItem.dataset.server, serverItem.dataset.serverName, serverItem);
+      return;
+    }
+    const cTgl = e.target.closest('#conduitToggle');
+    if (cTgl) {
+      toggleConduit();
+      cTgl.classList.toggle('active', conduitEnabled());
+      cTgl.setAttribute('aria-pressed', String(conduitEnabled()));
+      if (_currentVideoId) {
+        const activeItem = document.querySelector('.server-dropdown-item.active');
+        const server = MAIN_SERVERS.find(s => s.id === activeItem?.dataset.server) || MAIN_SERVERS[0];
+        // The relay already proxies audio itself; Conduit only applies to
+        // the retained third-party iframe fallbacks.
+        if (server.type !== 'relay') mountResolvedPlayer(server, _currentVideoId, false);
+      }
       return;
     }
     if (!e.target.closest('#serverControls')) {
