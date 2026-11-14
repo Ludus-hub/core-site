@@ -13,9 +13,8 @@
   const LEGACY_PROXY_CONFIG_KEY = 'ludus_cfg';
 
   const builtInYoutube = [
-    
-    'https://asks-peak-advise-theories.trycloudflare.com/resolve',
-    'https://ludus-server.itsamess67.workers.dev/resolve',
+    'https://louisiana-century-shareware-dad.trycloudflare.com/resolve',
+
   ];
   const builtInProxy = [
     
