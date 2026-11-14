@@ -19,9 +19,6 @@
 importScripts("/p/scram/scramjet.all.js");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 
-// Repeat-visit cache for Ludus's own static files only (see sw-static-cache.js for exactly what it does and does not
-// touch). If that file is ever missing, the worker simply behaves as before.
-try { importScripts("/sw-static-cache.js"); } catch (error) { console.warn("[sw] static cache unavailable:", error); }
 // ── IDB pre-init ─────────────────────────────────────────────────────
 // Must run before ScramjetServiceWorker constructor so the DB is created
 // with the correct schema on first install.
@@ -52,14 +49,6 @@ function getScramjet() {
   return _scramjetPromise;
 }
 
-self.addEventListener("message", (event) => {
-  const data = event.data;
-  if (!data) return;
-  if (data.type === "ludus:approve-popup" && typeof data.url === "string") {
-    approvedPopupNavigations.set(data.url, Date.now() + 30000);
-    return;
-  }
-});
 // ── Adult domain list (mirror of index.html's ADULT_DOMAINS) ────────
 const ADULT_SW_DOMAINS = new Set([
   "pornhub.com","xvideos.com","xnxx.com","xhamster.com","redtube.com",
@@ -119,58 +108,8 @@ function blockedResponse() {
   });
 }
 
-// A proxy page can call window.open while it is still booting, before the
-// parent UI has had a chance to hook that frame.  A navigation that creates a
-// new client is therefore stopped here, before Scramjet fetches its target.
-// The one-shot allowance is only granted after the user presses Proceed.
-const approvedPopupNavigations = new Map();
-
-function takeApprovedPopup(url) {
-  const expiresAt = approvedPopupNavigations.get(url);
-  approvedPopupNavigations.delete(url);
-  return !!expiresAt && expiresAt > Date.now();
-}
-
-function popupBlockedResponse(proxyUrl, hostname) {
-  const safeUrl = JSON.stringify(proxyUrl).replace(/</g, "\\u003c");
-  const safeHost = String(hostname || "this site").replace(/[&<>\"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '\"':"&quot;" })[ch]);
-  const html = `<!doctype html><meta charset="utf-8"><title>New tab blocked</title>
-  <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b0c10;color:#fff;font:16px system-ui,sans-serif}.card{max-width:440px;padding:32px;border:1px solid #2b303a;border-radius:18px;background:#14161c;text-align:center;box-shadow:0 20px 50px #0008}h1{font-size:21px;margin:0 0 12px}p{line-height:1.5;color:#b8bec9}button{border:0;border-radius:9px;padding:11px 16px;font-weight:700;cursor:pointer;margin:8px}#proceed{background:#38bdf8;color:#062536}#close{background:#2c313b;color:#fff}</style>
-  <main class="card"><div style="font-size:34px">🛑</div><h1>New tab blocked</h1><p><b>${safeHost}</b> tried to open a new proxy tab. It was stopped before the site loaded.</p><button id="close">Keep blocked</button><button id="proceed">Proceed</button></main>
-  <script>const u=${safeUrl};document.querySelector('#close').onclick=()=>window.close();document.querySelector('#proceed').onclick=async()=>{const r=await navigator.serviceWorker.ready;const w=navigator.serviceWorker.controller||r.active;w&&w.postMessage({type:'ludus:approve-popup',url:u});setTimeout(()=>location.replace(u),80)};</script>`;
-  return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
-}
-
-// ── zrok interstitial bypass ─────────────────────────────────────────
-// zrok shows a "this share is hosted through zrok" warning page to browsers
-// unless the request carries the skip_zrok_interstitial header.  <audio> and
-// <video> elements cannot set headers themselves, so every request to a zrok
-// host that passes through this worker gets the header added here.  Media
-// requests start out as no-cors, so they are re-issued as cors (the resolver
-// answers with Access-Control-Allow-Origin: * and allows Range + this header).
-// credentials must be "omit": a wildcard Allow-Origin is rejected otherwise.
-const ZROK_SKIP_HEADER = "skip_zrok_interstitial";
-
-function isZrokHost(url) {
-  try { return new URL(url).hostname.toLowerCase().endsWith(".zrok.io"); }
-  catch { return false; }
-}
-
-function passThroughFetch(request) {
-  if (
-    !isZrokHost(request.url) ||
-    request.mode === "navigate" ||
-    (request.method !== "GET" && request.method !== "HEAD")
-  ) return fetch(request);
-  const headers = new Headers(request.headers);
-  headers.set(ZROK_SKIP_HEADER, "1");
-  return fetch(new Request(request, { headers, mode: "cors", credentials: "omit" }));
-}
 // ── Fetch handler ────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
-  // Our own versioned scripts/styles and game thumbnails: answered from the browser's copy. Never proxied traffic.
-  const cachedAnswer = self.ludusStaticCache && self.ludusStaticCache.handle(event);
-  if (cachedAnswer) { event.respondWith(cachedAnswer); return; }
   event.respondWith(
     (async () => {
       const scramjet = await getScramjet();
@@ -182,12 +121,6 @@ self.addEventListener("fetch", (event) => {
       const host = proxiedHostname(event.request.url, prefix);
       if (isAdultSWDomain(host)) return blockedResponse();
 
-      // A normal Ludus proxy tab is an iframe (`destination === "iframe"`).
-      // Only a new top-level browsing context is a popup, so do not interfere
-      // with the proxy's own tab frames.
-      if (event.request.mode === "navigate" && event.request.destination === "document" && event.resultingClientId && !takeApprovedPopup(event.request.url)) {
-        return popupBlockedResponse(event.request.url, host);
-      }
       return scramjet.fetch(event);
     })()
   );

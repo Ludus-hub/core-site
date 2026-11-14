@@ -93,11 +93,11 @@ button:not(.dock-btn):not(.viewer-btn-spot), .btn:not(.dock-btn) {
     border: 1px solid var(--glass-border);
     box-shadow: 0 4px 10px rgba(0,0,0,0.25);
     color: var(--text-primary);
-    border-radius: 99px;
-    padding: 10px 20px;
-    font-size: 14px;
+    border-radius: 99px; 
+    padding: 10px 20px; 
+    font-size: 14px; 
     font-weight: 500;
-    cursor: pointer;
+    cursor: pointer; 
     transition: all 0.25s ease;
     outline: none;
 }
@@ -134,7 +134,7 @@ button:not(.dock-btn):not(.viewer-btn-spot):hover, .btn:not(.dock-btn):hover {
     --text-secondary: #d1d1d6;
     --radius-lg: 28px;
     --radius-md: 18px;
-    --shadow-soft:
+    --shadow-soft: 
         0 20px 40px rgba(0,0,0,0.4),
         0 0 0 1px rgba(255,255,255,0.1) inset;
 }
@@ -149,13 +149,13 @@ body {
     margin: 0;
     color: var(--text-primary);
     background-color: #000;
-    background-image:
-        radial-gradient(circle at 15% 50%, rgba(14, 165, 164, 0.25), transparent 40%),
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(14, 165, 164, 0.25), transparent 40%), 
         radial-gradient(circle at 85% 30%, rgba(120, 50, 200, 0.15), transparent 40%),
         linear-gradient(180deg, #050505 0%, #111 100%);
     background-attachment: fixed;
     min-height: 100vh;
-    padding-bottom: 150px;
+    padding-bottom: 150px; 
     overflow-x: hidden;
 }
 
@@ -198,7 +198,7 @@ body {
     border-radius: var(--radius-md); padding: 10px; width: 250px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.7); z-index: 1000;
     display: none; flex-direction: column; gap: 8px;
-    -webkit-text-fill-color: white;
+    -webkit-text-fill-color: white; 
     text-shadow: none;
     font-size: 16px;
     letter-spacing: normal;
@@ -215,7 +215,7 @@ body {
 .header .version {
     font-size: 14px; background: rgba(255,255,255,0.1); padding: 4px 12px;
     border-radius: 99px; color: #fff; -webkit-text-fill-color: initial;
-    vertical-align: middle; margin-left: 12px;
+    vertical-align: middle; margin-left: 12px; 
     border: 1px solid rgba(255,255,255,0.15);
     backdrop-filter: blur(10px);
 }
@@ -235,12 +235,12 @@ body {
 
 .card {
     /* Increase opacity from 0.3 to 0.75 so it still looks solid without the blur */
-    background: rgba(40, 40, 40, 0.75);
-
+    background: rgba(40, 40, 40, 0.75); 
+    
     /* REMOVED FOR PERFORMANCE: */
     /* backdrop-filter: blur(20px); */
     /* -webkit-backdrop-filter: blur(20px); */
-
+    
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--radius-lg);
     padding: 15px;
@@ -268,19 +268,19 @@ body {
 }
 .card:hover::before { opacity: 1; transform: scale(1); }
 
-.card img {
-    width: 100%; height: 160px; object-fit: cover;
-    border-radius: var(--radius-md); margin-bottom: 15px;
+.card img { 
+    width: 100%; height: 160px; object-fit: cover; 
+    border-radius: var(--radius-md); margin-bottom: 15px; 
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
-.card h3 {
-    font-size: 16px; font-weight: 600; margin: 0 0 10px; color: #fff;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.card h3 { 
+    font-size: 16px; font-weight: 600; margin: 0 0 10px; color: #fff; 
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
 }
 
 .card .btn {
-    width: 100%; margin-top: 5px;
+    width: 100%; margin-top: 5px; 
     font-weight: 600;
 }
 .card:hover .btn {
@@ -289,16 +289,16 @@ body {
     transform: none;
 }
 
-#versionInputBubble button,
+#versionInputBubble button, 
 #tourWelcomeModal button:first-of-type,
 #loginGate button {
     background: var(--accent-color) !important;
     border: 1px solid var(--accent-color) !important;
     color: white !important;
     box-shadow: 0 4px 10px rgba(14, 165, 164, 0.5) !important;
-    transform: none;
+    transform: none; 
 }
-#versionInputBubble button:hover,
+#versionInputBubble button:hover, 
 #tourWelcomeModal button:first-of-type:hover,
 #loginGate button:hover {
     background: #007978 !important;
@@ -308,22 +308,22 @@ body {
 
 .collapsible-wrapper { position: absolute; top: 30px; right: 30px; z-index: 50; }
 .collapsible-header {
-    background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px);
-    padding: 10px 20px; border-radius: 99px;
-    border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer; display: flex; align-items: center; gap: 10px;
+    background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px); 
+    padding: 10px 20px; border-radius: 99px; 
+    border: 1px solid rgba(255,255,255,0.1); 
+    cursor: pointer; display: flex; align-items: center; gap: 10px; 
     color: white; font-size: 14px; font-weight: 600;
     transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.collapsible-header:hover {
-    background: rgba(50,50,50,0.8);
+.collapsible-header:hover { 
+    background: rgba(50,50,50,0.8); 
     transform: translateY(-2px) scale(1.02);
     box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 15px rgba(255,255,255,0.1) inset;
 }
 
 .collapsible-content {
     background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(40px); margin-top: 15px;
-    padding: 25px; border-radius: var(--radius-lg);
+    padding: 25px; border-radius: var(--radius-lg); 
     border: 1px solid rgba(255,255,255,0.15);
     display: none; position: absolute; right: 0; width: 320px; max-height: 500px; overflow-y: auto;
     box-shadow: 0 30px 60px rgba(0,0,0,0.5);
@@ -369,8 +369,8 @@ body {
 }
 
 #searchInput {
-    width: 100%;
-    background: rgba(0,0,0,0.3);
+    width: 100%; 
+    background: rgba(0,0,0,0.3); 
     border: 1px solid rgba(255,255,255,0.1);
     color: white; padding: 16px 20px; border-radius: 18px;
     font-size: 18px; outline: none;
@@ -423,7 +423,7 @@ input:checked + .slider:before { transform: translateX(22px); }
 
 .dock-btn {
     width: 68px; height: 68px;
-    border-radius: 22px;
+    border-radius: 22px; 
     background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
     border: 1px solid rgba(255,255,255,0.1);
     display: flex; align-items: center; justify-content: center;
@@ -460,13 +460,13 @@ input:checked + .slider:before { transform: translateX(22px); }
 
 .dock-sep { width: 1px; height: 40px; background: rgba(255,255,255,0.15); margin: 0 5px; }
 
-#loginGate, #tourWelcomeModal {
-    background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') !important;
-    background-size: cover; background-position: center;
+#loginGate, #tourWelcomeModal { 
+    background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') !important; 
+    background-size: cover; background-position: center; 
 }
-#loginGate::before, #tourWelcomeModal::before {
-    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(30px); z-index: -1;
+#loginGate::before, #tourWelcomeModal::before { 
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(30px); z-index: -1; 
 }
 
 ::-webkit-scrollbar { width: 10px; }
@@ -480,7 +480,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     border: 2px solid var(--accent-color);
     border-radius: var(--radius-md);
     transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-    pointer-events: none;
+    pointer-events: none; 
     z-index: 100000;
 }
 
@@ -583,7 +583,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     width: 100vw;
     height: 100vh;
     z-index: 800; /* Stays above the grid, but BELOW the dock (1000) and countdown (10000) */
-    background: #000;
+    background: #000; 
     display: none; /* Controlled by JS */
 }
 
@@ -594,9 +594,9 @@ input:checked + .slider:before { transform: translateX(22px); }
 /* This forces the embed to fill 100% of that fixed section */
 .fullscreen-app .app-frame {
     width: 100%;
-    height: 100%;
+    height: 100%; 
     border: none;
-    border-radius: 0;
+    border-radius: 0; 
     display: block;
 }
 
@@ -641,29 +641,29 @@ input:checked + .slider:before { transform: translateX(22px); }
         flex: 1; min-width: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
     .home-widget h3 { margin-top: 0; color: white; font-size: 18px; margin-bottom: 15px; }
-
+    
     .home-section-title { color: white; margin-bottom: 20px; font-size: 22px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
     .home-grid {
         display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;
     }
-
+    
     /* --- Home Cards (Apps & Links) --- */
 .home-card {
     background: rgba(40, 40, 40, 0.75); /* Matched opacity */
-
+    
     /* REMOVED FOR PERFORMANCE: */
     /* backdrop-filter: blur(10px); */
     /* -webkit-backdrop-filter: blur(10px); */
-
+    
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 24px 20px;
-    text-align: center;
+    border-radius: 16px; 
+    padding: 24px 20px; 
+    text-align: center; 
     cursor: pointer;
     /* ... rest of CSS */
 }
     .home-card:hover {
-        transform: translateY(-5px); background: rgba(255, 255, 255, 0.08);
+        transform: translateY(-5px); background: rgba(255, 255, 255, 0.08); 
         border-color: var(--accent-color, #00C9FF); box-shadow: 0 8px 25px rgba(0,0,0,0.4);
     }
     .home-card svg { width: 36px; height: 36px; color: var(--accent-color, #00C9FF); }
@@ -677,7 +677,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     .settings-info { display: flex; flex-direction: column; gap: 6px; max-width: 70%; }
     .settings-label { color: #fff; font-size: 16px; font-weight: 500; }
     .settings-desc { color: rgba(255, 255, 255, 0.5); font-size: 13px; line-height: 1.4; }
-
+    
     /* Settings Inputs & Buttons */
     .settings-input { background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 10px 15px; border-radius: 10px; outline: none; transition: 0.3s; }
     .settings-input:focus { border-color: var(--accent-color, #00aeff); }
@@ -801,7 +801,7 @@ input:checked + .slider:before { transform: translateX(22px); }
     pointer-events: auto;
 }
 /* Position for the 5th Viewer Control Button (Favorites) */
-.spot-4 { top: 20px; right: 20px; }
+.spot-4 { top: 20px; right: 20px; } 
 
 .spot-4:hover { transform: translateY(-2px); }
 .spot-4:active { transform: translateY(1px) scale(0.96); }
@@ -1072,7 +1072,7 @@ button:not(.dock-btn):not(.viewer-btn-spot), .btn:not(.dock-btn) {
     background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--glass-border); box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-    color: var(--text-primary); border-radius: 99px; padding: 10px 20px;
+    color: var(--text-primary); border-radius: 99px; padding: 10px 20px; 
     font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.25s ease; outline: none;
 }
 button:not(.dock-btn):not(.viewer-btn-spot):hover, .btn:not(.dock-btn):hover {
@@ -1279,34 +1279,6 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
 }
 
 .hidden { display: none !important; }
-/* System mixer: the same frosted, compact language as the movable dock. */
-#mixer-dock {
-    background: rgba(19, 24, 31, .82) !important;
-    border: 1px solid rgba(255,255,255,.14) !important;
-    border-radius: 18px !important;
-    backdrop-filter: blur(22px) saturate(140%);
-    -webkit-backdrop-filter: blur(22px) saturate(140%);
-    box-shadow: 0 18px 48px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.07) !important;
-}
-#mixer-dock > div:last-of-type { padding: 16px !important; }
-#mixer-header.mixer-drag-bar {
-    min-height: 48px;
-    padding: 8px 11px !important;
-    background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.025)) !important;
-    border-bottom-color: rgba(255,255,255,.1) !important;
-    touch-action: none;
-    user-select: none;
-}
-.mixer-drag-grip { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: rgba(255,255,255,.48); background: rgba(255,255,255,.055); }
-.mixer-drag-bar:hover .mixer-drag-grip, #mixer-dock.is-dragging .mixer-drag-grip { color: var(--accent-color, #00c9ff); background: rgba(0,201,255,.13); }
-.mixer-window-actions { display: flex; align-items: center; gap: 5px; }
-.mixer-corner-btn { display: grid; place-items: center; width: 30px; height: 30px; margin: 0 !important; padding: 0 !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 9px !important; background: rgba(255,255,255,.055) !important; color: rgba(255,255,255,.65) !important; font-size: 15px !important; line-height: 1 !important; }
-.mixer-corner-btn svg { width: 16px; height: 16px; }
-.mixer-corner-btn:hover { border-color: rgba(0,201,255,.5) !important; background: rgba(0,201,255,.14) !important; color: #fff !important; transform: none !important; box-shadow: none !important; }
-#mixer-dock .v-row { padding: 9px 10px; border: 1px solid rgba(255,255,255,.06); border-radius: 10px; background: rgba(0,0,0,.16); }
-#mixer-dock .m-btn { border-radius: 10px; background: rgba(255,255,255,.07); }
-#mixer-dock .m-btn:hover { background: rgba(0,201,255,.16); }
-@media (max-width: 540px) { #mixer-dock { width: min(340px, calc(100vw - 24px)) !important; } }
 /* Container for the entire control area */
 .control-panel {
     display: flex;
@@ -1331,8 +1303,8 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
     flex-direction: column;
     gap: 10px;
     /* Optional: Adds a visual divider between buttons and mixer */
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2); 
+    padding-top: 15px; 
 }
 /* Forces buttons inside the dropdown to follow the normal layout flow */
 .glass-dropdown .viewer-btn-spot {
@@ -1385,19 +1357,19 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
     .home-widget { background: rgba(30, 30, 30, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 24px; flex: 1; min-width: 300px; backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
     .home-section-title { font-size: 20px; color: rgba(255,255,255,0.9); margin-bottom: 20px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
     .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-bottom: 50px; }
-
-    .home-card {
-        background: rgba(20, 20, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px; padding: 24px; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; gap: 16px; cursor: pointer;
-        transition: all 0.2s ease; text-decoration: none; color: white; aspect-ratio: 4/3;
+    
+    .home-card { 
+        background: rgba(20, 20, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); 
+        border-radius: 16px; padding: 24px; display: flex; flex-direction: column; 
+        align-items: center; justify-content: center; gap: 16px; cursor: pointer; 
+        transition: all 0.2s ease; text-decoration: none; color: white; aspect-ratio: 4/3; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
     .home-card svg { width: 48px; height: 48px; stroke: var(--accent-color, #00C9FF); transition: transform 0.2s; }
     .home-card:hover { background: rgba(40, 40, 40, 0.9); border-color: var(--accent-color, #00C9FF); transform: translateY(-5px); box-shadow: 0 12px 25px rgba(0,0,0,0.4); }
     .home-card:hover svg { transform: scale(1.1); }
     .home-card span { font-weight: 600; font-size: 16px; letter-spacing: 0.5px; text-transform: uppercase; }
-
+    
     /* Title Gradient matching Calc */
     .gradient-title {
         font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
@@ -1533,7 +1505,7 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
         min-height: 100vh;
         padding: 20px;
     }
-
+    
     .settings-box {
         display: flex;
         flex-direction: row;
@@ -1558,7 +1530,7 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
         flex-direction: column;
         padding: 40px 0;
     }
-
+    
     .settings-sidebar-header {
         padding: 0 30px 20px 30px;
         color: white;
@@ -1568,7 +1540,7 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
         margin-bottom: 20px;
         letter-spacing: 0.5px;
     }
-
+    
     .settings-tab-btn {
         background: transparent;
         border: none;
@@ -1582,17 +1554,17 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
         font-weight: 500;
         position: relative;
     }
-
+    
     .settings-tab-btn:hover {
         background: rgba(255, 255, 255, 0.05);
         color: white;
     }
-
+    
     .settings-tab-btn.active {
         background: rgba(255, 255, 255, 0.08);
         color: white;
     }
-
+    
     .settings-tab-btn.active::before {
         content: '';
         position: absolute;
@@ -1617,12 +1589,12 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
         padding: 40px 50px;
         overflow-y: auto;
     }
-
+    
     .settings-tab-content {
         display: none;
         animation: fadeIn 0.3s ease;
     }
-
+    
     .settings-tab-content.active {
         display: block;
     }
@@ -1635,7 +1607,7 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
         justify-content: flex-end;
         gap: 12px;
     }
-
+    
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -1650,7 +1622,7 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
     .settings-info { display: flex; flex-direction: column; gap: 6px; max-width: 70%; }
     .settings-label { color: #fff; font-size: 16px; font-weight: 500; }
     .settings-desc { color: rgba(255, 255, 255, 0.5); font-size: 13px; line-height: 1.4; }
-
+    
     .settings-input { background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 10px 15px; border-radius: 10px; outline: none; transition: 0.3s; }
     .settings-input:focus { border-color: var(--accent-color, #00C9FF); }
     .settings-btn { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 18px; border-radius: 10px; cursor: pointer; transition: 0.2s; font-weight: 500; text-decoration: none; display: inline-block;}
@@ -1664,68 +1636,3 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
     .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     input:checked + .slider { background-color: var(--accent-color, #00C9FF); }
     input:checked + .slider:before { transform: translateX(22px); }
-/* === MINI MUSIC QUEUE + SEARCH (mixer) ===
-   Selectors are prefixed with .mm-host so they outrank the global `button:not(.dock-btn)` glass-pill rule. */
-.mm-host { width: 100%; }
-.mm-host .mm-root { display: flex; flex-direction: column; gap: 8px; }
-.mm-host .mm-tabs { display: flex; gap: 6px; }
-.mm-host .mm-root button.mm-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 28px; min-height: 28px; padding: 0 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; background: rgba(255,255,255,0.04); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; color: rgba(255,255,255,0.6); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .02em; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
-.mm-host .mm-root button.mm-tab:hover { color: #fff; background: rgba(255,255,255,0.08); transform: none; box-shadow: none; }
-.mm-host .mm-root button.mm-tab.active { color: #00C9FF; border-color: rgba(0,201,255,0.4); background: rgba(0,201,255,0.12); }
-.mm-host .mm-count { min-width: 18px; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.1); color: #fff; font-size: 10px; font-weight: 800; text-align: center; }
-.mm-host .mm-tab.active .mm-count { background: rgba(0,201,255,0.25); color: #00C9FF; }
-.mm-host .mm-panel { display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; background: rgba(0,0,0,0.3); }
-.mm-host .mm-panel[hidden] { display: none; }
-.mm-host .mm-list { display: flex; flex-direction: column; gap: 2px; max-height: 168px; overflow-y: auto; overscroll-behavior: contain; }
-.mm-host .mm-list::-webkit-scrollbar { width: 6px; }
-.mm-host .mm-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-.mm-host .mm-empty { padding: 14px 8px; color: rgba(255,255,255,0.45); font-size: 11.5px; text-align: center; }
-.mm-host .mm-row { display: flex; align-items: center; gap: 9px; padding: 5px 6px; border-radius: 8px; cursor: pointer; transition: background .12s; outline: none; }
-.mm-host .mm-row:hover, .mm-host .mm-row:focus-visible { background: rgba(255,255,255,0.08); }
-.mm-host .mm-thumb { display: grid; place-items: center; flex: none; width: 28px; height: 28px; overflow: hidden; border-radius: 6px; background: #1a1a1a; color: rgba(255,255,255,0.4); font-size: 12px; }
-.mm-host .mm-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.mm-host .mm-text { flex: 1; min-width: 0; }
-.mm-host .mm-text b, .mm-host .mm-text small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.mm-host .mm-text b { color: #fff; font-size: 11.5px; font-weight: 700; }
-.mm-host .mm-text small { margin-top: 1px; color: rgba(255,255,255,0.5); font-size: 10.5px; }
-.mm-host .mm-root button.mm-mini { display: grid; place-items: center; flex: none; width: 24px; height: 24px; min-width: 24px; padding: 0; border: 0; border-radius: 50%; background: rgba(255,255,255,0.07); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; color: rgba(255,255,255,0.75); font: inherit; font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer; opacity: .8; transition: background .12s, color .12s, opacity .12s; }
-.mm-host .mm-root button.mm-mini:hover { background: rgba(0,201,255,0.2); color: #00C9FF; opacity: 1; transform: none; box-shadow: none; }
-.mm-host .mm-root button.mm-mini.done { color: #92fe9d; background: rgba(146,254,157,0.15); }
-.mm-host .mm-search input { width: 100%; height: 30px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; background: rgba(0,0,0,0.4); color: #fff; font: inherit; font-size: 12px; outline: none; box-sizing: border-box; }
-.mm-host .mm-search input:focus { border-color: rgba(0,201,255,0.45); }
-.mm-host .mm-search input::placeholder { color: rgba(255,255,255,0.35); }
-.mm-host.mm-compact .mm-list { max-height: 132px; }
-.mm-host.mm-compact .mm-root button.mm-tab { height: 26px; min-height: 26px; font-size: 10.5px; }
-
-/* === Mixer play buttons ===
-   The global `button:not(.dock-btn)` rule adds 10px 20px padding, which squeezed the play/pause icon inside the
-   fixed-size (45px / 35px) circles down to a 2px sliver. Same specificity as that rule, later in the file, so it wins. */
-button.m-btn.play-main { padding: 0; flex: none; }
-#mixer-dock button.m-btn { width: 38px; height: 38px; min-width: 38px; min-height: 38px; padding: 0 !important; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); color: #fff; }
-#mixer-dock button.m-btn:hover { color: var(--accent-color, #00c9ff); border-color: rgba(0,201,255,.4); transform: none !important; box-shadow: none !important; }
-/* −10 / +10 on the YouTube and Movie mixer: same look as the Music app's seek buttons */
-button.m-btn.m-seek:not(.dock-btn):not(.viewer-btn-spot) { color: var(--accent-color, #00c9ff); font-size: 10.5px; font-weight: 800; letter-spacing: 0; line-height: 1; } /* must out-rank the generic button:not(...) rule above */
-#mixer-dock button.m-btn.play-main { width: 46px; height: 46px; min-width: 46px; min-height: 46px; border: 0; background: var(--accent-color, #00c9ff) !important; }
-#mixer-dock button.m-btn.play-main svg { fill: #00171d !important; }
-#mixer-dock button.m-btn svg { display: block; width: 18px; height: 18px; pointer-events: none; }
-#mixer-dock button.m-btn:not(.play-main) svg { fill: currentColor; stroke: currentColor; }
-/* Movie playing with the dock animation switched off: the dock is hidden behind the movie instead of moving */
-body.ludus-cinema-cover #dockContainer { visibility: hidden !important; pointer-events: none !important; }
-
-/* ---- Light mode (Settings > Viewing Controls > Connection): core only, no pictures ---- */
-html.ludus-light #loginGate, html.ludus-light #tourWelcomeModal { background-image: none !important; background-color: #0b0d12; }
-.card-noimg { width: 100%; height: 56px; border-radius: var(--radius-md); margin-bottom: 15px; background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)); border: 1px dashed rgba(255,255,255,0.12); box-sizing: border-box; }
-.light-img-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 9px 14px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); font-size: 13px; color: rgba(255,255,255,0.75); }
-.light-img-bar button { border: 0; border-radius: 999px; padding: 7px 14px; background: linear-gradient(135deg,#00c9ff,#92fe9d); color: #06121a; font-weight: 800; font-size: 12px; cursor: pointer; white-space: nowrap; }
-
-
-/* ---- Tab disguise presets: section titles, letter icons, delete button ---- */
-.preset-section-title { margin: 6px 0 0 2px; color: rgba(255,255,255,0.45); font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
-.preset-empty { padding: 18px 8px; color: rgba(255,255,255,0.45); font-size: 13px; text-align: center; }
-.preset-grid > * { flex-shrink: 0; }
-.preset-card:focus-visible { outline: 2px solid var(--accent-color, #00C9FF); outline-offset: 2px; }
-.preset-icon-letter { display: grid; place-items: center; color: rgba(255,255,255,0.7); font-size: 15px; font-weight: 700; }
-.preset-icon-slot { display: block; width: 32px; height: 32px; flex-shrink: 0; }
-.preset-icon-slot > .preset-icon { display: block; }
-.preset-card button.preset-act { display: grid; place-items: center; width: 28px; height: 28px; min-width: 28px; margin: 0; padding: 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.06); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none; color: rgba(255,255,255,0.7); font-size: 15px; line-height: 1; flex-shrink: 0; }
-.preset-card button.preset-act:hover { border-color: rgba(255,80,80,0.55); background: rgba(255,80,80,0.16); color: #fff; transform: none; box-shadow: none; }
