@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+  // Block all fullscreen requests from Unity or any script
+  const noop = () => Promise.resolve();
+  document.documentElement.requestFullscreen = noop;
+  document.documentElement.webkitRequestFullscreen = noop;
+  Element.prototype.requestFullscreen = noop;
+  Element.prototype.webkitRequestFullscreen = noop;
+  Element.prototype.mozRequestFullScreen = noop;
+  Element.prototype.msRequestFullscreen = noop;
+
+(function() {
+    let masterGainNodes = [];
+    let currentVolume = 1.0;
+    const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (OriginalAudioContext) {
+        window.AudioContext = function(...args) {
+            const ctx = new OriginalAudioContext(...args);
+            const gainNode = ctx.createGain();
+            gainNode.gain.value = currentVolume;
+            const originalDestination = ctx.destination;
+            gainNode.connect(originalDestination);
+            masterGainNodes.push(gainNode);
+            Object.defineProperty(ctx, 'destination', { get: () => gainNode });
+            return ctx;
+        };
+        window.webkitAudioContext = window.AudioContext;
+    }
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.action === 'setGameVolume') {
+            currentVolume = Math.max(0, Math.min(1, event.data.volume));
+            document.querySelectorAll('audio, video').forEach(m => m.volume = currentVolume);
+            masterGainNodes.forEach(g => g.gain.value = currentVolume);
+        }
+    });
+})();
+// === GLOBAL LOCALSTORAGE OVERRIDE ===
+// Place this at the VERY TOP of your <script> tags, before any other logic.
+(function forceLocalData() {
+    console.warn("Storage Override Active: Forcing session data to localStorage and disabling cloud overwrites.");
+
+    // 1. Redirect sessionStorage to localStorage
+    try {
+        const originalSessionStorage = window.sessionStorage;
+        
+        // We create a proxy to catch all gets/sets/removes intended for the session
+        const sessionToLocalProxy = {
+            getItem: function(key) { return window.localStorage.getItem(`session_proxy_${key}`); },
+            setItem: function(key, value) { window.localStorage.setItem(`session_proxy_${key}`, value); },
+            removeItem: function(key) { window.localStorage.removeItem(`session_proxy_${key}`); },
+            clear: function() {
+                // Only clear the proxied session items, not the whole localStorage
+                Object.keys(window.localStorage).forEach(key => {
+                    if (key.startsWith('session_proxy_')) window.localStorage.removeItem(key);
+                });
+            },
+            get length() {
+                return Object.keys(window.localStorage).filter(k => k.startsWith('session_proxy_')).length;
+            }
+        };
+
+        // Attempt to hijack the global sessionStorage object
+        Object.defineProperty(window, 'sessionStorage', {
+            value: sessionToLocalProxy,
+            configurable: true,
+            enumerable: true,
+            writable: false
+        });
+    } catch (e) {
+        console.error("Could not override sessionStorage. The browser may have locked it.", e);
+    }
+
+    // 2. Lock down Cloud Overwrite logic
+    // This forces your existing mathmaster_cloud_overwrite variable to always be false locally
+    window.localStorage.setItem("mathmaster_cloud_overwrite", "false");
+    
+    // Intercept localStorage.setItem to prevent the app from turning cloud overwrite back on
+    const originalSetItem = window.localStorage.setItem;
+    window.localStorage.setItem = function(key, value) {
+        if (key === "mathmaster_cloud_overwrite" && value === "true") {
+            console.warn("Blocked attempt to enable cloud overwrite. Forced to local only.");
+            originalSetItem.call(window.localStorage, key, "false");
+            return;
+        }
+        originalSetItem.call(window.localStorage, key, value);
+    };
+})();
+</script>
+	
+    <base href="https://cdn.jsdelivr.net/gh/web-dashers/web-dashers.github.io@latest/">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<title>Web Dashers</title>
+	<link rel="icon" type="image/x-icon" href="/assets/favicon.ico">
+	<link rel="stylesheet" href="assets/style.css">
+
+	<!-- - Embeds - -->
+	<!-- Open Graph -->
+    <meta property="og:title" content="Web Dash"/>
+    <meta property="og:description" content="A mod of geometrydash.com!"/>
+    <meta property="og:image" content="https://web-dashers.github.io/assets/logo.png"/>
+    <meta property="og:url" content="https://web-dashers.github.io/"/>
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="Web Dash"/>
+    <meta name="twitter:description" content="A mod of geometrydash.com!"/>
+    <meta name="twitter:image" content="https://web-dashers.github.io/assets/logo.png"/>
+	
+	<!-- Libraries and stuff -->
+	<script src="assets/scripts/game/allObjects.js?latest"></script>
+	<script src="assets/scripts/game/allLevels.js"></script>
+	<script src="assets/scripts/libs/phaser.min.js"></script>
+	<script src="assets/scripts/libs/pako.min.js"></script>
+	<script src="assets/scripts/utils/cache-manager.js"></script>
+	<script src="assets/scripts/api/GDapiWrapper.js"></script>
+	<!-- worker -->
+	<script>window._gdProxyUrl = "https://gd-proxy.gmdc.workers.dev";</script>
+	<script defer src="assets/scripts/utils/config.js"></script>
+	<script defer src="assets/scripts/core/triggers.js"></script>
+	<script defer src="assets/scripts/core/level.js?latest"></script>
+	<script defer src="assets/scripts/core/player.js"></script>
+	<script defer src="assets/scripts/core/audio.js"></script>
+	<script defer src="assets/scripts/core/loading-screen.js"></script>
+	<script defer src="assets/scripts/core/game-scene.js?latest"></script>
+	<script defer src="assets/scripts/core/main.js"></script>
+	<script>
+		new ResizeObserver(() => {
+			window.dispatchEvent(new Event('resize'));
+		}).observe(document.documentElement);
+    
+    document.oncontextmenu = (event) => {
+      event.preventDefault();
+    };
+	</script>
+</head>
+
+<body>
+</body>
+
+</html>
+
+</html>

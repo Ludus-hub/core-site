@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    <script>
+  // Block all fullscreen requests from Unity or any script
+  const noop = () => Promise.resolve();
+  document.documentElement.requestFullscreen = noop;
+  document.documentElement.webkitRequestFullscreen = noop;
+  Element.prototype.requestFullscreen = noop;
+  Element.prototype.webkitRequestFullscreen = noop;
+  Element.prototype.mozRequestFullScreen = noop;
+  Element.prototype.msRequestFullscreen = noop;
+
+(function() {
+    let masterGainNodes = [];
+    let currentVolume = 1.0;
+    const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (OriginalAudioContext) {
+        window.AudioContext = function(...args) {
+            const ctx = new OriginalAudioContext(...args);
+            const gainNode = ctx.createGain();
+            gainNode.gain.value = currentVolume;
+            const originalDestination = ctx.destination;
+            gainNode.connect(originalDestination);
+            masterGainNodes.push(gainNode);
+            Object.defineProperty(ctx, 'destination', { get: () => gainNode });
+            return ctx;
+        };
+        window.webkitAudioContext = window.AudioContext;
+    }
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.action === 'setGameVolume') {
+            currentVolume = Math.max(0, Math.min(1, event.data.volume));
+            document.querySelectorAll('audio, video').forEach(m => m.volume = currentVolume);
+            masterGainNodes.forEach(g => g.gain.value = currentVolume);
+        }
+    });
+})();
+// === GLOBAL LOCALSTORAGE OVERRIDE ===
+// Place this at the VERY TOP of your <script> tags, before any other logic.
+(function forceLocalData() {
+    console.warn("Storage Override Active: Forcing session data to localStorage and disabling cloud overwrites.");
+
+    // 1. Redirect sessionStorage to localStorage
+    try {
+        const originalSessionStorage = window.sessionStorage;
+        
+        // We create a proxy to catch all gets/sets/removes intended for the session
+        const sessionToLocalProxy = {
+            getItem: function(key) { return window.localStorage.getItem(`session_proxy_${key}`); },
+            setItem: function(key, value) { window.localStorage.setItem(`session_proxy_${key}`, value); },
+            removeItem: function(key) { window.localStorage.removeItem(`session_proxy_${key}`); },
+            clear: function() {
+                // Only clear the proxied session items, not the whole localStorage
+                Object.keys(window.localStorage).forEach(key => {
+                    if (key.startsWith('session_proxy_')) window.localStorage.removeItem(key);
+                });
+            },
+            get length() {
+                return Object.keys(window.localStorage).filter(k => k.startsWith('session_proxy_')).length;
+            }
+        };
+
+        // Attempt to hijack the global sessionStorage object
+        Object.defineProperty(window, 'sessionStorage', {
+            value: sessionToLocalProxy,
+            configurable: true,
+            enumerable: true,
+            writable: false
+        });
+    } catch (e) {
+        console.error("Could not override sessionStorage. The browser may have locked it.", e);
+    }
+
+    // 2. Lock down Cloud Overwrite logic
+    // This forces your existing mathmaster_cloud_overwrite variable to always be false locally
+    window.localStorage.setItem("mathmaster_cloud_overwrite", "false");
+    
+    // Intercept localStorage.setItem to prevent the app from turning cloud overwrite back on
+    const originalSetItem = window.localStorage.setItem;
+    window.localStorage.setItem = function(key, value) {
+        if (key === "mathmaster_cloud_overwrite" && value === "true") {
+            console.warn("Blocked attempt to enable cloud overwrite. Forced to local only.");
+            originalSetItem.call(window.localStorage, key, "false");
+            return;
+        }
+        originalSetItem.call(window.localStorage, key, value);
+    };
+})();
+</script>
+        <base href="https://cdn.jsdelivr.net/gh/web-ports/fear-and-hunger-2@latest/">
+        <meta charset="UTF-8">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="viewport" content="user-scalable=no">
+        <link rel="icon" href="icon/icon.png" type="image/png">
+        <link rel="apple-touch-icon" href="icon/icon.png">
+        <link rel="stylesheet" type="text/css" href="fonts/gamefont.css">
+        <title>Fear &amp; Hunger 2: TERMINA</title>
+    </head>
+    <body style="background-color: black">
+        <script type="text/javascript" src="js/libs/pixi.js"></script>
+        <script type="text/javascript" src="js/libs/pixi-tilemap.js"></script>
+        <script type="text/javascript" src="js/libs/pixi-picture.js"></script>
+        <script type="text/javascript" src="js/libs/fpsmeter.js"></script>
+        <script type="text/javascript" src="js/libs/lz-string.js"></script>
+        <script type="text/javascript" src="js/libs/iphone-inline-video.browser.js"></script>
+        <script type="text/javascript" src="js/rpg_core.js"></script>
+        <script type="text/javascript" src="js/rpg_managers.js"></script>
+        <script type="text/javascript" src="js/rpg_objects.js"></script>
+        <script type="text/javascript" src="js/rpg_scenes.js"></script>
+        <script type="text/javascript" src="js/rpg_sprites.js"></script>
+        <script type="text/javascript" src="js/rpg_windows.js"></script>
+        <script type="text/javascript" src="js/plugins.js"></script>
+        <script type="text/javascript" src="js/main.js"></script>
+    <!-- gn math patch -->
+    <script>
+        // full screen the game ----------------------------------------------------------
+        function applycanvasmode() {
+            let w = 0;
+            let h = 0;
+            let maxW = window.innerWidth;
+            let maxH = window.innerHeight;
+            if ((maxW * 0.75) > maxH) {
+                h = maxH;
+                w = Math.floor((maxH / 3) * 4);
+            } else {
+                w = maxW;
+                h = Math.floor((maxW / 4) * 3);
+            }
+            document.querySelector("#GameCanvas").style.width = w + "px";
+            document.querySelector("#GameCanvas").style.height = h + "px";
+            document.querySelector("#GameVideo").style.width = w + "px";
+            document.querySelector("#GameVideo").style.height = h + "px";
+            document.querySelector("#UpperCanvas").style.width = w + "px";
+            document.querySelector("#UpperCanvas").style.height = h + "px";
+        }
+        setInterval(applycanvasmode, 100);
+
+        // support mobile ----------------------------------------------------------------
+        (function() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (!isMobile) {
+                return;
+            }
+            let i = setInterval(function() {
+                if (window.fullSetupComplete) {
+                    let zoneStatic = document.createElement("div");
+                    zoneStatic.style = "position: fixed; bottom: 0; left: 0; z-index: 9999; width: 500px; height: 500px;";
+                    let internal = document.createElement("div");
+                    internal.style = "position: relative; width: 100%; height: 100%;"
+                    zoneStatic.appendChild(internal);
+                    let joystick = nipplejs.create({
+                        mode: 'semi',
+                        zone: internal,
+                        color: 'red',
+                        catchDistance: 30
+                    });
+                    setTimeout(function() {
+                        joystick.on("dir", function(e, data) {
+                            let dirs = ["up", "down", "left", "right"];
+                            for (let o of dirs) {
+                                if (o !== data.direction.angle) {
+                                    fakeInput.up(o);
+                                } else {
+                                    fakeInput.down(o);
+                                }
+                            }
+                        });
+                        joystick.on("end", function() {
+                            let dirs = ["up", "down", "left", "right"];
+                            for (let o of dirs) {
+                                fakeInput.up(o);
+                            }
+                        });
+                    }, 100);
+                    document.body.appendChild(zoneStatic);
+                    const createButton = (text, key, bottom, right, bgColor) => {
+                        let button = document.createElement("div");
+                        button.style = `
+                    position: fixed; 
+                    bottom: ${bottom}; 
+                    right: ${right}; 
+                    width: 10vw; 
+                    height: 10vw; 
+                    background: ${bgColor}; 
+                    color: white; 
+                    touch-action: none; 
+                    z-index: 999999; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-family: sans-serif; 
+                    font-size: 3vw;
+                    border-radius: 50%;
+                `;
+                        button.innerText = text;
+                        button.addEventListener("touchstart", function(e) {
+                            e.preventDefault();
+                            fakeInput.down(key);
+                        });
+                        button.addEventListener("touchend", function(e) {
+                            e.preventDefault();
+                            fakeInput.up(key);
+                        });
+                        document.body.appendChild(button);
+                        return button;
+                    };
+
+                    createButton("OK", "ok", "5vw", "5vw", "#0f08");
+                    createButton("ESC", "escape", "5vw", "15vw", "#f008");
+                    createButton("TAG", "tag", "15vw", "15vw", "#00f8");
+                    createButton("RUN", "shift", "15vw", "5vw", "#f0f8");
+                    clearInterval(i);
+                }
+            }, 100);
+        })();
+    </script>
+    </body>
+</html>

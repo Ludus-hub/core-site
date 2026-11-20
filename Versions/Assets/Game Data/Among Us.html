@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Among Us</title>
+<base href="https://cdn.jsdelivr.net/gh/Ludus-hub/games-2@Main/among-us/">
+<link rel="stylesheet" href="style.css">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden}</style>
+</head><body>
+<!-- Construct's runtime ignores the HTML base tag.  Load its entry module with
+     an explicit base so every C3 asset resolves from the game directory. -->
+<script src="scripts/supportcheck.js"></script>
+<script type="module">
+(async () => {
+  const base = 'https://cdn.jsdelivr.net/gh/Ludus-hub/games-2@Main/among-us/';
+  const response = await fetch(base + 'scripts/main.js');
+  if (!response.ok) throw new Error(`Could not load Among Us (${response.status})`);
+  let source = await response.text();
+  const needle = 'exportType:"html5"}';
+  if (!source.includes(needle)) throw new Error('Unexpected Among Us runtime version.');
+  source = source.replace(needle, `exportType:"html5",baseUrl:"${base}"}`);
+  const entry = document.createElement('script');
+  entry.type = 'module';
+  entry.textContent = source;
+  document.head.appendChild(entry);
+})().catch(error => {
+  document.body.textContent = 'Among Us could not start: ' + error.message;
+  console.error(error);
+});
+</script>
+</body></html>

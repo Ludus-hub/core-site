@@ -1,9 +1,8 @@
 {
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "premium-session-lock",
-      "ignore": ["node_modules", ".git", "firebase-debug.log"]
-    }
-  ]
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
 }

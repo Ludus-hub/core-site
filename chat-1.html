@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proxy</title>
-    <script src="loading-protocol.js"></script>
+    <title>Ludus</title>
+    <script src="ludus-core.js?v=379570e499"></script>
     <style>
         /* =====================================================
-         *  SIMPLE SINGLE-SITE PROXY
+         *  SIMPLE SINGLE-SITE
          *  ─────────────────────────────────────────────────
          *  To change the proxied website, edit TARGET_URL in
          *  the <script> block near the bottom of this file.
@@ -74,7 +74,7 @@
             color: var(--accent);
         }
 
-        /* The proxy iframe — full viewport, no border */
+        /* The  iframe — full viewport, no border */
         #proxy-frame {
             position: fixed; inset: 0;
             width: 100%; height: 100%;
@@ -87,7 +87,7 @@
 
     <div id="loading-screen">
         <div class="ld-spinner"></div>
-        <div class="ld-text">Connecting to proxy…</div>
+        <div class="ld-text">Connecting to conduit…</div>
     </div>
 
     <div id="error-screen">
@@ -104,6 +104,7 @@
     <!-- ============================================================
          SCRAMJET BUNDLE — served by your Netlify/static host
     ============================================================ -->
+    <script src="ludus-servers.js"></script>
     <script src="/p/scram/scramjet.all.js"></script>
 
     <script>
@@ -143,7 +144,7 @@
 
                 const scramjet = new ScramjetController({
                     prefix: '/scramjet/',
-                    wisp: 'wss://wisp.mercurywork.shop/',
+                    wisp: window.LudusServers?.proxy?.active?.()?.url,
                     files: {
                         wasm: '/p/scram/scramjet.wasm.wasm',
                         all:  '/p/scram/scramjet.all.js',

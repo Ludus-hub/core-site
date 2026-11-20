@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="mobile-web-app-capable" content="yes"><title>Monkey Mart</title>
+<base href="https://cdn.jsdelivr.net/gh/Ludus-hub/games-2@Main/monkeymart/">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#00BB61}.canvas-app-container{width:100%;height:100%;position:absolute;overflow:hidden}#canvas{width:100%;height:100%;outline:none;border:0}</style>
+<script src="patch/js/poki-sdk.js"></script>
+<!-- Defold calls both integrations from its native startup bridge. -->
+<script src="GameAnalytics.js"></script>
+<script src="js/analytics_ubg_v1_4.js"></script>
+<script src="js/ubg235_client_v1_2.js"></script>
+<script>
+/* This archived Poki shim predates captureError, but the game calls it. */
+if (!PokiSDK.captureError) PokiSDK.captureError = function () {};
+</script>
+</head><body>
+<div id="app-container" class="canvas-app-container"><div id="canvas-container"><canvas id="canvas" tabindex="1" width="960" height="640"></canvas></div></div>
+<script src="dmloader.js"></script>
+<script>
+/* The repo's archive manifest says game.projectc is 4113 bytes.  Its actual
+   game piece is 3892 bytes, so Defold aborts before starting. */
+const originalDescription = GameArchiveLoader.onReceiveDescription;
+GameArchiveLoader.onReceiveDescription = function (manifest) {
+  const project = manifest && manifest.content && manifest.content.find(file => file.name === 'game.projectc');
+  if (project) project.size = 3892;
+  return originalDescription.call(this, manifest);
+};
+const extra_params = {
+  archive_location_filter: path => 'archive' + path,
+  engine_arguments: ['--verify-graphics-calls=false'],
+  custom_heap_size: 134217728,
+  full_screen_container: '#canvas-container',
+  disable_context_menu: true
+};
+Module.INITIAL_MEMORY = extra_params.custom_heap_size;
+Module.locateFile = (path, directory) => directory + (path === 'dmengine.wasm' || path === 'dmengine_release.wasm' || path === 'dmengine_headless.wasm' ? 'MonkeyMart.wasm' : path);
+Module.onRuntimeInitialized = () => {
+  const start = () => Module.runApp('canvas', extra_params);
+  window.PokiSDK ? PokiSDK.init().then(start).catch(start) : start();
+};
+addEventListener('resize', () => { const c = document.getElementById('canvas'); c.width = innerWidth; c.height = innerHeight; });
+EngineLoader.stream_wasm = false;
+EngineLoader.load('canvas', 'MonkeyMart');
+</script>
+</body></html>

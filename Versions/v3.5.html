@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8"/>
+        <meta content="width=device-width,initial-scale=1" name="viewport"/>
+        <title>Ludus</title>
+        <link href="Assets/Pictures/Non-edited/Math-n.png" id="favicon" rel="icon"/>
+        <link href="style-2.css" rel="stylesheet"/>
+    </head>
+    <body>
+        <div id="globalSignupBanner" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; align-items: center; gap: 15px; padding: 10px 24px; background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(15px) saturate(180%); -webkit-backdrop-filter: blur(15px) saturate(180%); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); color: white; flex-wrap: wrap; justify-content: center; width: max-content; max-width: 90%;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <svg fill="none" height="18" stroke="#FFD700" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="18">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span style="font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 500;">Unlock saved games, sync progress across devices, and get emails regarding new unblocked domains and features.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button onclick="document.getElementById('authModal').style.display='flex'; document.getElementById('globalSignupBanner').style.display='none';" style="background: #FFD700; color: #000; border: none; padding: 6px 14px; border-radius: 12px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s ease;">Sign Up</button>
+                <button onclick="document.getElementById('globalSignupBanner').style.display='none'" onmouseout="this.style.color='rgba(255,255,255,0.5)'" onmouseover="this.style.color='white'" style="background: transparent; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: 0.2s ease;">
+                    <svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+                        <line x1="18" x2="6" y1="6" y2="18"></line>
+                        <line x1="6" x2="18" y1="6" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div id="loginGate" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 999999;">
+            <div style="position: relative; z-index: 10; text-align: center; background: rgba(0,0,0,0.4); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); width:90%; max-width:320px;">
+                <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 500; color:white;">Welcome</h2>
+                <input class="settings-input" id="authPasswordInput" placeholder="Password" type="password"/>
+                <label style="display: none; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; color: #ccc;">
+                    <span>Remember Me</span>
+                    <input checked="" id="rememberToggle" type="checkbox"/>
+                </label>
+                <button onclick="checkPassword()" style="width: 100%; background: white; color: black; font-weight: bold; padding: 12px;">Unlock</button>
+                <p id="loginError" style="margin-top: 15px; color: #ff453a; display: none;">Incorrect password</p>
+                <p id="loginLimit" style="margin-top: 15px; color: #ff453a; display: none;">Device limit reached</p>
+            </div>
+        </div>
+        <div class="app-section active-section fullscreen-app" id="app-home" style="overflow-y: auto;">
+            <div class="home-layout">
+                <header class="header">
+                    <h1 style="margin-bottom: 0;">Math Master</h1>
+                    <div style="margin-bottom: 30px; margin-top: 5px; text-align: center;">
+                        <span class="gradient-title" style="font-size: 1.2rem;">by Ludus</span>
+                    </div>
+                </header>
+                <div id="versionRunnerOverlay" style="display: none; position: fixed; inset: 0; z-index: 1000002; background: #000;">
+                    <div onclick="exitVersion()" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'" onmouseover="this.style.borderColor='var(--accent-color)'" style="position: absolute; top: 20px; left: 20px; background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 20px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; z-index: 1000003;">
+                        <svg fill="none" height="20" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="20">
+                            <line x1="19" x2="5" y1="12" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        <span style="color: white; font-weight: 600; font-size: 14px;">Return to v3.5</span>
+                    </div>
+                    <iframe id="versionFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+                <div class="home-header-row">
+                    <div style="display: flex; flex-direction: column; gap: 20px; flex: 1;">
+                        <div class="home-widget" id="home-profile" style="margin-bottom: 0;">
+                            <h3 style="margin-top: 0; color: var(--accent-color, #00C9FF);">Welcome Back</h3>
+                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 15px;">
+                                <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
+                                    <svg fill="none" height="24" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div id="profileName" style="color: white; font-weight: bold; font-size: 16px;">Guest User</div>
+                                    <div id="profileAction" onclick="document.getElementById('authModal').style.display='flex'" style="color: rgba(255,255,255,0.5); font-size: 13px; cursor: pointer;">Sign In →</div>
+                                </div>
+                            </div>
+                            <button id="cloudSaveBtn" onclick="window.saveDataToCloud()" onmouseout="this.style.background='rgba(0,201,255,0.15)'" onmouseover="this.style.background='rgba(0,201,255,0.25)'" style="display: none; margin-top: 14px; width: 100%; background: rgba(0,201,255,0.15); color: var(--accent-color, #00C9FF); border: 1px solid rgba(0,201,255,0.35); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;">Save to Cloud
+            </button>
+                        </div>
+                        <div class="home-widget" style="margin-bottom: 0;">
+                            <h3 style="margin: 0; color: var(--accent-color, #00C9FF); font-size: 18px;">Time Machine</h3>
+                            <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin: 8px 0 15px 0;">Run archived builds of Ludus.</p>
+                            <div style="display: flex; gap: 10px;">
+                                <select class="settings-input" id="versionDropdown" style="flex: 1; cursor: pointer;">
+                                    <option disabled="" selected="" value="">Detecting versions...</option>
+                                </select>
+                                <button class="settings-btn primary" onclick="launchSelectedVersion()" style="padding: 0 15px;">Launch</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="home-widget" style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: var(--accent-color, #00C9FF);">Update Details</h3>
+                            <span style="background: rgba(0, 201, 255, 0.2); color: var(--accent-color, #00C9FF); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;">v3.5</span>
+                        </div>
+                        <ul style="margin: 0; padding-left: 18px; color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.6;">
+                            <li>
+                                <b>Added all games from gn-math:</b>
+                                Every game and card picture from gn-math is here, adding over 800 games total now.
+                            </li>
+                            <li>
+                                <b>New Movie Servers:</b>
+                                9 more servers added to movie app in case the others are blocked.
+                            </li>
+                            <li>
+                                <b>More Tab Diguises:</b>
+                                Added over 25 tab presets to diguise yourself in any situation.
+                            </li>
+                            <li>
+                                <b>Fixed Saving Issues:</b>
+                                All games now save in exports and to the cloud. This includes all app data.
+                            </li>
+                            <li>
+                                <b>Last Update:</b>
+                                This will be the last update, as schools close for summer. This also means support for unblocking the site and adding games will end over the summer. mathmaster-tx-27 with be the last domain.
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="home-section-title">Ludus Ecosystem</h2>
+                    <div class="home-grid">
+                        <div class="home-card" onclick="switchSection('app-games', document.querySelector('.dock-btn[data-app=\'app-games\']'))">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <rect height="12" rx="2" ry="2" width="20" x="2" y="6"></rect>
+                                <line x1="6" x2="10" y1="12" y2="12"></line>
+                                <line x1="8" x2="8" y1="10" y2="14"></line>
+                                <line x1="15" x2="15.01" y1="13" y2="13"></line>
+                                <line x1="18" x2="18.01" y1="11" y2="11"></line>
+                            </svg>
+                            <span>Games</span>
+                        </div>
+                        <div class="home-card" onclick="switchSection('app-music', document.querySelector('.dock-btn[data-app=\'app-music\']'))">
+                            <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <path d="M9 18V5l12-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="18" cy="16" r="3"></circle>
+                            </svg>
+                            <span>Music</span>
+                        </div>
+                        <div class="home-card" onclick="switchSection('app-movies', document.querySelector('.dock-btn[data-app=\'app-movies\']'))">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <rect height="20" rx="2.18" ry="2.18" width="20" x="2" y="2"></rect>
+                                <line x1="7" x2="7" y1="2" y2="22"></line>
+                                <line x1="17" x2="17" y1="2" y2="22"></line>
+                                <line x1="2" x2="22" y1="12" y2="12"></line>
+                                <line x1="2" x2="7" y1="7" y2="7"></line>
+                                <line x1="2" x2="7" y1="17" y2="17"></line>
+                                <line x1="17" x2="22" y1="17" y2="17"></line>
+                                <line x1="17" x2="22" y1="7" y2="7"></line>
+                            </svg>
+                            <span>Movies</span>
+                        </div>
+                        <div class="home-card" onclick="switchSection('app-calculator', document.querySelector('.dock-btn[data-app=\'app-calculator\']'))">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <rect height="20" rx="2" ry="2" width="16" x="4" y="2"></rect>
+                                <line x1="8" x2="16" y1="6" y2="6"></line>
+                                <line x1="16" x2="16" y1="14" y2="18"></line>
+                                <line x1="8" x2="8.01" y1="10" y2="10"></line>
+                                <line x1="12" x2="12.01" y1="10" y2="10"></line>
+                                <line x1="16" x2="16.01" y1="10" y2="10"></line>
+                                <line x1="8" x2="8.01" y1="14" y2="14"></line>
+                                <line x1="12" x2="12.01" y1="14" y2="14"></line>
+                                <line x1="8" x2="8.01" y1="18" y2="18"></line>
+                                <line x1="12" x2="12.01" y1="18" y2="18"></line>
+                            </svg>
+                            <span>Calculator</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h2 class="home-section-title">Support &amp;Links</h2>
+                    <div class="home-grid">
+                        <a class="home-card" href="https://forms.gle/DvNCmd3w6uzrNdyD7" target="_blank">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" x2="12" y1="3" y2="15"></line>
+                            </svg>
+                            <span>Game Request</span>
+                        </a>
+                        <a class="home-card" href="https://forms.gle/dZ3UX8JZgWjURjfC6" target="_blank">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <rect height="11" rx="2" ry="2" width="18" x="3" y="11"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <span>Unblock Form</span>
+                        </a>
+                        <a class="home-card" href="mailto:mathmasterofficialemail@gmail.com">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                            <span>Contact Us</span>
+                        </a>
+                        <a class="home-card" href="https://github.com/MathMaster-global/MathMaster-Global-v2.0" target="_blank">
+                            <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                            </svg>
+                            <span>GitHub</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="app-section container" id="app-games" style="display: none;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 100px; margin-bottom: 25px;">
+                <svg fill="none" height="32" stroke="var(--accent-color, #00C9FF)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="32">
+                    <rect height="12" rx="2" ry="2" width="20" x="2" y="6"></rect>
+                    <line x1="6" x2="10" y1="12" y2="12"></line>
+                    <line x1="8" x2="8" y1="10" y2="14"></line>
+                    <line x1="15" x2="15.01" y1="13" y2="13"></line>
+                    <line x1="18" x2="18.01" y1="11" y2="11"></line>
+                </svg>
+                <h1 class="gradient-title" style="margin: 0; font-size: 32px;">Ludus Games</h1>
+            </div>
+            <div id="gameSearchContainer" style="max-width: 650px; margin: 0 auto 30px auto; position: relative; z-index: 100;">
+                <div style="display: flex; align-items: center; background: rgba(30,30,30,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 8px 20px; backdrop-filter: blur(15px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); gap: 10px;">
+                    <svg fill="none" height="18" stroke="rgba(255,255,255,0.4)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="18">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+                    </svg>
+                    <input autocomplete="off" id="searchInput" placeholder="Search games..." style="flex: 1; background: transparent; border: none; color: white; font-size: 15px; outline: none; padding: 5px 0;" type="text"/>
+                    <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.2);"></div>
+                    <select class="glass-select" id="filterDropdown" title="Filter Games">
+                        <option value="all">All</option>
+                        <option value="dev">Dev Favs</option>
+                        <option value="favs">My Favs</option>
+                    </select>
+                    <div style="width: 1px; height: 18px; background: rgba(255,255,255,0.2);"></div>
+                    <select class="glass-select" id="sortDropdown" title="Sort Games">
+                        <option value="default">Default</option>
+                        <option value="az">A-Z</option>
+                        <option value="recent">Recent</option>
+                    </select>
+                </div>
+                <div id="suggestions" style="margin-top: 10px; color: var(--accent-color); font-size: 13px; text-align: center;"></div>
+            </div>
+            <div id="gameGrid"></div>
+            <div class="viewer" id="viewer">
+                <div id="game-floating-dock" style="position: absolute; top: 20px; left: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px;">
+                    <div id="game-dock-header" style="background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; display: flex; gap: 8px; align-items: center; cursor: grab; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: max-content; min-width: 120px;">
+                        <div id="game-dock-drag" style="display:flex; align-items:center; justify-content: center; padding: 0 5px; color: rgba(255,255,255,0.4); flex-shrink: 0;">
+                            <svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16">
+                                <circle cx="9" cy="8" fill="currentColor" r="1.5"></circle>
+                                <circle cx="15" cy="8" fill="currentColor" r="1.5"></circle>
+                                <circle cx="9" cy="16" fill="currentColor" r="1.5"></circle>
+                                <circle cx="15" cy="16" fill="currentColor" r="1.5"></circle>
+                            </svg>
+                        </div>
+                        <div id="quickControlsContainer" style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;"></div>
+                        <button class="m-btn" onclick="toggleGameDropdown()" style="padding: 6px; border-radius: 8px; background: rgba(255,255,255,0.05); flex-shrink: 0; margin: 0; min-width: 32px; min-height: 32px; display: flex; align-items: center; justify-content: center;" title="More Options">
+                            <svg fill="none" height="20" id="game-dock-chevron" stroke="white" stroke-linecap="round" stroke-width="2" style="transition: transform 0.2s;" viewbox="0 0 24 24" width="20">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="control-panel" id="game-dock-dropdown" style="display: none; background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; width: 320px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); padding: 15px; flex-direction: column; gap: 20px;">
+                        <div class="button-section" style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-size: 11px; font-weight: 800; color: var(--accent-color, #00C9FF); text-transform: uppercase; letter-spacing: 1px;">Viewer Controls</div>
+                            <div id="viewerControlsContainer" style="display: flex; gap: 8px; flex-wrap: wrap; min-height: 36px; align-items: center; width: 100%;"></div>
+                        </div>
+                        <hr style="border-color: rgba(255,255,255,0.05); width: 100%; margin: 0;"/>
+                        <div class="mixer-section" style="padding-top: 0; display: flex; flex-direction: column; gap: 15px;">
+                            <div style="font-size: 11px; font-weight: 800; color: var(--accent-color, #00C9FF); text-transform: uppercase; letter-spacing: 1px;">In-Game Mixer</div>
+                            <div style="display: flex; flex-direction: column; gap: 18px;">
+                                <div id="game-mixer-music-section" style="display: none; flex-direction: column; gap: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <img id="game-mix-music-thumb" src="" style="width: 40px; height: 40px; background: #1a1a1a; border-radius: 8px; object-fit: cover; display: none;"/>
+                                        <div id="game-mix-music-placeholder" style="width: 40px; height: 40px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                            <svg fill="none" height="20" stroke="#00C9FF" stroke-width="2" viewbox="0 0 24 24" width="20">
+                                                <path d="M9 18V5l12-2v13"></path>
+                                                <circle cx="6" cy="18" r="3"></circle>
+                                                <circle cx="18" cy="16" r="3"></circle>
+                                            </svg>
+                                        </div>
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div id="game-mix-music-title" style="font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Audio</div>
+                                            <div id="game-mix-music-artist" style="font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Music App</div>
+                                        </div>
+                                    </div>
+                                    <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">VOL</span>
+                                        <input class="volume-slider" id="game-vol-music" max="1" min="0" step="0.01" type="range" value="0.8"/>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-around; align-items: center;">
+                                        <button class="m-btn" onclick="directControlMedia('music', 'playPrev')">
+                                            <svg fill="white" height="16" viewbox="0 0 24 24" width="16">
+                                                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                                                <line stroke="white" stroke-width="2" x1="5" x2="5" y1="19" y2="5"></line>
+                                            </svg>
+                                        </button>
+                                        <button class="m-btn play-main" id="game-mix-music-play" onclick="directControlMedia('music', 'togglePlay')" style="background: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+                                            <svg fill="black" height="18" viewbox="0 0 24 24" width="18">
+                                                <path d="M8 5v14l11-7z"></path>
+                                            </svg>
+                                        </button>
+                                        <button class="m-btn" onclick="directControlMedia('music', 'playNext')">
+                                            <svg fill="white" height="16" viewbox="0 0 24 24" width="16">
+                                                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                                                <line stroke="white" stroke-width="2" x1="19" x2="19" y1="5" y2="19"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <hr style="border-color: rgba(255,255,255,0.05); width: 100%; margin: 0;"/>
+                                </div>
+                                <div id="game-mixer-movie-section" style="display: none; flex-direction: column; gap: 12px;">
+                                    <div style="display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                                        <div id="game-mix-movie-title" style="font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Movie</div>
+                                        <div style="display: flex; justify-content: center; gap: 20px; align-items: center; padding-top: 5px;">
+                                            <button class="m-btn" onclick="directControlMedia('movie', 'seekBack')" style="font-size: 11px; font-weight: bold; color: white;">-10s</button>
+                                            <button class="m-btn play-main" id="game-mix-movie-play" onclick="directControlMedia('movie', 'togglePlay')" style="background: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+                                                <svg fill="black" height="18" viewbox="0 0 24 24" width="18">
+                                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                                </svg>
+                                            </button>
+                                            <button class="m-btn" onclick="directControlMedia('movie', 'seekForward')" style="font-size: 11px; font-weight: bold; color: white;">+10s</button>
+                                        </div>
+                                    </div>
+                                    <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">SEEK</span>
+                                        <input class="volume-slider" id="game-seek-movie" max="100" min="0" step="0.1" type="range" value="0"/>
+                                    </div>
+                                    <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                                        <span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">VOL</span>
+                                        <input class="volume-slider" id="game-vol-movie" max="1" min="0" step="0.01" type="range" value="1.0"/>
+                                    </div>
+                                    <hr style="border-color: rgba(255,255,255,0.05); width: 100%; margin: 0;"/>
+                                </div>
+                                <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">GAME</span>
+                                    <input class="volume-slider" id="game-vol-game" max="1" min="0" step="0.01" type="range" value="1.0"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <iframe class="app-frame" id="gameFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-modals allow-popups allow-downloads" src=""></iframe>
+            </div>
+        </div>
+        <div class="app-section fullscreen-app" id="app-proxy" style="display: none;">
+            <embed class="app-frame" data-src="Versions/Assets/Apps/Placeholder.html" id="proxyFrame" src="about:blank" type="text/html"/>
+        </div>
+        <div class="app-section fullscreen-app" id="app-chatbot" style="display: none;">
+            <embed class="app-frame" data-src="./Versions/Assets/Apps/chatbot.html" id="chatFrame" src="about:blank" type="text/html"/>
+        </div>
+        <div class="app-section fullscreen-app" id="app-calculator" style="display: none;">
+            <embed class="app-frame" data-src="Versions/Assets/Apps/calc.html" src="about:blank"/>
+        </div>
+        <div class="app-section fullscreen-app" id="app-music" style="display: none;">
+            <object class="app-frame" data="about:blank" data-src="Versions/Assets/Apps/music/dist-2/index-m.html" id="musicFrame" type="text/html"></object>
+        </div>
+        <div class="app-section fullscreen-app" id="app-movies" style="display: none;">
+            <object class="app-frame" data="about:blank" data-src="Versions/Assets/Apps/movie.html" id="moviesFrame" type="text/html"></object>
+        </div>
+        <div class="app-section fullscreen-app" id="app-files" style="display: none;">
+            <embed class="app-frame" data-src="Versions/Assets/Apps/file-all.html" id="filesFrame" src="about:blank"/>
+        </div>
+        <div class="home-widget" id="mixer-dock" style="display: none; position: fixed; bottom: 80px; right: 20px; z-index: 10001; width: 340px; padding: 0; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div id="mixer-header" style="background: rgba(255,255,255,0.03); padding: 12px 18px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 8px; height: 8px; background: #00C9FF; border-radius: 50%; box-shadow: 0 0 10px #00C9FF;"></div>
+                    <span style="font-size: 12px; font-weight: 800; letter-spacing: 1px; color: rgba(255,255,255,0.9); text-transform: uppercase;">System Mixer</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <div class="header-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56;"></div>
+                    <div class="header-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e;"></div>
+                    <div class="header-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f;"></div>
+                </div>
+            </div>
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 18px;">
+                <div id="mixer-music-section" style="display: none; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <img id="mix-music-thumb" src="" style="width: 45px; height: 45px; background: #1a1a1a; border-radius: 8px; object-fit: cover; display: none;"/>
+                        <div id="mix-music-placeholder" style="width: 45px; height: 45px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <svg fill="none" height="24" stroke="#00C9FF" stroke-width="2" viewbox="0 0 24 24" width="24">
+                                <path d="M9 18V5l12-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="18" cy="16" r="3"></circle>
+                            </svg>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div id="mix-music-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Audio</div>
+                            <div id="mix-music-artist" style="font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Music App</div>
+                        </div>
+                    </div>
+                    <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">VOL</span>
+                        <input class="volume-slider" id="vol-music" max="1" min="0" step="0.01" type="range" value="0.8"/>
+                    </div>
+                    <div style="display: flex; justify-content: space-around; align-items: center; padding-top: 5px;">
+                        <button class="m-btn" onclick="directControlMedia('music', 'playPrev')">
+                            <svg fill="white" height="20" viewbox="0 0 24 24" width="20">
+                                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                                <line stroke="white" stroke-width="2" x1="5" x2="5" y1="19" y2="5"></line>
+                            </svg>
+                        </button>
+                        <button class="m-btn play-main" id="mix-music-play" onclick="directControlMedia('music', 'togglePlay')" style="background: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+                            <svg fill="black" height="24" id="music-icon-play" viewbox="0 0 24 24" width="24">
+                                <path d="M8 5v14l11-7z"></path>
+                            </svg>
+                            <svg fill="black" height="24" id="music-icon-pause" style="display: none;" viewbox="0 0 24 24" width="24">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+                            </svg>
+                        </button>
+                        <button class="m-btn" onclick="directControlMedia('music', 'playNext')">
+                            <svg fill="white" height="20" viewbox="0 0 24 24" width="20">
+                                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                                <line stroke="white" stroke-width="2" x1="19" x2="19" y1="5" y2="19"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <hr style="border-color: rgba(255,255,255,0.1); width: 100%; margin: 5px 0;"/>
+                </div>
+                <div id="mixer-movie-section" style="display: none; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                        <div id="mix-movie-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Movie</div>
+                        <div style="display: flex; justify-content: center; gap: 20px; align-items: center; padding-top: 10px;">
+                            <button class="m-btn" onclick="directControlMedia('movie', 'seekBack')" style="font-size: 12px; font-weight: bold; color: white;">-10s</button>
+                            <button class="m-btn play-main" id="mix-movie-play" onclick="directControlMedia('movie', 'togglePlay')" style="background: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+                                <svg fill="black" height="24" viewbox="0 0 24 24" width="24">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                            <button class="m-btn" onclick="directControlMedia('movie', 'seekForward')" style="font-size: 12px; font-weight: bold; color: white;">+10s</button>
+                        </div>
+                    </div>
+                    <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">SEEK</span>
+                        <input class="volume-slider" id="seek-movie" max="100" min="0" step="0.1" type="range" value="0"/>
+                    </div>
+                    <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">VOL</span>
+                        <input class="volume-slider" id="vol-movie" max="1" min="0" step="0.01" type="range" value="1.0"/>
+                    </div>
+                    <hr style="border-color: rgba(255,255,255,0.1); width: 100%; margin: 5px 0;"/>
+                </div>
+                <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">GAME</span>
+                    <input class="volume-slider" id="vol-game" max="1" min="0" step="0.01" type="range" value="1.0"/>
+                </div>
+            </div>
+        </div>
+        <hr style="border-color: rgba(255,255,255,0.1); width: 100%; margin: 5px 0;"/>
+        <div class="app-section fullscreen-app" id="app-settings" style="display: none; overflow-y: hidden;">
+            <div class="settings-container-wrapper">
+                <div class="settings-box">
+                    <div class="settings-sidebar">
+                        <div class="settings-sidebar-header">Settings</div>
+                        <button class="settings-tab-btn active" onclick="switchSettingsTab(event, 'tab-data')">Data &amp;Saves</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-disguise')">Disguise &amp;Security</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-viewer')">Viewer Controls</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-defaults')">App Defaults</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-credits')">Credits</button>
+                    </div>
+                    <div class="settings-content-wrapper">
+                        <div class="settings-content-area">
+                            <div class="settings-tab-content active" id="tab-data">
+                                <div class="settings-group">
+                                    <h3 class="settings-group-title">Data &amp;Saves</h3>
+                                    <div class="settings-card">
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Backup &amp;Restore</span>
+                                                <span class="settings-desc">Export or import your saved games, settings, and local data.</span>
+                                            </div>
+                                            <div class="settings-actions" style="display: flex; gap: 10px;">
+                                                <input accept=".json" id="saveFileInput" onchange="importSave(event)" style="display: none;" type="file"/>
+                                                <button class="settings-btn" onclick="exportSave()">Export</button>
+                                                <button class="settings-btn" onclick="document.getElementById('saveFileInput').click()">Import</button>
+                                            </div>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Save to Cloud</span>
+                                                <span class="settings-desc">Manually push your current progress and saves to the cloud right now.</span>
+                                            </div>
+                                            <button class="settings-btn primary" onclick="window.saveDataToCloud()">Save Now</button>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Allow Cloud Overwrite</span>
+                                                <span class="settings-desc">When off, your existing cloud data is protected and won't be replaced by local progress.</span>
+                                            </div>
+                                            <label class="ios-switch">
+                                                <input id="settingsCloudOverwriteToggle" type="checkbox"/>
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Load from Cloud</span>
+                                                <span class="settings-desc">Manually pull your latest game saves and data from the cloud.</span>
+                                            </div>
+                                            <button class="settings-btn" onclick="manualCloudLoad()">Load Data</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-tab-content" id="tab-disguise">
+                                <div class="settings-group">
+                                    <h3 class="settings-group-title">Disguise &amp;Security</h3>
+                                    <div class="settings-card">
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Canvas Mode Disguise</span>
+                                                <span class="settings-desc">Disguise the site as a learning platform.</span>
+                                            </div>
+                                            <label class="ios-switch">
+                                                <input id="settingsCanvasToggle" type="checkbox"/>
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Block Tab Closing</span>
+                                                <span class="settings-desc">Show a warning dialog when trying to close or reload the site.</span>
+                                            </div>
+                                            <label class="ios-switch">
+                                                <input id="settingsBlockCloseToggle" type="checkbox"/>
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Global Panic Key</span>
+                                                <span class="settings-desc">Instantly redirect to your panic URL.</span>
+                                            </div>
+                                            <input class="settings-input" id="settingsPanicKey" maxlength="1" style="width: 45px; text-align: center; font-weight: bold;" type="text"/>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Global Panic URL</span>
+                                                <span class="settings-desc">Where the panic key takes you.</span>
+                                            </div>
+                                            <input class="settings-input" id="settingsPanicURL" placeholder="https://google.com" style="width: 180px;" type="text"/>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Tab Title</span>
+                                                <span class="settings-desc">Change the name displayed on the browser tab.</span>
+                                            </div>
+                                            <input class="settings-input" id="settingsTabTitle" placeholder="Math Master" style="width: 180px;" type="text"/>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Tab Icon (Upload)</span>
+                                                <span class="settings-desc">Upload a custom image for the tab favicon.</span>
+                                            </div>
+                                            <input accept="image/*" class="settings-input" id="settingsTabIcon" style="width: 200px; padding: 5px;" type="file"/>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">About:Blank Cloaking</span>
+                                                <span class="settings-desc">Launch the site in a hidden tab to bypass history tracking.</span>
+                                            </div>
+                                            <button class="settings-btn primary" onclick="openAboutBlank()">Launch</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="settings-group" style="margin-top: 24px;">
+                                    <h3 class="settings-group-title">Tab Disguise Presets</h3>
+                                    <p style="color:rgba(255,255,255,0.45); font-size:13px; margin: -10px 0 14px 5px;">Click a preset to instantly change the tab title and icon.</p>
+                                    <div class="preset-search-wrap">
+                                        <svg fill="none" height="16" stroke="rgba(255,255,255,0.35)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+                                        </svg>
+                                        <input autocomplete="off" class="preset-search" id="presetSearchInput" oninput="filterPresets(this.value)" placeholder="Search presets..." type="text"/>
+                                    </div>
+                                    <div class="preset-grid" id="disguisePresetGrid" style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
+                                        <!-- ── Originals ── -->
+                                        <div class="preset-card" id="preset-hac-orig" onclick="applyDisguisePreset('Home View Summary','Versions/Assets/Pictures/Non-edited/hac.ico')">
+                                            <img alt="" class="preset-icon" src="Versions/Assets/Pictures/Non-edited/hac.ico"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Home Access Center</div>
+                                                <div class="preset-sublabel">Home View Summary</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-hebisd" onclick="applyDisguisePreset('HEB ISD Home - Hurst Euless Bedford','https://www.google.com/s2/favicons?domain=hebisd.edu&amp;sz=64','preset-hebisd')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=hebisd.edu&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">HEBISD Homepage</div>
+                                                <div class="preset-sublabel">HEB ISD Home - Hurst Euless Bedford</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-backpack" onclick="applyDisguisePreset('My Classes','Versions/Assets/Pictures/Non-edited/backpack.ico')">
+                                            <img alt="" class="preset-icon" src="Versions/Assets/Pictures/Non-edited/backpack.ico"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">School Backpack</div>
+                                                <div class="preset-sublabel">My Classes</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-schoolcity" onclick="applyDisguisePreset('Launchpad I SchoolCity Students','https://www.google.com/s2/favicons?domain=schoolcity.com&amp;sz=64','preset-schoolcity')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=schoolcity.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">School City</div>
+                                                <div class="preset-sublabel">Launchpad I SchoolCity</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Google Suite -->
+                                        <div class="preset-card" id="preset-gdocs" onclick="applyDisguisePreset('Document - Google Docs','https://www.google.com/s2/favicons?domain=docs.google.com&amp;sz=64','preset-gdocs')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=docs.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Docs</div>
+                                                <div class="preset-sublabel">Document - Google Docs</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-gclassroom" onclick="applyDisguisePreset('Classes - Google Classroom','https://www.google.com/s2/favicons?domain=classroom.google.com&amp;sz=64','preset-gclassroom')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=classroom.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Classroom</div>
+                                                <div class="preset-sublabel">Classes - Google Classroom</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-gslides" onclick="applyDisguisePreset('Presentation - Google Slides','https://www.google.com/s2/favicons?domain=slides.google.com&amp;sz=64','preset-gslides')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=slides.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Slides</div>
+                                                <div class="preset-sublabel">Presentation - Google Slides</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-gsheets" onclick="applyDisguisePreset('Spreadsheet - Google Sheets','https://www.google.com/s2/favicons?domain=sheets.google.com&amp;sz=64','preset-gsheets')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=sheets.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Sheets</div>
+                                                <div class="preset-sublabel">Spreadsheet - Google Sheets</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-gforms" onclick="applyDisguisePreset('Form - Google Forms','https://www.google.com/s2/favicons?domain=forms.google.com&amp;sz=64','preset-gforms')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=forms.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Forms</div>
+                                                <div class="preset-sublabel">Form - Google Forms</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-gdrive" onclick="applyDisguisePreset('My Drive - Google Drive','https://www.google.com/s2/favicons?domain=drive.google.com&amp;sz=64','preset-gdrive')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=drive.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Drive</div>
+                                                <div class="preset-sublabel">My Drive - Google Drive</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- LMS Platforms -->
+                                        <div class="preset-card" id="preset-canvas" onclick="applyDisguisePreset('Dashboard - Canvas','https://www.google.com/s2/favicons?domain=canvas.instructure.com&amp;sz=64','preset-canvas')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=canvas.instructure.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Canvas LMS</div>
+                                                <div class="preset-sublabel">Dashboard - Canvas</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-schoology" onclick="applyDisguisePreset('Schoology','https://www.google.com/s2/favicons?domain=schoology.com&amp;sz=64','preset-schoology')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=schoology.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Schoology</div>
+                                                <div class="preset-sublabel">Schoology Learning</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-clever" onclick="applyDisguisePreset('Clever | Log in','https://www.google.com/s2/favicons?domain=clever.com&amp;sz=64','preset-clever')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=clever.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Clever</div>
+                                                <div class="preset-sublabel">Clever | Log in</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Study / Quiz Games -->
+                                        <div class="preset-card" id="preset-blooket" onclick="applyDisguisePreset('Blooket | Dashboard','https://www.google.com/s2/favicons?domain=blooket.com&amp;sz=64','preset-blooket')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=blooket.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Blooket</div>
+                                                <div class="preset-sublabel">Blooket | Dashboard</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-kahoot" onclick="applyDisguisePreset('Kahoot! | Learning games','https://www.google.com/s2/favicons?domain=kahoot.com&amp;sz=64','preset-kahoot')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=kahoot.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Kahoot!</div>
+                                                <div class="preset-sublabel">Kahoot! | Learning games</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-quizlet" onclick="applyDisguisePreset('Quizlet | Study tools &amp; flashcards','https://www.google.com/s2/favicons?domain=quizlet.com&amp;sz=64','preset-quizlet')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=quizlet.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Quizlet</div>
+                                                <div class="preset-sublabel">Quizlet | Study tools &amp;flashcards</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-gimkit" onclick="applyDisguisePreset('Gimkit','https://www.google.com/s2/favicons?domain=gimkit.com&amp;sz=64','preset-gimkit')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=gimkit.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Gimkit</div>
+                                                <div class="preset-sublabel">Gimkit - Learning games</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Math / Science -->
+                                        <div class="preset-card" id="preset-desmos" onclick="applyDisguisePreset('Desmos | Graphing Calculator','https://www.google.com/s2/favicons?domain=desmos.com&amp;sz=64','preset-desmos')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=desmos.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Desmos</div>
+                                                <div class="preset-sublabel">Desmos | Graphing Calculator</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-deltamath" onclick="applyDisguisePreset('DeltaMath','https://www.google.com/s2/favicons?domain=deltamath.com&amp;sz=64','preset-deltamath')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=deltamath.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">DeltaMath</div>
+                                                <div class="preset-sublabel">DeltaMath</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-ixl" onclick="applyDisguisePreset('IXL | Math, Language Arts, Science, Social Studies, and Spanish','https://www.google.com/s2/favicons?domain=ixl.com&amp;sz=64','preset-ixl')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=ixl.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">IXL</div>
+                                                <div class="preset-sublabel">IXL | Math &amp;Language Arts</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-khanacademy" onclick="applyDisguisePreset('Khan Academy | Free Online Courses, Lessons &amp; Practice','https://www.google.com/s2/favicons?domain=khanacademy.org&amp;sz=64','preset-khanacademy')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=khanacademy.org&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Khan Academy</div>
+                                                <div class="preset-sublabel">Khan Academy | Free Courses &amp;Practice</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-prodigy" onclick="applyDisguisePreset('Prodigy - Math Game','https://www.google.com/s2/favicons?domain=prodigygame.com&amp;sz=64','preset-prodigy')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=prodigygame.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Prodigy Math</div>
+                                                <div class="preset-sublabel">Prodigy - Math Game</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- ELA / Reading -->
+                                        <div class="preset-card" id="preset-commonlit" onclick="applyDisguisePreset('CommonLit | Free Reading &amp; Writing Activities','https://www.google.com/s2/favicons?domain=commonlit.org&amp;sz=64','preset-commonlit')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=commonlit.org&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">CommonLit</div>
+                                                <div class="preset-sublabel">CommonLit | Reading Activities</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-noredink" onclick="applyDisguisePreset('NoRedInk','https://www.google.com/s2/favicons?domain=noredink.com&amp;sz=64','preset-noredink')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=noredink.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">NoRedInk</div>
+                                                <div class="preset-sublabel">NoRedInk - Grammar &amp;Writing</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-newsela" onclick="applyDisguisePreset('Newsela | Reading Engagement Platform','https://www.google.com/s2/favicons?domain=newsela.com&amp;sz=64','preset-newsela')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=newsela.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Newsela</div>
+                                                <div class="preset-sublabel">Newsela | Reading Engagement</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Interactive/Video -->
+                                        <div class="preset-card" id="preset-edpuzzle" onclick="applyDisguisePreset('Edpuzzle','https://www.google.com/s2/favicons?domain=edpuzzle.com&amp;sz=64','preset-edpuzzle')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=edpuzzle.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Edpuzzle</div>
+                                                <div class="preset-sublabel">Edpuzzle | Interactive Video</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-nearpod" onclick="applyDisguisePreset('Nearpod | Make your lessons unforgettable','https://www.google.com/s2/favicons?domain=nearpod.com&amp;sz=64','preset-nearpod')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=nearpod.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Nearpod</div>
+                                                <div class="preset-sublabel">Nearpod | Interactive Lessons</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-brainpop" onclick="applyDisguisePreset('BrainPOP','https://www.google.com/s2/favicons?domain=brainpop.com&amp;sz=64','preset-brainpop')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=brainpop.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">BrainPOP</div>
+                                                <div class="preset-sublabel">BrainPOP | Animated Educational</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-flocabulary" onclick="applyDisguisePreset('Flocabulary','https://www.google.com/s2/favicons?domain=flocabulary.com&amp;sz=64','preset-flocabulary')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=flocabulary.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Flocabulary</div>
+                                                <div class="preset-sublabel">Flocabulary | Hip-hop Education</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-padlet" onclick="applyDisguisePreset('Padlet','https://www.google.com/s2/favicons?domain=padlet.com&amp;sz=64','preset-padlet')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=padlet.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Padlet</div>
+                                                <div class="preset-sublabel">Padlet | Collaborative Board</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Coding -->
+                                        <div class="preset-card" id="preset-codeorg" onclick="applyDisguisePreset('Code.org','https://www.google.com/s2/favicons?domain=code.org&amp;sz=64','preset-codeorg')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=code.org&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Code.org</div>
+                                                <div class="preset-sublabel">Code.org | Learn to Code</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-scratch" onclick="applyDisguisePreset('Scratch - Imagine, Program, Share','https://www.google.com/s2/favicons?domain=scratch.mit.edu&amp;sz=64','preset-scratch')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=scratch.mit.edu&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Scratch</div>
+                                                <div class="preset-sublabel">Scratch | Imagine, Program, Share</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Language -->
+                                        <div class="preset-card" id="preset-duolingo" onclick="applyDisguisePreset('Learn a language for free | Duolingo','https://www.google.com/s2/favicons?domain=duolingo.com&amp;sz=64','preset-duolingo')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=duolingo.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Duolingo</div>
+                                                <div class="preset-sublabel">Learn a language for free | Duolingo</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Typing -->
+                                        <div class="preset-card" id="preset-typingcom" onclick="applyDisguisePreset('Typing.com | Free Typing Lessons','https://www.google.com/s2/favicons?domain=typing.com&amp;sz=64','preset-typingcom')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=typing.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Typing.com</div>
+                                                <div class="preset-sublabel">Typing.com | Free Typing Lessons</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-typingclub" onclick="applyDisguisePreset('TypingClub - Learn Touch Typing for Free','https://www.google.com/s2/favicons?domain=typingclub.com&amp;sz=64','preset-typingclub')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=typingclub.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">TypingClub</div>
+                                                <div class="preset-sublabel">TypingClub | Learn Touch Typing</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Assessment -->
+                                        <div class="preset-card" id="preset-edulastic" onclick="applyDisguisePreset('Edulastic | Online Assessment for Teachers','https://www.google.com/s2/favicons?domain=edulastic.com&amp;sz=64','preset-edulastic')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=edulastic.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Edulastic</div>
+                                                <div class="preset-sublabel">Edulastic | Online Assessment</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-iready" onclick="applyDisguisePreset('i-Ready','https://www.google.com/s2/favicons?domain=i-ready.com&amp;sz=64','preset-iready')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=i-ready.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">i-Ready</div>
+                                                <div class="preset-sublabel">i-Ready | Personalized Learning</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- School Admin -->
+                                        <div class="preset-card" id="preset-smartpass" onclick="applyDisguisePreset('SmartPass','https://www.google.com/s2/favicons?domain=smartpass.app&amp;sz=64','preset-smartpass')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=smartpass.app&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">SmartPass</div>
+                                                <div class="preset-sublabel">SmartPass | Digital Hall Pass</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-seesaw" onclick="applyDisguisePreset('Seesaw: The Learning Journal','https://www.google.com/s2/favicons?domain=web.seesaw.me&amp;sz=64','preset-seesaw')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=web.seesaw.me&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Seesaw</div>
+                                                <div class="preset-sublabel">Seesaw: The Learning Journal</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-hac" onclick="applyDisguisePreset('Home Access Center','https://www.google.com/s2/favicons?domain=hac.hebisd.edu&amp;sz=64','preset-hac')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=hac.hebisd.edu&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Home Access Center</div>
+                                                <div class="preset-sublabel">HAC | Student Grades &amp;Info</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-pearson" onclick="applyDisguisePreset('Pearson | The world\'s learning company','https://www.google.com/s2/favicons?domain=pearson.com&amp;sz=64','preset-pearson')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=pearson.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Pearson</div>
+                                                <div class="preset-sublabel">Pearson | The world's learning company</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Microsoft / Office -->
+                                        <div class="preset-card" id="preset-office" onclick="applyDisguisePreset('Microsoft 365','https://www.google.com/s2/favicons?domain=office.com&amp;sz=64','preset-office')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=office.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Microsoft 365</div>
+                                                <div class="preset-sublabel">Microsoft 365 | Home</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-word" onclick="applyDisguisePreset('Document - Word','https://www.google.com/s2/favicons?domain=office.live.com&amp;sz=64','preset-word')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=office.live.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Word Online</div>
+                                                <div class="preset-sublabel">Document - Word</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-onenote" onclick="applyDisguisePreset('OneNote','https://www.google.com/s2/favicons?domain=onenote.com&amp;sz=64','preset-onenote')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=onenote.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">OneNote</div>
+                                                <div class="preset-sublabel">OneNote | My Notebooks</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-teams" onclick="applyDisguisePreset('Microsoft Teams','https://www.google.com/s2/favicons?domain=teams.microsoft.com&amp;sz=64','preset-teams')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=teams.microsoft.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Microsoft Teams</div>
+                                                <div class="preset-sublabel">Microsoft Teams</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Video Calls -->
+                                        <div class="preset-card" id="preset-gmeet" onclick="applyDisguisePreset('Google Meet','https://www.google.com/s2/favicons?domain=meet.google.com&amp;sz=64','preset-gmeet')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=meet.google.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Google Meet</div>
+                                                <div class="preset-sublabel">Google Meet</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-zoom" onclick="applyDisguisePreset('Zoom | Video Conferencing','https://www.google.com/s2/favicons?domain=zoom.us&amp;sz=64','preset-zoom')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=zoom.us&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Zoom</div>
+                                                <div class="preset-sublabel">Zoom | Video Conferencing</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Research / Reference -->
+                                        <div class="preset-card" id="preset-wikipedia" onclick="applyDisguisePreset('Wikipedia, the free encyclopedia','https://www.google.com/s2/favicons?domain=wikipedia.org&amp;sz=64','preset-wikipedia')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=wikipedia.org&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Wikipedia</div>
+                                                <div class="preset-sublabel">Wikipedia, the free encyclopedia</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-wolfram" onclick="applyDisguisePreset('Wolfram|Alpha: Computational Intelligence','https://www.google.com/s2/favicons?domain=wolframalpha.com&amp;sz=64','preset-wolfram')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=wolframalpha.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Wolfram Alpha</div>
+                                                <div class="preset-sublabel">Wolfram|Alpha: Computational Intelligence</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-britannica" onclick="applyDisguisePreset('Encyclopaedia Britannica','https://www.google.com/s2/favicons?domain=britannica.com&amp;sz=64','preset-britannica')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=britannica.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Britannica</div>
+                                                <div class="preset-sublabel">Encyclopaedia Britannica</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- Writing Tools -->
+                                        <div class="preset-card" id="preset-grammarly" onclick="applyDisguisePreset('Grammarly | Free AI Writing Assistance','https://www.google.com/s2/favicons?domain=grammarly.com&amp;sz=64','preset-grammarly')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=grammarly.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Grammarly</div>
+                                                <div class="preset-sublabel">Grammarly | Free AI Writing Assistance</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-turnitin" onclick="applyDisguisePreset('Turnitin','https://www.google.com/s2/favicons?domain=turnitin.com&amp;sz=64','preset-turnitin')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=turnitin.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Turnitin</div>
+                                                <div class="preset-sublabel">Turnitin | Originality &amp;Feedback</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <!-- More Ed Platforms -->
+                                        <div class="preset-card" id="preset-renaissance" onclick="applyDisguisePreset('Renaissance | Accelerated Reader','https://www.google.com/s2/favicons?domain=renaissance.com&amp;sz=64','preset-renaissance')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=renaissance.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Renaissance / AR</div>
+                                                <div class="preset-sublabel">Renaissance | Accelerated Reader</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-mobymax" onclick="applyDisguisePreset('MobyMax | Find and Fix Learning Gaps','https://www.google.com/s2/favicons?domain=mobymax.com&amp;sz=64','preset-mobymax')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=mobymax.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">MobyMax</div>
+                                                <div class="preset-sublabel">MobyMax | Find and Fix Learning Gaps</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-pear" onclick="applyDisguisePreset('Pear Deck | Interactive Presentations','https://www.google.com/s2/favicons?domain=peardeck.com&amp;sz=64','preset-pear')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=peardeck.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Pear Deck</div>
+                                                <div class="preset-sublabel">Pear Deck | Interactive Presentations</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-flip" onclick="applyDisguisePreset('Flip | Spark Meaningful Discussions','https://www.google.com/s2/favicons?domain=flip.com&amp;sz=64','preset-flip')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=flip.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Flip (Flipgrid)</div>
+                                                <div class="preset-sublabel">Flip | Spark Meaningful Discussions</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-formative" onclick="applyDisguisePreset('Formative | Real-Time Assessment','https://www.google.com/s2/favicons?domain=goformative.com&amp;sz=64','preset-formative')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=goformative.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Formative</div>
+                                                <div class="preset-sublabel">Formative | Real-Time Assessment</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-studyisland" onclick="applyDisguisePreset('Study Island','https://www.google.com/s2/favicons?domain=studyisland.com&amp;sz=64','preset-studyisland')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=studyisland.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Study Island</div>
+                                                <div class="preset-sublabel">Study Island | K-12 Test Prep</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-imagine" onclick="applyDisguisePreset('Imagine Learning','https://www.google.com/s2/favicons?domain=imaginelearning.com&amp;sz=64','preset-imagine')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=imaginelearning.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Imagine Learning</div>
+                                                <div class="preset-sublabel">Imagine Learning | Adaptive Ed</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-sumdog" onclick="applyDisguisePreset('Sumdog | Math and Spelling Games','https://www.google.com/s2/favicons?domain=sumdog.com&amp;sz=64','preset-sumdog')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=sumdog.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Sumdog</div>
+                                                <div class="preset-sublabel">Sumdog | Math and Spelling Games</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-sora" onclick="applyDisguisePreset('Sora | The student reading app','https://www.google.com/s2/favicons?domain=soraapp.com&amp;sz=64','preset-sora')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=soraapp.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">Sora</div>
+                                                <div class="preset-sublabel">Sora | The student reading app</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-readworks" onclick="applyDisguisePreset('ReadWorks | Improve Reading Comprehension','https://www.google.com/s2/favicons?domain=readworks.org&amp;sz=64','preset-readworks')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=readworks.org&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">ReadWorks</div>
+                                                <div class="preset-sublabel">ReadWorks | Reading Comprehension</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        <div class="preset-card" id="preset-mcgraw" onclick="applyDisguisePreset('McGraw-Hill Education','https://www.google.com/s2/favicons?domain=mheducation.com&amp;sz=64','preset-mcgraw')">
+                                            <img alt="" class="preset-icon" src="https://www.google.com/s2/favicons?domain=mheducation.com&amp;sz=64"/>
+                                            <div class="preset-text">
+                                                <div class="preset-label">McGraw-Hill</div>
+                                                <div class="preset-sublabel">McGraw-Hill Education</div>
+                                            </div>
+                                            <div class="preset-check">
+                                                <svg fill="none" height="10" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewbox="0 0 12 12" width="10">
+                                                    <polyline points="2 6 5 9 10 3"></polyline>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-tab-content" id="tab-viewer">
+                                <div class="settings-group">
+                                    <h3 class="settings-group-title">Viewer Controls</h3>
+                                    <div class="settings-card" style="margin-bottom: 20px;">
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Show System Mixer</span>
+                                                <span class="settings-desc">Display the global audio mixer on the home screen.</span>
+                                            </div>
+                                            <label class="ios-switch">
+                                                <input id="settingsMixerToggle" onchange="toggleSystemMixer()" type="checkbox"/>
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 15px 5px;">Reorder, hide, or assign keyboard shortcuts to buttons shown while playing games.</p>
+                                    <div class="settings-card" id="controlsList" style="display: flex; flex-direction: column;"></div>
+                                </div>
+                            </div>
+                            <div class="settings-tab-content" id="tab-defaults">
+                                <div class="settings-group">
+                                    <h3 class="settings-group-title">Game Library Defaults</h3>
+                                    <div class="settings-card">
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Default Filter</span>
+                                                <span class="settings-desc">Choose which games show up first.</span>
+                                            </div>
+                                            <select class="settings-input" id="settingsDefaultFilter" onchange="saveDefaultFilters()">
+                                                <option value="all">All</option>
+                                                <option value="dev">Dev Favs</option>
+                                                <option value="favs">My Favs</option>
+                                            </select>
+                                        </div>
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Default Sort</span>
+                                                <span class="settings-desc">How games are ordered.</span>
+                                            </div>
+                                            <select class="settings-input" id="settingsDefaultSort" onchange="saveDefaultFilters()">
+                                                <option value="default">Default</option>
+                                                <option value="az">A-Z</option>
+                                                <option value="recent">Recent</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="settings-group" style="margin-top: 30px;">
+                                    <h3 class="settings-group-title">Movies App Defaults</h3>
+                                    <div class="settings-card">
+                                        <div class="settings-row">
+                                            <div class="settings-info">
+                                                <span class="settings-label">Default Streaming Server</span>
+                                                <span class="settings-desc">Choose which server loads first for movies &amp;TV.</span>
+                                            </div>
+                                            <select class="settings-input" id="settingsMovieServer" onchange="localStorage.setItem('ludus_server', this.value)">
+                                                <option value="vidrock">Server 1 (Vidrock)</option>
+                                                <option value="vidsrc_pm">Server 2 (Vidsrc.pm)</option>
+                                                <option value="vidsrc_cc">Server 3 (Vidsrc.cc)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-tab-content" id="tab-credits">
+                                <div class="settings-group">
+                                    <h3 class="settings-group-title">Credits</h3>
+                                    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px 5px;">Original creators of all 814 games in Ludus.</p>
+                                    <input id="creditsSearch" oninput="filterCredits(this.value)" placeholder="Search by game name or creator..." style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 14px;border-radius:10px;font-size:14px;margin-bottom:12px;outline:none;" type="text"/>
+                                    <div class="settings-card" id="creditsListContainer" style="max-height:52vh;overflow-y:auto;padding:0 20px;">
+                                        <div id="creditsList"></div>
+                                    </div>
+                                    <p id="creditsCount" style="font-size:12px;color:var(--text-secondary);margin:8px 0 0 5px;"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-footer">
+                            <button class="settings-btn" onclick="resetSettings()" style="background: rgba(255, 69, 58, 0.1); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.3);">Reset to Defaults</button>
+                            <button class="settings-btn primary" onclick="saveAndRenderControls(); switchSection('app-home', document.querySelector('.dock-btn[data-app=\'app-home\']'));" style="padding: 10px 24px;">Save &amp;Go Home</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="dock-container" id="dockContainer">
+            <div class="bottom-dock" id="bottomDock">
+                <div class="dock-drag-handle" id="dockDragHandle" title="Drag Dock">
+                    <svg fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+                        <circle cx="9" cy="8" fill="currentColor" r="1.5"></circle>
+                        <circle cx="15" cy="8" fill="currentColor" r="1.5"></circle>
+                        <circle cx="9" cy="16" fill="currentColor" r="1.5"></circle>
+                        <circle cx="15" cy="16" fill="currentColor" r="1.5"></circle>
+                    </svg>
+                </div>
+                <button class="dock-btn active-mode" data-app="app-home" data-tooltip="Home" onclick="switchSection('app-home', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-games" data-tooltip="Games" onclick="switchSection('app-games', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <rect height="12" rx="2" ry="2" width="20" x="2" y="6"></rect>
+                        <line x1="6" x2="10" y1="12" y2="12"></line>
+                        <line x1="8" x2="8" y1="10" y2="14"></line>
+                        <line x1="15" x2="15.01" y1="13" y2="13"></line>
+                        <line x1="18" x2="18.01" y1="11" y2="11"></line>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-music" data-tooltip="Music" onclick="switchSection('app-music', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <path d="M9 18V5l12-2v13"></path>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-movies" data-tooltip="Movies" onclick="switchSection('app-movies', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <rect height="20" rx="2.18" ry="2.18" width="20" x="2" y="2"></rect>
+                        <line x1="7" x2="7" y1="2" y2="22"></line>
+                        <line x1="17" x2="17" y1="2" y2="22"></line>
+                        <line x1="2" x2="22" y1="12" y2="12"></line>
+                        <line x1="2" x2="7" y1="7" y2="7"></line>
+                        <line x1="2" x2="7" y1="17" y2="17"></line>
+                        <line x1="17" x2="22" y1="17" y2="17"></line>
+                        <line x1="17" x2="22" y1="7" y2="7"></line>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-calculator" data-tooltip="Calculator" onclick="switchSection('app-calculator', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <rect height="20" rx="2" ry="2" width="16" x="4" y="2"></rect>
+                        <line x1="8" x2="16" y1="6" y2="6"></line>
+                        <line x1="16" x2="16" y1="14" y2="18"></line>
+                        <line x1="8" x2="8.01" y1="10" y2="10"></line>
+                        <line x1="12" x2="12.01" y1="10" y2="10"></line>
+                        <line x1="16" x2="16.01" y1="10" y2="10"></line>
+                        <line x1="8" x2="8.01" y1="14" y2="14"></line>
+                        <line x1="12" x2="12.01" y1="14" y2="14"></line>
+                        <line x1="8" x2="8.01" y1="18" y2="18"></line>
+                        <line x1="12" x2="12.01" y1="18" y2="18"></line>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-files" data-tooltip="Files" onclick="switchSection('app-files', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-proxy" data-tooltip="Proxy" onclick="switchSection('app-proxy', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" x2="22" y1="12" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                </button>
+                <button class="dock-btn" data-app="app-chatbot" data-tooltip="Chatbot" onclick="switchSection('app-chatbot', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </button>
+                <div class="dock-sep"></div>
+                <button class="dock-btn" data-app="app-settings" data-tooltip="Settings" id="settingsBtn" onclick="switchSection('app-settings', this)">
+                    <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+                <div class="dock-sep collapse-sep"></div>
+                <button class="dock-toggle-btn" onclick="toggleDock()">
+                    <svg fill="none" height="24" id="dockToggleIcon" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="auth-overlay" id="authModal" style="display: none;">
+            <div class="auth-box">
+                <h2 id="authTitle" style="color: white; margin-bottom: 10px;">Log In</h2>
+                <input class="settings-input" id="emailInput" placeholder="Email address" type="email"/>
+                <input class="settings-input" id="passwordInput" placeholder="Password" type="password"/>
+                <div id="authError" style="color: #ff4a4a; font-size: 12px; display: none;">Error message here</div>
+                <button class="settings-btn primary" id="authActionBtn" style="margin-top: 10px;">Log In</button>
+                <p class="auth-toggle-text">
+                    <span id="authTogglePrompt">Don't have an account?</span>
+                    <strong id="toggleAuthMode" style="cursor: pointer; color: #00aeff;">Sign Up</strong>
+                </p>
+                <div style="display: flex; align-items: center; gap: 10px; margin: 4px 0;">
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 12px;">or</span>
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+                </div>
+                <button id="googleSignInBtn" onclick="signInWithGoogle()" onmouseout="this.style.opacity='1'" onmouseover="this.style.opacity='0.9'" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: white; color: #1a1a1a; border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">
+                    <svg height="18" viewbox="0 0 48 48" width="18">
+                        <path d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" fill="#EA4335"></path>
+                        <path d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" fill="#4285F4"></path>
+                        <path d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" fill="#FBBC05"></path>
+                        <path d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" fill="#34A853"></path>
+                    </svg>
+                    Continue with Google
+
+                </button>
+                <button class="settings-btn" onclick="document.getElementById('authModal').style.display='none'" style="margin-top: 5px;">Cancel</button>
+            </div>
+        </div>
+        <div class="home-widget" id="global-dev-console" style="position: fixed; bottom: 20px; right: 20px; z-index: 999999; width: 450px; height: 300px; display: none; flex-direction: column; padding: 0; box-shadow: 0 15px 35px rgba(0,0,0,0.8); background: rgba(10, 10, 10, 0.95); border: 1px solid var(--accent-color, #00C9FF); border-radius: 12px; overflow: hidden; transition: width 0.3s, height 0.3s;">
+            <div id="console-drag-handle" style="width: 100%; background: rgba(30,30,30,0.8); cursor: grab; padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--accent-color, #00C9FF); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24" width="16">
+                        <polyline points="4 17 10 11 4 5"></polyline>
+                        <line x1="12" x2="20" y1="19" y2="19"></line>
+                    </svg>
+                    <span style="font-size: 13px; font-weight: bold; font-family: monospace; letter-spacing: 1px;">GLOBAL CONSOLE</span>
+                </div>
+                <svg fill="none" height="18" onclick="document.getElementById('global-dev-console').style.display='none'" onmouseout="this.style.opacity='0.7'" onmouseover="this.style.opacity='1'" stroke="white" stroke-linecap="round" stroke-width="2" style="cursor:pointer; opacity: 0.7;" viewbox="0 0 24 24" width="18">
+                    <line x1="18" x2="6" y1="6" y2="18"></line>
+                    <line x1="6" x2="18" y1="6" y2="18"></line>
+                </svg>
+            </div>
+            <div id="console-output" style="flex: 1; overflow-y: auto; padding: 12px; font-family: monospace; font-size: 13px; color: #0f0; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.5);"></div>
+        </div>
+        <script src="script-2.js"></script>
+        <script src="auth.js" type="module"></script>
+    </body>
+</html>

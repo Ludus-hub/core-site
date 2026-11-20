@@ -1033,6 +1033,22 @@
         }
         .cw-card:hover .cw-remove-btn { opacity: 1; }
         .cw-remove-btn:hover { color: #ff5555; }
+        .cw-details-btn {
+            position: absolute;
+            bottom: 8px; right: 8px;
+            display: flex; align-items: center; gap: 5px;
+            padding: 4px 10px 4px 8px;
+            background: rgba(0,0,0,0.72);
+            color: rgba(255,255,255,0.9);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 999px;
+            font-size: 11px; font-weight: 700; font-family: inherit;
+            cursor: pointer;
+            z-index: 10;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .cw-details-btn:hover { color: var(--accent); border-color: var(--accent); background: rgba(0,0,0,0.85); }
+        .cw-card .card-title { right: 92px; } /* leave room for the Details button */
 
         /* --- Resume Toast --- */
         .resume-toast {
@@ -2131,6 +2147,7 @@ const videoEl = document.getElementById('movie-player');
                     ${label ? `<div class="cw-ep-badge">${label}</div>` : ''}
                     <div class="cw-time-ago">${ago}</div>
                     ${serverBadgeHtml}
+                    <button class="cw-details-btn" onclick="event.stopPropagation(); loadDetails(${item.tmdbId}, '${item.type === 'tv' ? 'tv' : 'movie'}')" title="Open details"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16.5"></line><circle cx="12" cy="7.8" r=".6" fill="currentColor"></circle></svg>Details</button>
                     <button class="cw-remove-btn" onclick="removeContinueWatching(${removeArgs})" title="Remove">✕</button>
                     <div class="card-title">${escHtml(item.title)}</div>
                 </div>`;

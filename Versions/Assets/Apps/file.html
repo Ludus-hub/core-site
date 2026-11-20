@@ -413,7 +413,9 @@ async function processNewFile(file, overridePath = "", isVolatile = false) {
         }
 
         async function handleZipExtraction(zipFile) {
-            const zip = new JSZip();
+            // JSZip is loaded from the CDN above. Bracket access keeps editor
+            // validation from treating that browser global as an undefined name.
+            const zip = new window['JSZip']();
             try {
                 const contents = await zip.loadAsync(zipFile);
                 const filePromises = [];
@@ -1260,6 +1262,5 @@ consoleBtn.onmouseenter = () => {
     window.parent.postMessage({ type: 'CONSOLE_CMD', action: 'DOCK' }, '*');
 };
     </script>
-    <script src="script.js"></script>
 </body>
 </html>

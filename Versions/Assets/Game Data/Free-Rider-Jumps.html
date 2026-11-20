@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Free Rider Jumps</title>
+<style>html,body,iframe{margin:0;width:100%;height:100%;border:0;display:block;overflow:hidden}</style></head><body>
+<iframe id="game" allow="autoplay; fullscreen" allowfullscreen></iframe>
+<script>
+(async () => {
+  const base = 'https://cdn.jsdelivr.net/gh/Ludus-hub/games-2@Main/free_rider_jumps/Free%20Rider%20Jumps%20%E2%80%93%20Play%20Free%20Online%20_%20NarGames_files/';
+  const page = 'saved_resource(1).html';
+  const get = async url => {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${url} returned ${r.status}`);
+    return r.text();
+  };
+  const escapeScript = text => text.replace(new RegExp('<' + '/script', 'gi'), '<\\/script');
+  try {
+    const source = await get(base + page);
+    const doc = new DOMParser().parseFromString(source, 'text/html');
+    // The archive contains advertising frames and a cross-origin service worker;
+    // neither is required by the game and both break in a local loader.
+    doc.querySelectorAll('iframe').forEach(node => node.remove());
+    doc.querySelectorAll('script:not([src])').forEach(node => {
+      if (/serviceWorker\.register/.test(node.textContent)) node.remove();
+    });
+    const styles = [...doc.querySelectorAll('link[rel~="stylesheet"][href]')];
+    const scripts = [...doc.querySelectorAll('script[src]')];
+    const styleText = await Promise.all(styles.map(node => get(new URL(node.getAttribute('href'), base).href).catch(() => '')));
+    const scriptText = await Promise.all(scripts.map(node => get(new URL(node.getAttribute('src'), base).href).catch(() => '')));
+    styles.forEach(node => node.remove());
+    scripts.forEach(node => node.remove());
+    const html = '<!doctype html><html><head><meta charset="utf-8"><base href="' + base + '">' +
+      '<style>' + styleText.join('\n') + '</style></head><body>' + doc.body.innerHTML +
+      scriptText.map(text => '<script>' + escapeScript(text) + '<' + '/script>').join('\n') +
+      '</body></html>';
+    document.getElementById('game').srcdoc = html;
+  } catch (error) {
+    document.body.innerHTML = '<pre>Free Rider Jumps could not start: ' + String(error.message || error) + '</pre>';
+    console.error(error);
+  }
+})();
+</script></body></html>

@@ -461,7 +461,7 @@ input:checked + .slider:before { transform: translateX(22px); }
 .dock-sep { width: 1px; height: 40px; background: rgba(255,255,255,0.15); margin: 0 5px; }
 
 #loginGate, #tourWelcomeModal { 
-    background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') !important; 
+    background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=60&w=1280&auto=format&fit=crop') !important; 
     background-size: cover; background-position: center; 
 }
 #loginGate::before, #tourWelcomeModal::before { 
@@ -1279,6 +1279,28 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
 }
 
 .hidden { display: none !important; }
+
+/* Keep the Google build's movable mixer in step with the current main-site controls. */
+#mixer-dock {
+    background: rgba(19, 24, 31, .82) !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    border-radius: 18px !important;
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow: 0 18px 48px rgba(0,0,0,.46), inset 0 1px 0 rgba(255,255,255,.07) !important;
+}
+#mixer-dock > div:last-of-type { padding: 16px !important; }
+#mixer-dock .m-btn { border-radius: 10px; background: rgba(255,255,255,.07); }
+#mixer-dock .m-btn:hover { background: rgba(0,201,255,.16); }
+button.m-btn.play-main { padding: 0; flex: none; }
+#mixer-dock button.m-btn { width: 38px; height: 38px; min-width: 38px; min-height: 38px; padding: 0 !important; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); color: #fff; }
+#mixer-dock button.m-btn:hover { color: var(--accent-color, #00c9ff); border-color: rgba(0,201,255,.4); transform: none !important; box-shadow: none !important; }
+button.m-btn.m-seek:not(.dock-btn):not(.viewer-btn-spot) { color: var(--accent-color, #00c9ff); font-size: 10.5px; font-weight: 800; letter-spacing: 0; line-height: 1; }
+#mixer-dock button.m-btn.play-main { width: 46px; height: 46px; min-width: 46px; min-height: 46px; border: 0; background: var(--accent-color, #00c9ff) !important; }
+#mixer-dock button.m-btn.play-main svg { fill: #00171d !important; }
+#mixer-dock button.m-btn svg { display: block; width: 18px; height: 18px; pointer-events: none; }
+#mixer-dock button.m-btn:not(.play-main) svg { fill: currentColor; stroke: currentColor; }
+@media (max-width: 540px) { #mixer-dock { width: min(340px, calc(100vw - 24px)) !important; } }
 /* Container for the entire control area */
 .control-panel {
     display: flex;
@@ -1636,3 +1658,6 @@ body { margin: 0; color: var(--text-primary); background-color: #000; background
     .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     input:checked + .slider { background-color: var(--accent-color, #00C9FF); }
     input:checked + .slider:before { transform: translateX(22px); }
+
+/* Movie playing with dock movement off: keep the dock behind the player. */
+body.ludus-cinema-cover #dockContainer { visibility: hidden !important; pointer-events: none !important; }

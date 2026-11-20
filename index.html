@@ -4,30 +4,26 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>Ludus</title>
-<link href="Assets/Pictures/Non-edited/Math-n.png" id="favicon" rel="icon"/>
-<link href="style.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/gh/Ludus-hub/Pictures@Main/Pictures/Non-edited/Math-n.webp" id="favicon" rel="icon"/>
+<link href="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Style.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/loading-protocol.js"></script>
+<style>
+/* Local-save and mixer additions: kept here so embedded Google Sites builds get them too. */
+.local-sync-button { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; width:100%; background:rgba(146,254,157,.10); color:#92fe9d; border:1px solid rgba(146,254,157,.30); padding:9px 14px; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; transition:.2s; }
+.local-sync-button:hover { background:rgba(146,254,157,.18); border-color:rgba(146,254,157,.55); }
+.dock-drag-handle { display:flex; align-items:center; justify-content:center; width:26px; height:26px; color:rgba(255,255,255,.48); border-radius:8px; background:rgba(255,255,255,.05); touch-action:none; }
+#mixer-dock { background:linear-gradient(145deg,rgba(22,31,43,.98),rgba(11,14,21,.98)) !important; border:1px solid rgba(0,201,255,.24) !important; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+#mixer-header { background:linear-gradient(90deg,rgba(0,201,255,.12),rgba(255,255,255,.025)) !important; cursor:grab !important; touch-action:none; user-select:none; }
+#mixer-header:active { cursor:grabbing !important; }
+#mixer-dock .mixer-card { background:rgba(0,0,0,.23) !important; border:1px solid rgba(255,255,255,.09) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.035); }
+.mixer-progress-row { display:grid; grid-template-columns:38px 1fr 38px; gap:8px; align-items:center; color:rgba(255,255,255,.48); font-size:10px; font-variant-numeric:tabular-nums; }
+.mixer-progress-row input { accent-color:var(--accent-color,#00c9ff); min-width:0; }
+.mixer-snap-status { color:rgba(146,254,157,.85); font-size:9px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; padding:3px 7px; border-radius:999px; background:rgba(146,254,157,.08); border:1px solid rgba(146,254,157,.18); }
+</style>
 </head>
 <body>
 
-<div id="premiumUpgradeBanner" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10000; display: none; align-items: center; gap: 15px; padding: 10px 20px 10px 24px; background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(15px) saturate(180%); -webkit-backdrop-filter: blur(15px) saturate(180%); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 24px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); color: white; width: max-content; max-width: 90%; transition: opacity 0.3s ease;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <svg fill="none" height="20" stroke="#FFD700" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="20">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-        </svg>
-        <div style="display: flex; flex-direction: column; text-align: left;">
-            <span id="premiumBannerTitle" style="font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 600;">Premium Content Locked</span>
-            <span id="premiumBannerSubtitle" style="font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: rgba(255, 255, 255, 0.7);">Upgrade to unlock all premium games, proxies, and the chatbot.</span>
-        </div>
-    </div>
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <button id="premiumBannerAction" onclick="handlePremiumUpgradeClick()" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; border: none; padding: 6px 14px; border-radius: 12px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s ease;">Upgrade Now</button>
-        <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2);"></div>
-        <button onclick="closePremiumBanner()" style="background: transparent; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: 0.2s ease;" onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">
-            <svg fill="none" height="18" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="18"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
-        </button>
-    </div>
-</div>
+
 
 
 <!-- ═══════════════════ CONTENT WARNING MODAL ═══════════════════ -->
@@ -185,7 +181,7 @@
 <div id="versionRunnerOverlay" style="display: none; position: fixed; inset: 0; z-index: 1000002; background: #000;">
 <div onclick="exitVersion()" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'" onmouseover="this.style.borderColor='var(--accent-color)'" style="position: absolute; top: 20px; left: 20px; background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 20px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; z-index: 1000003;">
 <svg fill="none" height="20" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="20"><line x1="19" x2="5" y1="12" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-<span style="color: white; font-weight: 600; font-size: 14px;">Return to v3.5</span>
+<span style="color: white; font-weight: 600; font-size: 14px;">Return to v4.0</span>
 </div>
 <iframe id="versionFrame" style="width: 100%; height: 100%; border: none;"></iframe>
 </div>
@@ -208,29 +204,24 @@
 <button id="cloudSaveBtn" onclick="window.saveDataToCloud()" onmouseout="this.style.background='rgba(0,201,255,0.15)'" onmouseover="this.style.background='rgba(0,201,255,0.25)'" style="display: none; margin-top: 14px; width: 100%; background: rgba(0,201,255,0.15); color: var(--accent-color, #00C9FF); border: 1px solid rgba(0,201,255,0.35); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;">
 Save to Cloud
 </button>
+<button class="local-sync-button" id="localSaveSyncBtn" onclick="window.syncSaveLocally()" title="Choose a folder once, then keep a Ludus backup in it">
+<svg aria-hidden="true" fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="16"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path><path d="M4 3h16v18H4z" opacity=".45"></path></svg>
+Sync locally
+</button>
+<div id="localSaveSyncStatus" style="color:rgba(255,255,255,.42);font-size:11px;text-align:center;margin-top:7px;min-height:15px;">Choose a folder to keep a local save.</div>
 </div>
-<div class="home-widget" style="margin-bottom: 0;">
-<h3 style="margin: 0; color: var(--accent-color, #00C9FF); font-size: 18px;">Time Machine</h3>
-<p style="color: rgba(255,255,255,0.5); font-size: 12px; margin: 8px 0 15px 0;">Run archived builds of Ludus.</p>
-<div style="display: flex; gap: 10px;">
-<select class="settings-input" id="versionDropdown" style="flex: 1; cursor: pointer;">
-<option disabled="" selected="" value="">Detecting versions...</option>
-</select>
-<button class="settings-btn primary" onclick="launchSelectedVersion()" style="padding: 0 15px;">Launch</button>
-</div>
-</div>
+
 </div>
 <div class="home-widget" style="flex: 1;">
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
 <h3 style="margin: 0; color: var(--accent-color, #00C9FF);">Update Details</h3>
-<span style="background: rgba(0, 201, 255, 0.2); color: var(--accent-color, #00C9FF); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;">v3.5</span>
+<span style="background: rgba(0, 201, 255, 0.2); color: var(--accent-color, #00C9FF); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;">v4.0</span>
 </div>
 <ul style="margin: 0; padding-left: 18px; color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.6;">
-<li><b>Added all games from gn-math:</b> Every game and card picture from gn-math is here, adding over 800 games total now.</li>
-<li><b>New Movie Servers:</b> 9 more servers added to movie app in case the others are blocked.</li>
-<li><b>More Tab Diguises:</b> Added over 25 tab presets to diguise yourself in any situation.</li>
-<li><b>Fixed Saving Issues:</b> All games now save in exports and to the cloud. This includes all app data.</li>
-<li><b>Last Update:</b> This will be the last update, as schools close for summer. This also means support for unblocking the site and adding games will end over the summer. mathmaster-tx-27 with be the last domain.</li>
+<li><b>All games working:</b> Every game hosted using a website should load correctly. Google site builds are unreliable and should not be trusted.</li>
+<li><b>Official Local Build:</b> This build loads all from one file, making the proxy unavailable. This affects YouTube and Movies.</li>
+<li><b>Open Source:</b> The source for this build is on GitHub and can be deployed anywhere; including Google Sites ,with zero setup. <a href="https://github.com/MathMaster-global/Ludus-Local" style="color: var(--accent-color, #00C9FF); text-decoration: underline;">If you want to deploy your own, click here</a></li>
+
 </ul>
 </div>
 </div>
@@ -333,7 +324,7 @@ Save to Cloud
 <div style="font-size: 11px; font-weight: 800; color: var(--accent-color, #00C9FF); text-transform: uppercase; letter-spacing: 1px;">In-Game Mixer</div>
 <div style="display: flex; flex-direction: column; gap: 18px;">
 <div id="game-mixer-music-section" style="display: none; flex-direction: column; gap: 12px;">
-<div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<div class="mixer-card" style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
 <img id="game-mix-music-thumb" src="" style="width: 40px; height: 40px; background: #1a1a1a; border-radius: 8px; object-fit: cover; display: none;"/>
 <div id="game-mix-music-placeholder" style="width: 40px; height: 40px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
 <svg fill="none" height="20" stroke="#00C9FF" stroke-width="2" viewbox="0 0 24 24" width="20"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
@@ -347,6 +338,7 @@ Save to Cloud
 <span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">VOL</span>
 <input class="volume-slider" id="game-vol-music" max="1" min="0" step="0.01" type="range" value="0.8"/>
 </div>
+<div class="mixer-progress-row"><span id="game-music-time-current">0:00</span><input aria-label="Music progress" class="volume-slider" id="game-seek-music" max="100" min="0" step="0.1" type="range" value="0"/><span id="game-music-time-total">0:00</span></div>
 <div style="display: flex; justify-content: space-around; align-items: center;">
 <button class="m-btn" onclick="directControlMedia('music', 'playPrev')">
 <svg fill="white" height="16" viewbox="0 0 24 24" width="16"><polygon points="19 20 9 12 19 4 19 20"></polygon><line stroke="white" stroke-width="2" x1="5" x2="5" y1="19" y2="5"></line></svg>
@@ -364,11 +356,11 @@ Save to Cloud
 <div style="display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
 <div id="game-mix-movie-title" style="font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Movie</div>
 <div style="display: flex; justify-content: center; gap: 20px; align-items: center; padding-top: 5px;">
-<button class="m-btn" onclick="directControlMedia('movie', 'seekBack')" style="font-size: 11px; font-weight: bold; color: white;">-10s</button>
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekBack')" title="Back 10 seconds" aria-label="Back 10 seconds">&minus;10</button>
 <button class="m-btn play-main" id="game-mix-movie-play" onclick="directControlMedia('movie', 'togglePlay')" style="background: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
 <svg fill="black" height="18" viewbox="0 0 24 24" width="18"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
 </button>
-<button class="m-btn" onclick="directControlMedia('movie', 'seekForward')" style="font-size: 11px; font-weight: bold; color: white;">+10s</button>
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekForward')" title="Forward 10 seconds" aria-label="Forward 10 seconds">&plus;10</button>
 </div>
 </div>
 <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
@@ -389,43 +381,46 @@ Save to Cloud
 </div>
 </div>
 </div>
-<iframe class="app-frame" id="gameFrame"  src=""></iframe>
+<iframe class="app-frame" id="gameFrame" src=""></iframe>
 </div>
 </div>
 
 <div class="app-section fullscreen-app" id="app-proxy" style="display: none;">
-<iframe class="app-frame" data-src="p/index.html" id="proxyFrame" src="about:blank" allow="autoplay; encrypted-media; fullscreen; clipboard-write; clipboard-read; picture-in-picture; microphone; camera" allowfullscreen></iframe>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/p/index.html" id="proxyFrame" src="about:blank" allow="autoplay; encrypted-media; fullscreen; clipboard-write; clipboard-read; picture-in-picture; microphone; camera" allowfullscreen></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-chatbot" style="display: none;">
-<embed class="app-frame" data-src="chat.html" id="chatFrame" src="about:blank" type="text/html"/>
+<embed class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/chat-1.html" id="chatFrame" src="about:blank" type="text/html"/>
 </div>
 <div class="app-section fullscreen-app" id="app-calculator" style="display: none;">
-<embed class="app-frame" data-src="Versions/Assets/Apps/calc.html" src="about:blank"/>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/calc-2.html" id="calcFrame" src="about:blank"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-music" style="display: none;">
-<object class="app-frame" data="about:blank" data-src="Versions/Assets/Apps/music/dist-2/index-m.html" id="musicFrame" type="text/html"></object>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/music-7.html" id="musicFrame" src="about:blank" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-movies" style="display: none;">
-<object class="app-frame" data="about:blank" data-src="movie.html" id="moviesFrame" type="text/html"></object>
+<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/movie-7.html" id="moviesFrame" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+</div>
+<div class="app-section fullscreen-app" id="app-youtube" style="display: none;">
+<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/yt-11.html" id="youtubeFrame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-files" style="display: none;">
-<embed class="app-frame" data-src="Versions/Assets/Apps/file-all.html" id="filesFrame" src="about:blank"/>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/file-5.html" id="filesFrame" src="about:blank"></iframe>
 </div>
 <div class="home-widget" id="mixer-dock" style="display: none; position: fixed; bottom: 80px; right: 20px; z-index: 10001; width: 340px; padding: 0; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-<div id="mixer-header" style="background: rgba(255,255,255,0.03); padding: 12px 18px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+<div id="mixer-header" style="background: rgba(255,255,255,0.03); padding: 12px 18px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); touch-action:none; user-select:none;">
 <div style="display: flex; align-items: center; gap: 10px;">
+<div class="dock-drag-handle" aria-label="Drag mixer" title="Drag to move; it snaps to screen corners"><svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="9" cy="8" fill="currentColor" r="1.5"></circle><circle cx="15" cy="8" fill="currentColor" r="1.5"></circle><circle cx="9" cy="16" fill="currentColor" r="1.5"></circle><circle cx="15" cy="16" fill="currentColor" r="1.5"></circle></svg></div>
 <div style="width: 8px; height: 8px; background: #00C9FF; border-radius: 50%; box-shadow: 0 0 10px #00C9FF;"></div>
 <span style="font-size: 12px; font-weight: 800; letter-spacing: 1px; color: rgba(255,255,255,0.9); text-transform: uppercase;">System Mixer</span>
 </div>
-<div style="display: flex; gap: 8px;">
-<div class="header-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56;"></div>
-<div class="header-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e;"></div>
-<div class="header-dot" style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f;"></div>
+<div style="display: flex; gap: 7px;">
+<button id="mixer-snap-corner" type="button" title="Snap to closest corner" aria-label="Snap mixer to closest corner" style="display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.72);cursor:pointer;"><svg viewbox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path><path d="m9 9-5-5m11 5 5-5m-5 11 5 5M9 15l-5 5"></path></svg></button>
+<button id="mixer-reset-position" type="button" title="Return mixer to its home corner" aria-label="Return mixer to its home corner" style="display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.72);cursor:pointer;"><svg viewbox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5v14h14"></path><path d="m13 11 6 6m0-5v5h-5"></path></svg></button>
 </div>
 </div>
 <div style="padding: 20px; display: flex; flex-direction: column; gap: 18px;">
 <div id="mixer-music-section" style="display: none; flex-direction: column; gap: 12px;">
-<div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<div class="mixer-card" style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
 <img id="mix-music-thumb" src="" style="width: 45px; height: 45px; background: #1a1a1a; border-radius: 8px; object-fit: cover; display: none;"/>
 <div id="mix-music-placeholder" style="width: 45px; height: 45px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
 <svg fill="none" height="24" stroke="#00C9FF" stroke-width="2" viewbox="0 0 24 24" width="24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
@@ -439,6 +434,7 @@ Save to Cloud
 <span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">VOL</span>
 <input class="volume-slider" id="vol-music" max="1" min="0" step="0.01" type="range" value="0.8"/>
 </div>
+<div class="mixer-progress-row"><span id="music-time-current">0:00</span><input aria-label="Music progress" class="volume-slider" id="seek-music" max="100" min="0" step="0.1" type="range" value="0"/><span id="music-time-total">0:00</span></div>
 <div style="display: flex; justify-content: space-around; align-items: center; padding-top: 5px;">
 <button class="m-btn" onclick="directControlMedia('music', 'playPrev')">
 <svg fill="white" height="20" viewbox="0 0 24 24" width="20"><polygon points="19 20 9 12 19 4 19 20"></polygon><line stroke="white" stroke-width="2" x1="5" x2="5" y1="19" y2="5"></line></svg>
@@ -461,11 +457,11 @@ Save to Cloud
 <div style="display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
 <div id="mix-movie-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Movie</div>
 <div style="display: flex; justify-content: center; gap: 20px; align-items: center; padding-top: 10px;">
-<button class="m-btn" onclick="directControlMedia('movie', 'seekBack')" style="font-size: 12px; font-weight: bold; color: white;">-10s</button>
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekBack')" title="Back 10 seconds" aria-label="Back 10 seconds">&minus;10</button>
 <button class="m-btn play-main" id="mix-movie-play" onclick="directControlMedia('movie', 'togglePlay')" style="background: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
 <svg fill="black" height="24" viewbox="0 0 24 24" width="24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
 </button>
-<button class="m-btn" onclick="directControlMedia('movie', 'seekForward')" style="font-size: 12px; font-weight: bold; color: white;">+10s</button>
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekForward')" title="Forward 10 seconds" aria-label="Forward 10 seconds">&plus;10</button>
 </div>
 </div>
 <div class="v-row" style="display: flex; align-items: center; gap: 12px;">
@@ -601,12 +597,57 @@ Save to Cloud
 </div>
 </div>
 </div>
+<div class="settings-group" style="margin-top: 20px;">
+<h3 class="settings-group-title">Movie Player</h3>
+<div class="settings-card">
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Move the dock when a movie starts</span>
+<span class="settings-desc">On: the dock slides to the top and tucks away so the stream has the whole screen. Off: the dock stays where it is and the movie simply covers it while it plays.</span>
+</div>
+<label class="ios-switch">
+<input id="settingsCinemaDockToggle" onchange="saveCinemaDockSetting(this.checked)" type="checkbox" checked/>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+</div>
+<div class="settings-group" style="margin-top: 30px;">
+<h3 class="settings-group-title">Your Servers</h3>
+<p style="color:rgba(255,255,255,0.45);font-size:13px;margin:-10px 0 14px 5px;line-height:1.45;">Add your own servers here. They are used by every Ludus app, and you can add as many as you like. Paste one or several addresses at once, separated by commas or new lines.</p>
+<div class="settings-card">
+<div class="settings-row" style="align-items:flex-start;">
+<div class="settings-info">
+<span class="settings-label">YouTube / Music servers</span>
+<span class="settings-desc">Addresses starting with https://</span>
+</div>
+<div style="display:grid;gap:8px;min-width:min(100%,330px);flex:1;">
+<div id="sharedYtList" style="display:grid;gap:6px;"></div>
+<textarea class="settings-input" id="sharedYtServers" rows="2" autocomplete="off" spellcheck="false" style="resize:vertical;"></textarea>
+<span id="sharedYtServersNote" style="font-size:11px;color:rgba(255,255,255,.45);"></span>
+<button class="settings-btn" type="button" onclick="addSharedServers('youtube')">Add</button>
+</div>
+</div>
+<div class="settings-row" style="align-items:flex-start;">
+<div class="settings-info">
+<span class="settings-label">Proxy servers</span>
+<span class="settings-desc">Addresses starting with wss://</span>
+</div>
+<div style="display:grid;gap:8px;min-width:min(100%,330px);flex:1;">
+<div id="sharedProxyList" style="display:grid;gap:6px;"></div>
+<textarea class="settings-input" id="sharedProxyServers" rows="2" autocomplete="off" spellcheck="false" style="resize:vertical;"></textarea>
+<span id="sharedProxyServersNote" style="font-size:11px;color:rgba(255,255,255,.45);"></span>
+<button class="settings-btn" type="button" onclick="addSharedServers('proxy')">Add</button>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div class="settings-tab-content" id="tab-credits">
 <div class="settings-group">
 <h3 class="settings-group-title">Credits</h3>
-<p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px 5px;">Original creators of all 814 games in Ludus.</p>
-<input id="creditsSearch" oninput="filterCredits(this.value)" placeholder="Search by game name or creator..." style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 14px;border-radius:10px;font-size:14px;margin-bottom:12px;outline:none;" type="text"/>
+<p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px 5px;">Everyone and everything behind Ludus: the apps, libraries, services, hosting, game hosts, and original game creators.</p>
+<input id="creditsSearch" oninput="filterCredits(this.value)" placeholder="Search games, apps, services or creators..." style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 14px;border-radius:10px;font-size:14px;margin-bottom:12px;outline:none;" type="text"/>
 <div class="settings-card" id="creditsListContainer" style="max-height:52vh;overflow-y:auto;padding:0 20px;">
 <div id="creditsList"></div>
 </div>
@@ -741,6 +782,9 @@ function saveProxySettings() {
 <line x1="17" x2="22" y1="7" y2="7"></line>
 </svg>
 </button>
+<button class="dock-btn" data-app="app-youtube" data-tooltip="YouTube" onclick="switchSection('app-youtube', this)">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"></rect><path d="M10 9.5l5 2.5-5 2.5z"></path></svg>
+</button>
 <button class="dock-btn" data-app="app-calculator" data-tooltip="Calculator" onclick="switchSection('app-calculator', this)">
 <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
 <rect height="20" rx="2" ry="2" width="16" x="4" y="2"></rect>
@@ -761,12 +805,7 @@ function saveProxySettings() {
 <polyline points="8 6 2 12 8 18"></polyline>
 </svg>
 </button>
-<button class="dock-btn" id="proxyBtn" data-app="app-proxy" data-tooltip="Proxy" onclick="openAppUnavailable('Proxy')">
-<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" x2="22" y1="12" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-</button>
-<button class="dock-btn" id="chatbotBtn" data-app="app-chatbot" data-tooltip="Chatbot" onclick="openAppUnavailable('Chatbot')">
-<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-</button>
+
 <div class="dock-sep"></div>
 <button class="dock-btn" data-app="app-settings" data-tooltip="Settings" id="settingsBtn" onclick="switchSection('app-settings', this)">
 <svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -800,20 +839,7 @@ function saveProxySettings() {
         <button class="settings-btn" onclick="document.getElementById('authModal').style.display='none'" style="margin-top: 5px;">Cancel</button>
     </div>
 </div>
-<div id="premiumInfoModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(20,20,20,0.95); border: 1px solid rgba(255,215,0,0.3); color: white; padding: 30px; border-radius: 16px; z-index: 10000; box-shadow: 0 10px 40px rgba(0,0,0,0.8); width: 320px; font-family: sans-serif; text-align: center; backdrop-filter: blur(10px);">
-    <h2 style="margin-top: 0; color: #FFD700;">Upgrade to Premium</h2>
-    <p style="font-size: 16px;">Premium is <strong>$2 every 2 weeks</strong>.</p>
-     <p style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">Sign in/up so we can activate your account.</p>
-     <button onclick="document.getElementById('authModal').style.display='flex'; closePremiumBanner();" style="background: transparent; color: white; border: 1px solid rgba(255,255,255,0.3); padding: 6px 14px; border-radius: 12px; font-weight: bold; font-size: 13px; cursor: pointer; transition: 0.2s ease;">Sign In</button>
-    <p style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">Then, email</p>
-    
-    <h3 style="color: var(--accent-color, #00C9FF); margin: 10px 0; word-break: break-all; font-size: 16px;">
-        <a href="mailto:mathmasterofficialemail@gmail.com" style="color: inherit; text-decoration: underline;">mathmasterofficialemail@gmail.com</a>
-    </h3>
-    
-    <p style="font-size: 14px; opacity: 0.8;">for full details and activation.</p>
-    <button onclick="document.getElementById('premiumInfoModal').style.display='none'" style="margin-top: 20px; width: 100%; padding: 12px; background: white; color: black; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">Close</button>
-</div>
+
 <div class="home-widget" id="global-dev-console" style="position: fixed; bottom: 20px; right: 20px; z-index: 999999; width: 450px; height: 300px; display: none; flex-direction: column; padding: 0; box-shadow: 0 15px 35px rgba(0,0,0,0.8); background: rgba(10, 10, 10, 0.95); border: 1px solid var(--accent-color, #00C9FF); border-radius: 12px; overflow: hidden; transition: width 0.3s, height 0.3s;">
 <div id="console-drag-handle" style="width: 100%; background: rgba(30,30,30,0.8); cursor: grab; padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--accent-color, #00C9FF); display: flex; justify-content: space-between; align-items: center;">
 <div style="display: flex; align-items: center; gap: 8px;">
@@ -825,7 +851,259 @@ function saveProxySettings() {
 <div id="console-output" style="flex: 1; overflow-y: auto; padding: 12px; font-family: monospace; font-size: 13px; color: #0f0; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.5);"></div>
 </div>
 
-<script src="script.js"></script>
-<script src="auth.js" type="module"></script>
+
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/ludus-servers.js"></script>
+<script>
+const SHARED_SERVER_UI = {
+  youtube: { input: 'sharedYtServers', list: 'sharedYtList', note: 'sharedYtServersNote', kind: 'https://' },
+  proxy:   { input: 'sharedProxyServers', list: 'sharedProxyList', note: 'sharedProxyServersNote', kind: 'wss://' },
+};
+function renderSharedServers(kind) {
+  const ui = SHARED_SERVER_UI[kind], manager = window.LudusServers && window.LudusServers[kind], list = document.getElementById(ui.list);
+  if (!manager || !list) return;
+  list.textContent = '';
+  manager.custom().forEach(url => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);';
+    const label = document.createElement('span'); label.textContent = url; label.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;';
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Remove this server');
+    remove.style.cssText = 'border:0;background:transparent;color:rgba(255,255,255,.6);font-size:18px;line-height:1;cursor:pointer;padding:0 4px;';
+    remove.onclick = () => removeSharedServer(kind, url);
+    row.append(label, remove); list.appendChild(row);
+  });
+}
+function syncSharedServerSettings() { renderSharedServers('youtube'); renderSharedServers('proxy'); }
+function addSharedServers(kind) {
+  const ui = SHARED_SERVER_UI[kind], manager = window.LudusServers && window.LudusServers[kind];
+  const input = document.getElementById(ui.input), note = document.getElementById(ui.note);
+  if (!manager || !input) return;
+  const entered = input.value.split(/[\s,]+/).map(value => value.trim()).filter(Boolean);
+  if (!entered.length) { note.textContent = 'Paste at least one address first.'; return; }
+  const good = entered.filter(value => manager.normalize(value)), bad = entered.length - good.length;
+  if (good.length) {
+    const before = manager.custom().length;
+    manager.add(good.join(','));
+    const added = manager.custom().length - before;
+    if (kind === 'proxy') window.LudusServers.proxy.refresh(true).catch(() => {});
+    window.LudusCore?.servers?.monitor?.refresh?.();
+    note.textContent = (added ? added + ' added.' : 'Already in your list.') + (bad ? ' ' + bad + ' skipped: addresses must start with ' + ui.kind + '.' : '');
+    input.value = bad ? entered.filter(value => !manager.normalize(value)).join('\n') : '';
+  } else note.textContent = 'Addresses must start with ' + ui.kind + '.';
+  syncSharedServerSettings();
+}
+function removeSharedServer(kind, url) {
+  const manager = window.LudusServers && window.LudusServers[kind]; if (!manager) return;
+  manager.remove(url); window.LudusCore?.servers?.monitor?.refresh?.();
+  document.getElementById(SHARED_SERVER_UI[kind].note).textContent = 'Removed.';
+  syncSharedServerSettings();
+}
+syncSharedServerSettings();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/script-21.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/credits-data.js" id="credits-src" type="text/plain"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/auth-4.js" type="module"></script>
+
+<script>
+// ─── Premium content gate ─────────────────────────────────────────────────
+// Elements with class "premium-only" are hidden by default and only revealed
+// once the auth system confirms the current user has premium status.
+// Stub functions that the external banner/upgrade code may still call are
+// silently no-op'd so removing those UI pieces doesn't break script-4.js.
+
+(function () {
+    // No-op stubs for banner functions that may be called by external scripts
+    window.closePremiumBanner    = function () {};
+    window.handlePremiumUpgradeClick = function () {};
+    window.showPremiumBanner     = function () {};
+
+    var PREMIUM_KEYS = ['mathmaster_premium'];
+    var PREMIUM_CLASS = 'premium-only';
+
+    function isPremiumActive() {
+        for (var i = 0; i < PREMIUM_KEYS.length; i++) {
+            if (localStorage.getItem(PREMIUM_KEYS[i]) === 'true' ||
+                sessionStorage.getItem(PREMIUM_KEYS[i]) === 'true') {
+                return true;
+            }
+        }
+        // Authenticated developers use the same trusted session flag as the
+        // dev tools and are exempt from the premium/browser entitlement gate.
+        return window.userIsPremium === true || sessionStorage.getItem('mathmaster_dev_unlocked') === 'true';
+    }
+
+    function applyPremiumGate() {
+        var els = document.querySelectorAll('.' + PREMIUM_CLASS);
+        var premium = isPremiumActive();
+        for (var i = 0; i < els.length; i++) {
+            els[i].style.display = premium ? '' : 'none';
+        }
+    }
+
+    // Exposed so the auth module can call this after sign-in
+    window.updatePremiumGate = applyPremiumGate;
+
+    // Run on load and on any localStorage change (auth script updates storage)
+    window.addEventListener('load', applyPremiumGate);
+    window.addEventListener('storage', function (e) {
+        if (PREMIUM_KEYS.indexOf(e.key) !== -1) applyPremiumGate();
+    });
+
+    // Wrap checkDevAndPremiumUI (script-4.js) so our check piggy-backs on it.
+    // If script-4 hasn't defined it yet we watch for it to be set.
+    function wrapCheck(fn) {
+        return function () {
+            fn.apply(this, arguments);
+            applyPremiumGate();
+        };
+    }
+    if (typeof window.checkDevAndPremiumUI === 'function') {
+        window.checkDevAndPremiumUI = wrapCheck(window.checkDevAndPremiumUI);
+    } else {
+        var _desc = Object.getOwnPropertyDescriptor(window, 'checkDevAndPremiumUI');
+        if (!_desc || _desc.configurable !== false) {
+            Object.defineProperty(window, 'checkDevAndPremiumUI', {
+                configurable: true,
+                set: function (fn) {
+                    Object.defineProperty(window, 'checkDevAndPremiumUI', {
+                        configurable: true, writable: true, value: wrapCheck(fn)
+                    });
+                }
+            });
+        }
+    }
+})();
+</script>
+
+<script>
+// ─── Multi-repo CDN routing + srcdoc loader ──────────────────────────────
+// Each "bucket" of this site (core code, images, music, and games) lives
+// in its own GitHub repo, because jsDelivr refuses to serve anything from
+// a repo over 50MB. This resolver maps any relative path the original
+// site code uses to the right repo's CDN URL. ALL games -- single-file
+// and folder-based alike (Drive Mad, Monkey Mart, Among Us, etc.) -- now
+// resolve to the Html-games repo. The old games-1, games-2, and games-3
+// repos are retired and nothing on the site points at them anymore.
+//
+// jsDelivr also serves .html as text/plain (security measure on their end),
+// so a plain iframe.src against a CDN .html URL just shows raw source
+// instead of running it. The fix: patch HTMLIFrameElement's src setter
+// globally so any assignment of a jsDelivr .html URL is instead fetched as
+// text and injected via .srcdoc, with a <base> tag scoped to that file's
+// own folder so ITS relative asset references still resolve correctly.
+// This one patch covers every lazy-loaded iframe on the page (games,
+// music, movies, proxy, chat, calc, files) without touching the original
+// loadGame()/switchSection() functions at all.
+//
+// Known limitation this can't fix: some game files (and the Scramjet proxy
+// used by movie/youtube/tiktok/insta/chat) hardcode root-absolute paths
+// internally (src="/js/foo.js" etc). A <base> tag has no effect on
+// absolute paths, and jsDelivr is a single shared origin, so those
+// specific files will still 404 on their own assets here.
+
+// Bridge: the "Dev Controls" dock button (app-files) is unhidden based on
+// localStorage 'mathmaster_dev' (set in script.js's checkDevAndPremiumUI).
+// But file-all.html's OWN dev-controls panel + console gate on a separate
+// flag, sessionStorage 'mathmaster_dev_unlocked', that nothing was ever
+// setting -- so isDev users could open the Files app but never actually
+// saw the full dev tools inside it. Set it here so isDev implies full
+// access to the file app, not just visibility of its dock button.
+if (localStorage.getItem('mathmaster_dev') === 'true') {
+    sessionStorage.setItem('mathmaster_dev_unlocked', 'true');
+}
+
+const CDN = {
+    core:  "https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/",
+    pics:  "https://cdn.jsdelivr.net/gh/Ludus-hub/Pictures@Main/",
+    music: "https://cdn.jsdelivr.net/gh/Ludus-hub/music@Main/",
+    htmlG: "https://cdn.jsdelivr.net/gh/Ludus-hub/Html-games@Main/",
+};
+
+function resolveCdnUrl(path) {
+    if (!path || /^https?:\/\//i.test(path)) return path;
+    let p = path.replace(/^\.\//, '');
+    const GD = "Versions/Assets/Game Data/";
+    const MU = "Versions/Assets/Apps/music/";
+    const PI = "Versions/Assets/Pictures/";
+    const AS = "Assets/";
+    let out;
+    if (p.startsWith(GD)) {
+        // Every game -- flat single-file games AND folder-based games like
+        // drive-mad/index.html or monkeymart/index.html -- now lives in the
+        // single Html-games repo. games-1/2/3 are no longer referenced.
+        out = CDN.htmlG + p.slice(GD.length);
+    } else if (p.startsWith(MU)) {
+        out = CDN.music + "music/" + p.slice(MU.length);
+    } else if (p.startsWith(PI)) {
+        out = CDN.pics + p.slice("Versions/Assets/".length);
+    } else if (p.startsWith(AS)) {
+        out = CDN.pics + p.slice(AS.length);
+    } else {
+        out = CDN.core + p;
+    }
+    return encodeURI(out);
+}
+
+// Pre-resolve every game's path + thumbnail once, up front. games is a
+// top-level const in script.js but const only locks the binding, not the
+// array contents, so mutating entries here is safe -- and this runs
+// synchronously, before any DOMContentLoaded/onload handler ever calls
+// renderGamesGrid(), so nothing renders with an unresolved path.
+if (typeof games !== 'undefined') {
+    games.forEach(g => {
+        if (g.path) g.path = resolveCdnUrl(g.path);
+        if (g.logo) g.logo = resolveCdnUrl(g.logo);
+    });
+}
+
+// Generic iframe.src interceptor
+(function () {
+    const desc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')
+              || Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'src');
+    if (!desc) return;
+
+    // Every assignment to iframe.src bumps frame.__srcTok. A pending srcdoc load
+    // only applies if the token is still the one it started with, so setting
+    // src='about:blank' (goHome) or opening another game cancels it.
+    //
+    // The sandbox attribute is deliberately NOT touched here: loadGame() in
+    // script.js sets it (GAME_SANDBOX, or none for social embeds) before it
+    // assigns src, and the markup default matches it.
+    function loadViaSrcdoc(frame, url, token) {
+        fetch(url).then(r => {
+            if (!r.ok) throw new Error('fetch failed: ' + r.status);
+            return r.text();
+        }).then(text => {
+            if (frame.__srcTok !== token) return; // superseded or closed
+            const folder = new URL('.', url).href;
+            let out = text.replace(/(<head[^>]*>)/i, `$1<base href="${folder}">`);
+            if (typeof GAME_PATCH_SCRIPT !== 'undefined' &&
+                (out.includes('ytgame.js') || /pixi/i.test(out))) {
+                out = out.replace(/(<head[^>]*>)/i, '$1' + GAME_PATCH_SCRIPT);
+            }
+            frame.removeAttribute('src');
+            frame.srcdoc = out;
+        }).catch(() => {
+            if (frame.__srcTok !== token) return; // superseded or closed
+            desc.set.call(frame, url); // last-resort fallback
+        });
+    }
+
+    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+        configurable: true,
+        enumerable: true,
+        get() { return desc.get.call(this); },
+        set(value) {
+            const token = this.__srcTok = (this.__srcTok || 0) + 1;
+            if (typeof value === 'string' &&
+                /^https?:\/\/cdn\.jsdelivr\.net\//i.test(value) &&
+                /\.html?(?:[?#]|$)/i.test(value)) {
+                loadViaSrcdoc(this, value, token);
+            } else {
+                desc.set.call(this, value);
+            }
+        }
+    });
+})();
+</script>
 </body>
 </html>

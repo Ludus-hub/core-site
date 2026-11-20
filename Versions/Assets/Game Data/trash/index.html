@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%; height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      .applet_div {
+        width: 100%; height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #gameWrapper {
+        transform-origin: center center;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="applet_div">
+      <script type="text/javascript" charset="utf-8" src="scenario36213.js"></script>
+      <script type="text/javascript" charset="utf-8" src="jszip.min.js"></script>
+      <script type="text/javascript" defer="yes">
+        function pre_main() {
+          storage_params = [];
+          storage_params["storage.standalone"] = true;
+          storage_params["storage.passcode"] = "0000000000000000";
+          storage_params["storage.scenarioId"] = 36213;
+          storage_params["storage.userId"] = -1;
+          storage_params["storage.userName"] = "";
+
+          var appletFile = "greenfoot13705310064242431653.jar";
+
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", appletFile);
+          xhr.responseType = "arraybuffer";
+          xhr.onload = function () {
+            JSZip.loadAsync(xhr.response).then(function (zip) {
+              window.zip = zip;
+              main();
+              window.setTimeout(function () {
+                runButton = document.getElementById("playButton");
+                if (runButton.textContent == "Run") {
+                  runButton.click();
+                }
+              }, 500);
+            });
+          };
+          xhr.onerror = function () {
+            alert("Failed to load applet.");
+          };
+          xhr.send();
+        }
+        pre_main();
+      </script>
+
+      <div id="gameWrapper">
+        <div>
+          <div style="width: 100%;">
+            <div style="display: inline-block; touch-action: pinch-zoom;">
+              <canvas id="scenarioCanvas" width="1012" height="662">
+                Your browser does not support the canvas tag.
+              </canvas>
+            </div>
+          </div>
+        </div>
+        <div style="visibility: hidden;">
+          <button disabled="true" id="playButton" style="width: 5em;">Run</button>
+          <button disabled="true" id="resetButton" style="width: 5em;">Reset</button>
+          <input type="range" id="speedSlider" min="0" max="99" disabled="true" style="vertical-align: middle;">
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const GAME_W = 1012, GAME_H = 662;
+      function scaleGame() {
+        const scale = Math.min(window.innerWidth / GAME_W, window.innerHeight / GAME_H);
+        document.getElementById("gameWrapper").style.transform = "scale(" + scale + ")";
+      }
+      scaleGame();
+      window.addEventListener("resize", scaleGame);
+    </script>
+  </body>
+</html>

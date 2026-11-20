@@ -282,6 +282,17 @@ body{
 .s-btn.danger:hover{background:rgba(255,107,107,0.13)}
 .s-btn.accent{background:var(--accent);color:#000;border-color:transparent;font-weight:700}
 .s-btn.accent:hover{opacity:.85}
+.s-card.s-open{overflow:visible}
+.s-custom{display:flex;flex-direction:column;gap:6px;width:100%}
+.s-custom:empty{display:none}
+.s-custom-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px;border-radius:var(--r-sm);background:rgba(255,255,255,0.04);font-size:12px;color:var(--text2)}
+.s-custom-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-custom-row button:disabled{color:var(--muted);cursor:default}
+.s-custom-row button{flex:none;border:0;background:transparent;color:var(--danger);font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;padding:2px 4px}
+#proxy-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:90;display:flex;align-items:center;gap:10px;max-width:calc(100% - 24px);padding:9px 10px 9px 14px;border-radius:var(--r-pill);background:rgba(18,20,26,0.95);border:1px solid var(--glass-border);box-shadow:0 10px 30px rgba(0,0,0,.45);color:var(--text);font-size:12.5px;font-weight:600}
+#proxy-toast[hidden]{display:none}
+#proxy-toast button{border:0;border-radius:var(--r-pill);padding:7px 12px;background:var(--accent);color:#000;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+#proxy-toast button.x{background:transparent;color:var(--muted);padding:0 4px;font-size:16px}
 /* iOS toggle */
 .ios-toggle{position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0}
 .ios-toggle input{opacity:0;width:0;height:0;position:absolute}
@@ -578,13 +589,15 @@ body{
       <div class="stab" id="s-network">
         <div class="s-section">
           <div class="s-section-title">Transport</div>
-          <div class="s-card">
+          <div class="s-card s-open">
             <div class="s-row" style="flex-direction:column;align-items:flex-start;gap:10px">
-              <div class="s-row-label">Wisp server URL</div>
-              <div class="s-row-desc">WebSocket server used to tunnel web requests. The default is Mercury Workshop's public server. Self-host for better performance.</div>
+              <div class="s-row-label">Proxy server</div>
+              <div class="s-row-desc">Ludus checks every proxy server, connects to the fastest one that answers and keeps re-checking. Pick one yourself to stay on it while it answers. Adding one here makes it available to every Ludus app that uses the proxy.</div>
+              <div id="s-wisp-picker" style="display:flex;max-width:100%"></div>
+              <div class="s-custom" id="s-wisp-custom"></div>
               <div style="display:flex;gap:8px;width:100%">
-                <input class="s-input" id="s-wisp" style="flex:1" placeholder="wss://nebulaproxy.io/wisp/"/>
-                <button class="s-btn accent" id="s-wisp-save">Save & Reload</button>
+                <input class="s-input" id="s-wisp-add" style="flex:1;min-width:0" placeholder="wss://your-server.example/wisp/" autocomplete="off" spellcheck="false"/>
+                <button class="s-btn" id="s-wisp-add-save" style="white-space:nowrap">Add server</button>
               </div>
             </div>
           </div>
@@ -688,7 +701,11 @@ body{
   <div class="init-msg" id="init-msg">Starting Ludus Proxy…</div>
 </div>
 
+<div id="proxy-toast" role="alert" hidden><span id="proxy-toast-text"></span><button type="button" id="proxy-toast-go"></button><button type="button" class="x" id="proxy-toast-x" aria-label="Dismiss">&times;</button></div>
+
 <!-- ── SCRAMJET + APP ────────────────────────────────────────── -->
+<script src="/ludus-servers.js?v=fed8e2fe42"></script>
+<script src="/ludus-core.js?v=843e2a492c"></script>
 <script src="/p/scram/scramjet.all.js"></script>
 <script>
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -707,7 +724,7 @@ function loadSettings() {
   const D = {
     engine: "ddg", homepage: "", showBmBar: true,
     histEnabled: true, histMax: 500,
-    zoomDefault: 1.0, wispUrl: "wss://nebulaproxy.io/wisp/",
+    zoomDefault: 1.0, wispUrl: window.LudusServers?.proxy?.active?.()?.url || "",
     prefix: "/scramjet/", restoreTabs: true,
   };
   try { return { ...D, ...JSON.parse(localStorage.getItem("ludus_cfg") || "{}") }; }
@@ -725,9 +742,9 @@ function searchUrl(q) { return (SEARCH_ENGINES[CFG.engine] || SEARCH_ENGINES.ddg
 // ╚══════════════════════════════════════════════════════════════════╝
 
 const { ScramjetController } = $scramjetLoadController();
-const scramjet = new ScramjetController({
+const makeController = wisp => new ScramjetController({
   prefix: CFG.prefix,
-  wisp:   CFG.wispUrl,
+  wisp,
   files: {
     wasm: "/p/scram/scramjet.wasm.wasm",
     all:  "/p/scram/scramjet.all.js",
@@ -735,6 +752,13 @@ const scramjet = new ScramjetController({
   },
   flags: { captureErrors: true, sourcemaps: false, allowInvalidJs: true, strictRewrites: false },
 });
+// Proxy (Wisp) servers have their own list, checks and speeds, separate from the YouTube resolver servers.
+const proxyServers = window.LudusServers?.proxy || null;
+const proxyHub = window.LudusCore?.servers?.proxy || null;
+// Start on the best server known right now; boot() below checks every server and rebuilds this on the fastest one before init.
+let connectedProxy = (proxyServers?.active?.() || {}).url || CFG.wispUrl;
+let scramjet = makeController(connectedProxy);
+proxyServers?.markConnected?.(connectedProxy);
 
 let scramjetReady = false;
 
@@ -1122,7 +1146,7 @@ function syncSettingsUI() {
   $("s-zoom-val").textContent = Math.round(CFG.zoomDefault * 100) + "%";
   $("s-show-bm").checked  = CFG.showBmBar;
   $("s-restore").checked  = CFG.restoreTabs;
-  $("s-wisp").value       = CFG.wispUrl;
+  renderCustomProxies();
   $("s-prefix").value     = CFG.prefix;
   // embed snippet
   $("embed-snippet").textContent =
@@ -1150,13 +1174,86 @@ $("s-zoom-reset").addEventListener("click", () => {
   applyZoom(getActive(), 1.0);
 });
 
-$("s-wisp-save").addEventListener("click", () => {
-  const v = $("s-wisp").value.trim();
-  if (!v) return;
-  CFG.wispUrl = v; saveSettings();
-  alert("Wisp URL saved. The page will reload to apply the change.");
-  location.reload();
+// ── Proxy server control: the same status + speeds + picker as the YouTube/Music servers, on the proxy list only ──
+let proxyPicker = null, proxyToastMode = '';
+function reconnectProxy(note) {
+  if (proxyPicker) proxyPicker.setNote('pending', note);
+  setTimeout(() => location.reload(), 450); // the connection is made once per page load, so the page restarts on the chosen server
+}
+function onProxyChoose(url, snap) {
+  const server = snap.servers.find(item => item.url === url); if (!server) return;
+  if (server.state === 'up') {
+    CFG.wispUrl = url; saveSettings();
+    if (url !== connectedProxy) reconnectProxy(`Connecting to ${server.label}…`);
+  } else if (proxyPicker) {
+    proxyPicker.setNote('offline', `${server.label} is not answering`);
+    setTimeout(() => proxyPicker.clearNote(), 3500);
+  }
+}
+if (proxyHub && $("s-wisp-picker")) {
+  proxyPicker = proxyHub.mountPicker($("s-wisp-picker"), { skin: 'music', menuDirection: 'auto', onChoose: onProxyChoose });
+}
+
+function renderCustomProxies() {
+  const host = $("s-wisp-custom"); if (!host) return;
+  const mine = proxyServers?.custom?.() || [];
+  host.replaceChildren(...mine.map(url => {
+    const row = document.createElement('div'); row.className = 's-custom-row';
+    const name = document.createElement('span'); let host_ = url; try { host_ = new URL(url).hostname; } catch {}
+    name.textContent = host_; name.title = 'Your server';
+    const remove = document.createElement('button'); remove.type = 'button';
+    const inUse = url === connectedProxy; // the connection is made once per page load, so the server in use can only be removed after switching away
+    remove.textContent = inUse ? 'In use' : 'Remove'; remove.disabled = inUse;
+    if (inUse) remove.title = 'This page is connected to this server. Switch to another server first.';
+    remove.addEventListener('click', () => {
+      proxyServers.remove(url);
+      if (proxyServers.pinned() === url) proxyServers.unpin();
+      if (CFG.wispUrl === url) { CFG.wispUrl = ''; saveSettings(); }
+      renderCustomProxies();
+    });
+    row.append(name, remove); return row;
+  }));
+}
+
+$("s-wisp-add-save").addEventListener("click", () => {
+  const field = $("s-wisp-add");
+  const before = proxyServers?.custom?.().length || 0;
+  const list = proxyServers?.add?.(field.value) || [];
+  if (!field.value.trim() || list.length <= before) { alert("Enter a complete wss:// server address that is not already in the list."); return; }
+  const added = list[list.length - 1];
+  field.value = ''; renderCustomProxies();
+  // Check it right away; if it answers the page connects to it, if not it stays in the list marked unavailable.
+  if (proxyHub) proxyHub.monitor.choose(added).then(snap => onProxyChoose(added, snap));
 });
+
+// If the server this page is connected to stops answering, offer the fastest one that does (never reloads by itself).
+const proxyToast = $("proxy-toast"), proxyToastText = $("proxy-toast-text"), proxyToastGo = $("proxy-toast-go");
+let proxyToastDismissed = '';
+function hideProxyToast() { proxyToast.hidden = true; proxyToastMode = ''; }
+function showProxyToast(mode, text, action, run) {
+  if (proxyToastDismissed === mode) return;
+  proxyToastMode = mode; proxyToastText.textContent = text; proxyToastGo.textContent = action; proxyToastGo.onclick = run; proxyToast.hidden = false;
+}
+$("proxy-toast-x").addEventListener("click", () => { proxyToastDismissed = proxyToastMode; hideProxyToast(); });
+function watchProxyServers() {
+  if (!proxyHub) return;
+  proxyHub.monitor.subscribe(snap => {
+    if (!scramjetReady) return;
+    const current = snap.servers.find(item => item.url === snap.active);
+    const best = snap.servers.filter(item => item.state === 'up').sort((a, b) => a.ms - b.ms)[0];
+    if (current && current.state === 'up') { proxyToastDismissed = ''; hideProxyToast(); return; }
+    if (!current || current.state !== 'down') return; // still checking: say nothing yet
+    if (best) {
+      showProxyToast('switch', `${current.label} stopped answering.`, `Switch to ${best.label} · ${best.ms} ms`, () => {
+        if (proxyServers.pinned() === current.url) proxyServers.unpin();
+        CFG.wispUrl = best.url; saveSettings();
+        proxyServers.markFailed(current.url); location.reload();
+      });
+    } else if (snap.phase === 'offline') {
+      showProxyToast('offline', 'No proxy server is answering right now.', 'Check again', () => { proxyToastDismissed = ''; proxyHub.monitor.refresh(); });
+    }
+  });
+}
 
 $("s-prefix").addEventListener("change", e => { CFG.prefix = e.target.value.trim() || "/scramjet/"; saveSettings(); });
 
@@ -1830,6 +1927,33 @@ setInterval(() => {
 }, 250);
 
 
+// --- popup confirmation --------------------------------------------- //
+// A normal proxy tab is created only after the user chooses Proceed. This
+// covers script popups and target=_blank links without changing navigation in
+// the current tab. The service worker has a matching early guard for popups
+// that occur before this page has finished attaching its frame hooks.
+function requestProxyPopup(url) {
+  if (!url || url === "about:blank") return;
+  let real = url;
+  try { real = scramjet.decodeUrl(url) || url; } catch {}
+  let host = "this site";
+  try { host = new URL(real).hostname || host; } catch {}
+
+  document.getElementById("proxy-popup-confirm")?.remove();
+  const dialog = document.createElement("div");
+  dialog.id = "proxy-popup-confirm";
+  dialog.style.cssText = "position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.7);";
+  dialog.innerHTML = `<div role="dialog" aria-modal="true" aria-labelledby="proxy-popup-title" style="width:min(430px,100%);padding:28px;border:1px solid rgba(255,255,255,.15);border-radius:18px;background:#15171d;color:#fff;box-shadow:0 20px 60px #000;text-align:center;font:14px system-ui,sans-serif"><div style="font-size:32px">🛑</div><h2 id="proxy-popup-title" style="font-size:20px;margin:10px 0">New tab blocked</h2><p style="color:#b8bec9;line-height:1.5;margin:0 0 22px"><b></b> tried to open a new proxy tab. It has not loaded.</p><button data-action="cancel" style="padding:10px 14px;border:0;border-radius:9px;background:#30343d;color:#fff;font-weight:700;cursor:pointer">Keep blocked</button><button data-action="proceed" style="margin-left:8px;padding:10px 14px;border:0;border-radius:9px;background:#38bdf8;color:#062536;font-weight:800;cursor:pointer">Proceed</button></div>`;
+  dialog.querySelector("p b").textContent = host;
+  dialog.querySelector('[data-action="cancel"]').onclick = () => dialog.remove();
+  dialog.querySelector('[data-action="proceed"]').onclick = () => {
+    dialog.remove();
+    createTab(real);
+  };
+  document.body.appendChild(dialog);
+  dialog.querySelector('[data-action="cancel"]').focus();
+}
+
 // --- hook a single frame window ------------------------------------ //
 function hookFrameNewTabs(fw, tab) {
   if (!fw) return;
@@ -1845,7 +1969,7 @@ function hookFrameNewTabs(fw, tab) {
         navigateActive(real);
         return null;
       }
-      createTab(real);
+      requestProxyPopup(real);
       return null; // signals "popup blocked" to the calling page
     };
 
@@ -1860,7 +1984,7 @@ function hookFrameNewTabs(fw, tab) {
       e.preventDefault();
       let real = href;
       try { real = scramjet.decodeUrl(a.href) || a.href || href; } catch {}
-      createTab(real || href);
+      requestProxyPopup(real || href);
     }, true);
 
     // 3. Hook pushState / replaceState / popstate / hashchange so SPA
@@ -1918,7 +2042,7 @@ window.open = (function(_orig) {
       navigateActive(real);
       return null;
     }
-    createTab(real || url);
+    requestProxyPopup(real || url);
     return null;
   };
 }(window.open));
@@ -1977,13 +2101,20 @@ renderBmBar();
     return;
   }
   try {
+    // Check every proxy server while the service worker starts (a recent check is reused, so this costs nothing most of the time).
+    const fastestProxy = proxyHub ? proxyHub.ready() : Promise.resolve("");
     msg.textContent = "Registering service worker…";
     await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     msg.textContent = "Waiting for service worker…";
     await navigator.serviceWorker.ready;
+    msg.textContent = "Finding the fastest proxy server…";
+    const fastest = await fastestProxy;
+    if (fastest && fastest !== connectedProxy) { connectedProxy = fastest; scramjet = makeController(fastest); } // nothing has used the first controller yet
+    proxyServers?.markConnected?.(connectedProxy);
     msg.textContent = "Initialising proxy…";
     await scramjet.init();
     scramjetReady = true;
+    watchProxyServers();
     notifyParent("ready");
   } catch (err) {
     console.error("[ludus] init error:", err);

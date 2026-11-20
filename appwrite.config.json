@@ -1,0 +1,21 @@
+{
+    "organizationId": "6af8f24e000e34a58894",
+    "projectId": "6af8f4b10001660b854c",
+    "projectName": "mathmaster-tx",
+    "endpoint": "https://nyc.cloud.appwrite.io/v1",
+    "sites": [
+{
+    
+      "$id": "mathmaster-tx",
+      "name": "mathmaster-tx",
+      "framework": "other",
+      "adapter": "static",
+      "buildRuntime": "static-1",
+      "installCommand": "",
+      "buildCommand": "",
+      "outputDirectory": "./",
+      "fallbackFile": "",
+      "path": "."
+    }
+  ]
+}

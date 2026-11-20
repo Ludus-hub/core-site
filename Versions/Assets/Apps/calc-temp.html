@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludus Calculator</title>
+
+    <link rel="stylesheet" type="text/css" href="https://mn.testnav.com/client/public/stylesheets/tn.css"/>
+    <script src="https://mn.testnav.com/client/texasinstruments/js/ELG-min.js"></script>
+    <script id="h84statej"    type="application/json" data-url="https://mn.testnav.com/client/texasinstruments/bin/No_AppsCE.h84statej"></script>
+    <script id="ti84faceplate" type="application/json" data-url="https://mn.testnav.com/client/texasinstruments/images/TI84CE_touch.svg"></script>
+
+<style>
+/* ═════════════════════════════════════════════════════════
+   ROOT TOKENS
+═════════════════════════════════════════════════════════ */
+:root {
+    --bg:         #0e0e0e;
+    --bg-card:    #161616;
+    --bg-tab-bar: #0a0a0a;
+    --tab-h:      40px;
+    --border:     rgba(255,255,255,0.07);
+    --accent:     #00C9FF;
+    --accent2:    #92FE9D;
+    --accent-hist:#FFB75E;
+    --text:       #ffffff;
+    --muted:      #888;
+    --glass:      rgba(255,255,255,0.04);
+
+    --tape-bg:    #080f09;
+    --tape-green: #b8ffb8;
+    --tape-dim:   rgba(150,230,150,0.45);
+    --tape-sep:   rgba(100,200,100,0.14);
+    --tape-border:rgba(80,200,100,0.1);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    height: 100vh; width: 100vw; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ═════════════════════════════════════════════════════════
+   TAB BAR — Chrome / Windows File Explorer style
+═════════════════════════════════════════════════════════ */
+.tab-bar {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: var(--tab-h);
+    background: var(--bg-tab-bar);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-end;
+    padding: 0 6px 0 4px;
+    z-index: 9999;
+    user-select: none;
+    gap: 0;
+}
+
+#tabsList {
+    display: flex; align-items: flex-end;
+    flex: 1; min-width: 0;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none; gap: 2px;
+}
+#tabsList::-webkit-scrollbar { display: none; }
+
+/* Individual tab */
+.tab {
+    position: relative;
+    display: flex; align-items: center; gap: 6px;
+    height: 32px;
+    padding: 0 9px 0 11px;
+    min-width: 130px; max-width: 220px;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 7px 7px 0 0;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    transition: color 0.1s, background 0.1s;
+    overflow: hidden;
+}
+.tab::before, .tab::after {
+    content: '';
+    position: absolute; bottom: 0;
+    width: 8px; height: 8px;
+    background: var(--bg-tab-bar);
+}
+.tab::before { left: -8px; border-bottom-right-radius: 6px; box-shadow: 3px 0 0 0 transparent; }
+.tab::after  { right: -8px; border-bottom-left-radius: 6px; box-shadow: -3px 0 0 0 transparent; }
+.tab.active::before { box-shadow: 3px 0 0 0 var(--bg-card); background: var(--bg-card); }
+.tab.active::after  { box-shadow: -3px 0 0 0 var(--bg-card); background: var(--bg-card); }
+
+.tab:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.04); }
+.tab.active {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text);
+    /* erase bottom border so tab blends into content */
+    box-shadow: 0 1px 0 0 var(--bg-card);
+    z-index: 1;
+}
+
+/* drag states */
+.tab.dragging    { opacity: 0.35; background: rgba(0,201,255,0.06) !important; }
+.tab.drag-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.tab-icon  { font-size: 11px; flex-shrink: 0; opacity: 0.85; }
+.tab-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-label-edit {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font: inherit; font-size: 12.5px; font-weight: 500;
+    min-width: 0; padding: 0;
+}
+
+.tab-close {
+    width: 17px; height: 17px; flex-shrink: 0;
+    background: transparent; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.25); font-size: 10px;
+    border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.1s; opacity: 0;
+}
+.tab:hover .tab-close,
+.tab.active .tab-close { opacity: 1; }
+.tab-close:hover { background: rgba(255,70,70,0.22); color: #ff6666; }
+
+/* new-tab (+) button */
+.tab-add-btn {
+    width: 26px; height: 26px; flex-shrink: 0;
+    margin-bottom: 3px; margin-left: 4px;
+    background: transparent;
+    border: 1px dashed rgba(255,255,255,0.14);
+    border-radius: 6px; cursor: pointer;
+    color: rgba(255,255,255,0.35); font-size: 18px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+}
+.tab-add-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: white; border-color: rgba(255,255,255,0.38);
+}
+
+/* ═════════════════════════════════════════════════════════
+   PICKER — opens below tab bar
+═════════════════════════════════════════════════════════ */
+.picker-overlay {
+    display: none;
+    position: fixed;
+    top: var(--tab-h); left: 0; right: 0; bottom: 0;
+    z-index: 9998;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(5px);
+}
+.picker-overlay.open { display: block; }
+.picker-panel {
+    background: #131313;
+    border: 1px solid rgba(255,255,255,0.11);
+    border-top: none;
+    padding: 22px 24px 26px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+    animation: pickerIn 0.15s ease;
+}
+@keyframes pickerIn {
+    from { opacity:0; transform:translateY(-6px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+.picker-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted); margin-bottom: 14px;
+}
+.picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+.picker-card {
+    background: #1a1a1a; border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 14px;
+    cursor: pointer; transition: all 0.14s;
+    display: flex; flex-direction: column; gap: 5px;
+}
+.picker-card:hover {
+    border-color: var(--accent);
+    background: rgba(0,201,255,0.05);
+    transform: translateY(-2px);
+}
+.picker-card-icon { font-size: 20px; }
+.picker-card-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.picker-card-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* ═════════════════════════════════════════════════════════
+   CONTENT AREA
+═════════════════════════════════════════════════════════ */
+.content-area {
+    position: fixed;
+    top: var(--tab-h); left: 0; right: 0; bottom: 0;
+    background: var(--bg-card);
+    overflow: hidden;
+}
+.view {
+    display: none; width: 100%; height: 100%;
+}
+.view.active { display: flex; }
+
+/* ═════════════════════════════════════════════════════════
+   TI-84 VIEW
+═════════════════════════════════════════════════════════ */
+.ti84-view {
+    flex-direction: column; align-items: center;
+    justify-content: flex-start;
+    padding-top: 14px; overflow-y: auto;
+    background: #080808;
+}
+.ti84-zoom-row {
+    display: flex; gap: 8px; margin-bottom: 12px;
+}
+.ti84-zoom-btn {
+    height: 28px; padding: 0 13px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 12px; cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+.ti84-zoom-btn:hover { background: rgba(255,255,255,0.1); }
+.calculatorDiv {
+    outline: none !important;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.9);
+    border-radius: 12px; transform: translateY(-10px);
+}
+
+/* ═════════════════════════════════════════════════════════
+   BASIC CALCULATOR VIEW
+═════════════════════════════════════════════════════════ */
+.bc-view {
+    flex-direction: row; align-items: stretch;
+    justify-content: center; overflow: hidden;
+    background: #0b0b0b;
+}
+.bc-main {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    width: 340px; min-width: 280px; max-width: 360px;
+    padding: 14px 14px 14px;
+    gap: 0;
+}
+
+/* --- Screen (tape + current) --- */
+.bc-screen {
+    width: 100%;
+    background: var(--tape-bg);
+    border: 1px solid var(--tape-border);
+    border-radius: 10px 10px 0 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    box-shadow:
+        inset 0 3px 14px rgba(0,0,0,0.7),
+        0 0 0 1px rgba(0,180,80,0.05);
+}
+
+/* Scrollable tape */
+.bc-tape {
+    flex: 1; max-height: 210px; min-height: 80px;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 10px 12px 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100,200,100,0.18) transparent;
+}
+.bc-tape::-webkit-scrollbar { width: 3px; }
+.bc-tape::-webkit-scrollbar-thumb { background: rgba(100,200,100,0.2); border-radius: 3px; }
+
+.bc-tape-empty {
+    color: rgba(150,220,150,0.18); font-size: 11px;
+    text-align: center; padding: 22px 0; letter-spacing: 0.5px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* A single past calculation entry */
+.bc-entry { }
+.bc-entry-expr {
+    font-size: 11.5px; color: var(--tape-dim);
+    text-align: left; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    padding: 4px 0 1px;
+}
+.bc-entry-result {
+    font-size: 17px; font-weight: 700;
+    color: var(--tape-green);
+    text-align: right; letter-spacing: 0.5px;
+    padding-bottom: 5px;
+}
+.bc-entry-sep {
+    height: 1px;
+    background: var(--tape-sep);
+    margin: 0;
+}
+
+/* Current input row */
+.bc-current {
+    padding: 8px 12px 10px;
+    border-top: 1px solid rgba(100,200,100,0.09);
+}
+.bc-cur-expr {
+    font-size: 11px; color: rgba(150,220,150,0.35);
+    text-align: right; min-height: 15px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bc-cur-display {
+    font-size: 2.6rem; font-weight: 300;
+    color: #eefee8; text-align: right; line-height: 1.1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: font-size 0.07s;
+}
+.bc-cur-display.s2 { font-size: 1.9rem; }
+.bc-cur-display.s3 { font-size: 1.35rem; }
+
+/* --- Button pad --- */
+.bc-pad {
+    width: 100%; display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px; padding: 2px;
+    background: #0a0a0a;
+    border: 1px solid rgba(255,255,255,0.05);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+}
+.bc-btn {
+    background: #1d1d1d; border: none; cursor: pointer;
+    color: var(--text); font-size: 17px; font-weight: 400;
+    padding: 14px 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px;
+    transition: background 0.07s, transform 0.05s;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+    font-family: inherit;
+}
+.bc-btn:hover  { background: #282828; }
+.bc-btn:active { transform: scale(0.93); background: #333; }
+.bc-btn.fn  { background: #141414; color: rgba(255,255,255,0.55); font-size: 12.5px; }
+.bc-btn.fn:hover { background: #1e1e1e; color: rgba(255,255,255,0.8); }
+.bc-btn.op  { background: #0d1c28; color: var(--accent); font-size: 18px; }
+.bc-btn.op:hover { background: #142233; }
+.bc-btn.op.active-op { background: var(--accent); color: #000; }
+.bc-btn.eq  {
+    background: linear-gradient(135deg, #00C9FF 0%, #0098cc 100%);
+    color: #000; font-weight: 700; font-size: 20px;
+}
+.bc-btn.eq:hover { filter: brightness(1.1); }
+.bc-btn.span2 { grid-column: span 2; }
+.bc-btn.span4 { grid-column: span 4; }
+
+/* ═════════════════════════════════════════════════════════
+   TOOL VIEWS — GPA / Grade / History
+═════════════════════════════════════════════════════════ */
+.tool-view {
+    flex-direction: row; align-items: flex-start;
+    justify-content: center;
+    padding: 20px; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+.tool-view::-webkit-scrollbar { width: 5px; }
+.tool-view::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 5px; }
+
+.tool-container {
+    background: #121212; border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px; width: 100%; max-width: 860px;
+    display: flex; flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.tool-header { margin-bottom: 22px; }
+.tool-header h2 { font-size: 20px; margin-bottom: 4px; }
+.tool-header p  { color: var(--muted); font-size: 13px; }
+
+.form-input {
+    width: 100%; background: #1c1c1c !important;
+    border: 1px solid #3a3a3a !important; color: #fff !important;
+    padding: 9px 11px !important; border-radius: 6px !important;
+    font-size: 13.5px !important; outline: none !important;
+    font-family: inherit !important;
+    transition: border-color 0.2s;
+    -webkit-user-select: text; user-select: text;
+}
+.form-input::placeholder { color: #555 !important; }
+.form-input:focus { border-color: var(--accent) !important; }
+
+.table-dropdown { position: relative; width: 100%; z-index: 1; }
+.table-dropdown-btn {
+    width: 100%; height: 36px; padding: 0 11px;
+    background: #1c1c1c !important; border: 1px solid #3a3a3a !important;
+    color: #fff !important; border-radius: 6px; font-size: 13px;
+    text-align: left; display: flex; justify-content: space-between;
+    align-items: center; cursor: pointer; outline: none;
+    font-family: inherit; transition: border-color 0.2s;
+}
+.table-dropdown-btn:hover { border-color: var(--accent) !important; }
+.table-dropdown-menu {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+    background: #1a1a1a; border: 1px solid var(--border);
+    border-radius: 8px; overflow-y: auto; max-height: 175px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.8); z-index: 10;
+}
+.table-dropdown-menu.open { display: block; }
+.table-dropdown-item {
+    padding: 10px 12px; font-size: 13px; color: var(--muted);
+    cursor: pointer; transition: background 0.1s;
+}
+.table-dropdown-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.table-dropdown-item.active { color: var(--accent); background: rgba(0,201,255,0.05); font-weight: 500; }
+.table-dropdown-menu::-webkit-scrollbar { width: 4px; }
+.table-dropdown-menu::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+
+.gpa-table-wrapper {
+    flex: 1; overflow-y: auto; margin-bottom: 20px;
+    border: 1px solid var(--border); border-radius: 8px; background: #0e0e0e;
+}
+.gpa-table { width: 100%; border-collapse: collapse; text-align: left; }
+.gpa-table th {
+    padding: 10px 14px; background: rgba(255,255,255,0.02);
+    font-size: 11px; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5;
+}
+.gpa-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.gpa-btn-remove {
+    background: transparent; border: none; color: #ff4444;
+    cursor: pointer; font-size: 17px; opacity: 0.55; transition: opacity 0.2s;
+}
+.gpa-btn-remove:hover { opacity: 1; }
+
+.gpa-actions {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 14px; border-top: 1px solid var(--border);
+}
+.btn-action {
+    background: var(--glass); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 17px; border-radius: 8px;
+    cursor: pointer; font-weight: 500; font-size: 13px;
+    font-family: inherit; transition: background 0.2s;
+    display: flex; align-items: center; gap: 6px;
+}
+.btn-action:hover { background: rgba(255,255,255,0.09); }
+
+.result-box {
+    background: rgba(0,201,255,0.07); border: 1px solid rgba(0,201,255,0.16);
+    padding: 10px 18px; border-radius: 8px; text-align: right;
+}
+.result-label { font-size: 10.5px; color: var(--accent); text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.5px; }
+.result-value { font-size: 22px; font-weight: 700; color: #fff; }
+.result-value.alt { color: var(--accent2); }
+
+.grade-section { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+.grade-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.grade-section h3 { font-size: 14.5px; margin-bottom: 14px; color: var(--accent); }
+.grid-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-end; }
+.grid-col { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.grid-col label { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.fraction-wrap { display: flex; align-items: center; gap: 6px; }
+.fraction-wrap span { font-size: 16px; color: var(--muted); }
+
+.history-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.history-card {
+    background: #0f0f0f; border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; display: flex; flex-direction: column;
+    gap: 7px; transition: all 0.18s; position: relative; cursor: pointer;
+}
+.history-card:hover { border-color: var(--accent-hist); transform: translateY(-2px); }
+.history-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 7px; }
+.history-title  { font-weight: 600; color: var(--accent-hist); font-size: 14px; }
+.history-date   { font-size: 10.5px; color: var(--muted); }
+.history-result { font-size: 17px; font-weight: 700; color: #fff; }
+.history-details{ font-size: 12.5px; color: var(--muted); line-height: 1.5; background: rgba(255,255,255,0.02); padding: 7px; border-radius: 4px; }
+.restore-hint   { font-size: 10.5px; color: var(--accent-hist); opacity: 0; transition: opacity 0.18s; text-align: right; }
+.history-card:hover .restore-hint { opacity: 0.75; }
+.history-delete {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.18);
+    border-radius: 4px; color: #ff4444; font-size: 13px;
+    width: 21px; height: 21px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0.55; transition: all 0.18s; z-index: 2;
+}
+.history-delete:hover { opacity: 1; background: rgba(255,68,68,0.18); }
+.empty-history { text-align: center; color: var(--muted); padding: 36px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<!-- ══ TAB BAR ══════════════════════════════════════════════════ -->
+<div class="tab-bar">
+    <div id="tabsList"></div>
+    <button class="tab-add-btn" id="tabAddBtn" title="New tab">+</button>
+</div>
+
+<!-- ══ PICKER ═══════════════════════════════════════════════════ -->
+<div class="picker-overlay" id="pickerOverlay">
+    <div class="picker-panel">
+        <div class="picker-label">Choose a calculator</div>
+        <div class="picker-grid" id="pickerGrid">
+            <div class="picker-card" onclick="pickerOpen('basic')">
+                <div class="picker-card-icon">⌨️</div>
+                <div class="picker-card-name">Calculator</div>
+                <div class="picker-card-desc">Paper-tape calculator with history</div>
+            </div>
+            <div class="picker-card" onclick="pickerOpen('ti84')">
+                <div class="picker-card-icon">🧮</div>
+                <div class="picker-card-name">TI-84 CE</div>
+                <div class="picker-card-desc">Texas Instruments graphing calculator</div>
+            </div>
+            <div class="picker-card" onclick="pickerOpen('gpa')">
+                <div class="picker-card-icon">🎓</div>
+                <div class="picker-card-name">GPA Calculator</div>
+                <div class="picker-card-desc">Weighted & unscaled GPA, transcript import</div>
+            </div>
+            <div class="picker-card" onclick="pickerOpen('grade')">
+                <div class="picker-card-icon">📊</div>
+                <div class="picker-card-name">Grade Calculator</div>
+                <div class="picker-card-desc">Term averages & what-if predictor</div>
+            </div>
+            <div class="picker-card" onclick="pickerOpen('history')">
+                <div class="picker-card-icon">🕐</div>
+                <div class="picker-card-name">History</div>
+                <div class="picker-card-desc">Saved GPA and grade calculations</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ CONTENT AREA ═════════════════════════════════════════════ -->
+<div class="content-area">
+
+    <!-- Basic Calculator (shared DOM, state-per-tab) -->
+    <div class="view bc-view" id="view-basic">
+        <div class="bc-main">
+            <div class="bc-screen">
+                <div class="bc-tape" id="bcTape">
+                    <div class="bc-tape-empty">— no calculations yet —</div>
+                </div>
+                <div class="bc-current">
+                    <div class="bc-cur-expr"   id="bcCurExpr"></div>
+                    <div class="bc-cur-display" id="bcCurDisplay">0</div>
+                </div>
+            </div>
+            <div class="bc-pad">
+                <!-- Row 1: memory -->
+                <button class="bc-btn fn" onclick="bcFn('mc')">MC</button>
+                <button class="bc-btn fn" onclick="bcFn('mr')">MR</button>
+                <button class="bc-btn fn" onclick="bcFn('m+')">M+</button>
+                <button class="bc-btn fn" onclick="bcFn('m-')">M−</button>
+                <!-- Row 2: utility -->
+                <button class="bc-btn fn" onclick="bcFn('clear')">AC</button>
+                <button class="bc-btn fn" onclick="bcFn('ce')">CE</button>
+                <button class="bc-btn fn" onclick="bcFn('sign')">±</button>
+                <button class="bc-btn fn" onclick="bcFn('pct')">%</button>
+                <!-- Row 3 -->
+                <button class="bc-btn" onclick="bcDigit('7')">7</button>
+                <button class="bc-btn" onclick="bcDigit('8')">8</button>
+                <button class="bc-btn" onclick="bcDigit('9')">9</button>
+                <button class="bc-btn op" id="op-div" onclick="bcOp('÷')">÷</button>
+                <!-- Row 4 -->
+                <button class="bc-btn" onclick="bcDigit('4')">4</button>
+                <button class="bc-btn" onclick="bcDigit('5')">5</button>
+                <button class="bc-btn" onclick="bcDigit('6')">6</button>
+                <button class="bc-btn op" id="op-mul" onclick="bcOp('×')">×</button>
+                <!-- Row 5 -->
+                <button class="bc-btn" onclick="bcDigit('1')">1</button>
+                <button class="bc-btn" onclick="bcDigit('2')">2</button>
+                <button class="bc-btn" onclick="bcDigit('3')">3</button>
+                <button class="bc-btn op" id="op-sub" onclick="bcOp('−')">−</button>
+                <!-- Row 6 -->
+                <button class="bc-btn fn" onclick="bcFn('back')">⌫</button>
+                <button class="bc-btn span2" onclick="bcDigit('0')">0</button>
+                <button class="bc-btn" onclick="bcDigit('.')">.</button>
+                <!-- Row 6 right: + -->
+                <button class="bc-btn op" id="op-add" onclick="bcOp('+')">+</button>
+                <!-- Row 7: = -->
+                <button class="bc-btn eq span4" onclick="bcEval()">=</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TI-84 CE -->
+    <div class="view ti84-view" id="view-ti84">
+        <div class="ti84-zoom-row">
+            <button class="ti84-zoom-btn" onclick="resizeCalc(-0.06)">− Zoom Out</button>
+            <button class="ti84-zoom-btn" onclick="resetCalcSize()">Reset Size</button>
+            <button class="ti84-zoom-btn" onclick="resizeCalc(0.06)">Zoom In +</button>
+        </div>
+        <div id="calculatorDiv" class="calculatorDiv"></div>
+    </div>
+
+    <!-- GPA Calculator -->
+    <div class="view tool-view" id="view-gpa">
+        <div class="tool-container">
+            <div class="tool-header">
+                <h2>GPA Calculator</h2>
+                <p>Enter classes manually, or import your transcript PDF.</p>
+            </div>
+            <div style="background:rgba(0,201,255,0.04);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <h4 style="color:var(--accent);margin:0;font-size:13px;">Auto-Import from Transcript <span style="opacity:.5;">(Beta)</span></h4>
+                    <label class="btn-action" style="background:var(--accent);color:#000;border:none;padding:5px 14px;font-size:12px;cursor:pointer;">
+                        Upload PDF
+                        <input type="file" id="gpa-pdf-upload" accept="application/pdf" style="display:none;" onchange="handlePDFUpload(event,'gpa')">
+                    </label>
+                </div>
+                <details style="font-size:12.5px;color:var(--muted);cursor:pointer;">
+                    <summary style="outline:none;">How to get your Transcript PDF</summary>
+                    <ol style="margin-top:8px;padding-left:18px;line-height:1.7;">
+                        <li>Log in to your school's grade portal.</li>
+                        <li>Navigate to <b>Grades</b> or <b>Transcript</b>.</li>
+                        <li>Right-click → <b>Print</b> → choose <b>"Save as PDF"</b>.</li>
+                        <li>Upload that file here.</li>
+                    </ol>
+                </details>
+            </div>
+            <div class="gpa-table-wrapper">
+                <table class="gpa-table">
+                    <thead><tr>
+                        <th style="width:35%">Class Name</th>
+                        <th style="width:20%">Grade</th>
+                        <th style="width:15%">Tier</th>
+                        <th style="width:12%;text-align:center;">Unscaled</th>
+                        <th style="width:12%;text-align:center;">Scaled</th>
+                        <th style="width:6%"></th>
+                    </tr></thead>
+                    <tbody id="gpa-tbody"></tbody>
+                </table>
+            </div>
+            <div class="gpa-actions">
+                <button class="btn-action" onclick="addGpaRow()">+ Add Class</button>
+                <div style="display:flex;gap:12px;align-items:stretch;">
+                    <button class="btn-action" style="border-color:var(--accent);color:var(--accent);" onclick="saveToHistory('GPA')">Save to History</button>
+                    <div class="result-box"><div class="result-label">Unscaled GPA</div><div class="result-value" id="res-unweighted">0.000</div></div>
+                    <div class="result-box"><div class="result-label">Scaled GPA</div><div class="result-value" id="res-weighted">0.000</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grade Calculator -->
+    <div class="view tool-view" id="view-grade">
+        <div class="tool-container">
+            <div class="tool-header">
+                <h2>Grade Calculators</h2>
+                <p>Term averages and what-if grade predictor.</p>
+            </div>
+            <div class="grade-section">
+                <h3>Term / Semester Calculator</h3>
+                <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px;">T1 + T2 (+ Exam) → Trimester. Add T3 for Semester. Updates live.</p>
+                <div class="grid-row">
+                    <div class="grid-col"><label>Term 1 (%)</label><input type="number" class="form-input" id="term1" placeholder="e.g. 88" oninput="calcTerm()"></div>
+                    <div class="grid-col"><label>Term 2 (%)</label><input type="number" class="form-input" id="term2" placeholder="e.g. 92" oninput="calcTerm()"></div>
+                    <div class="grid-col"><label>Term 3 (%)</label><input type="number" class="form-input" id="term3" placeholder="Semester only" oninput="calcTerm()"></div>
+                    <div class="grid-col"><label>Final Exam (%)</label><input type="number" class="form-input" id="termExam" placeholder="e.g. 85" oninput="calcTerm()"></div>
+                </div>
+                <div class="grid-row" style="margin-bottom:0;align-items:center;">
+                    <div class="result-box" style="flex:1;padding:6px 14px;"><div class="result-label">Trimester Avg</div><div class="result-value" id="res-term-trimester">–</div></div>
+                    <div class="result-box" style="flex:1;padding:6px 14px;"><div class="result-label">Semester Avg</div><div class="result-value" id="res-term-semester">–</div></div>
+                    <button class="btn-action" style="align-self:stretch;" onclick="saveToHistory('Term')">Save</button>
+                </div>
+            </div>
+            <div class="grade-section">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                    <h3>Category Grade Calculator</h3>
+                    <div style="width:240px;">
+                        <div class="table-dropdown">
+                            <button class="table-dropdown-btn" type="button"><span class="dropdown-text">On-Level (50 / 50)</span><span style="font-size:10px;opacity:0.5;">▼</span></button>
+                            <div class="table-dropdown-menu">
+                                <div class="table-dropdown-item active" data-value="onlevel" onclick="calcDetailed()">On-Level (50% Tests / 50% Daily)</div>
+                                <div class="table-dropdown-item" data-value="ap" onclick="calcDetailed()">Advanced/AP (60% Tests / 40% Daily)</div>
+                            </div>
+                            <input type="hidden" id="classLevel" value="onlevel">
+                        </div>
+                    </div>
+                </div>
+                <div class="grid-row">
+                    <div class="grid-col">
+                        <label>Category A (Tests)</label>
+                        <div class="fraction-wrap">
+                            <input type="number" class="form-input" id="catAEarned" placeholder="Earned" oninput="calcDetailed()">
+                            <span>/</span>
+                            <input type="number" class="form-input" id="catATotal" placeholder="Total" oninput="calcDetailed()">
+                        </div>
+                    </div>
+                    <div class="grid-col">
+                        <label>Category B (Daily)</label>
+                        <div class="fraction-wrap">
+                            <input type="number" class="form-input" id="catBEarned" placeholder="Earned" oninput="calcDetailed()">
+                            <span>/</span>
+                            <input type="number" class="form-input" id="catBTotal" placeholder="Total" oninput="calcDetailed()">
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-left:auto;">
+                        <div class="result-box" style="min-width:140px;padding:6px 14px;"><div class="result-label">Current Grade</div><div class="result-value" id="res-current-grade">–</div></div>
+                        <button class="btn-action" style="padding:4px 0;justify-content:center;font-size:12px;color:var(--accent);" onclick="saveToHistory('Detailed')">Save</button>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.02);padding:14px;border-radius:8px;border:1px dashed rgba(255,255,255,0.07);margin-top:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <h4 style="font-size:13px;margin:0;color:var(--muted);">What-If Predictor</h4>
+                        <button class="btn-action" style="padding:3px 10px;font-size:11px;" onclick="addPredictionRow()">+ Add Assignment</button>
+                    </div>
+                    <div id="predictions-container"></div>
+                    <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+                        <div class="result-box" style="padding:6px 14px;background:rgba(146,254,157,0.07);border-color:rgba(146,254,157,0.17);">
+                            <div class="result-label" style="color:var(--accent2);">Projected Grade</div>
+                            <div class="result-value alt" id="res-projected-grade">–</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="view tool-view" id="view-history">
+        <div class="tool-container">
+            <div class="tool-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h2 style="color:var(--accent-hist);">Saved Calculations</h2>
+                    <p>Click any card to restore your work.</p>
+                </div>
+                <button class="btn-action" style="border-color:#ff4444;color:#ff4444;" onclick="clearHistory()">Clear All</button>
+            </div>
+            <div class="history-grid" id="history-container"></div>
+        </div>
+    </div>
+
+</div><!-- /.content-area -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  TAB MANAGEMENT
+// ══════════════════════════════════════════════════════════════════
+const SINGLETONS = ['ti84','gpa','grade','history'];
+const TAB_META   = {
+    basic:   { name:'Calculator', icon:'⌨️' },
+    ti84:    { name:'TI-84 CE',   icon:'🧮' },
+    gpa:     { name:'GPA',        icon:'🎓' },
+    grade:   { name:'Grades',     icon:'📊' },
+    history: { name:'History',    icon:'🕐' },
+};
+
+let tabs        = [];
+let activeTabId = null;
+let tabCounter  = 0;
+let basicStates = {};  // tabId → calculator state
+
+function openTab(type) {
+    // Singletons: reuse if already open
+    if (SINGLETONS.includes(type)) {
+        const ex = tabs.find(t => t.type === type);
+        if (ex) { switchTab(ex.id); return; }
+    }
+    const id   = ++tabCounter;
+    const meta = TAB_META[type] || { name: type, icon: '❓' };
+    tabs.push({ id, type, name: meta.name });
+    if (type === 'basic') basicStates[id] = newBasicState();
+    activeTabId = id;
+    renderTabBar();
+    activateView(type, id);
+}
+
+// Called from the picker cards
+function pickerOpen(type) {
+    closePicker();
+    openTab(type);
+}
+
+function switchTab(id) {
+    const tab = tabs.find(t => t.id === id);
+    if (!tab) return;
+    activeTabId = id;
+    renderTabBar();
+    activateView(tab.type, id);
+}
+
+function closeTab(id) {
+    if (tabs.length <= 1) return; // always keep one tab
+    const idx = tabs.findIndex(t => t.id === id);
+    tabs       = tabs.filter(t => t.id !== id);
+    delete basicStates[id];
+    if (activeTabId === id) {
+        activeTabId = tabs[Math.max(0, Math.min(idx, tabs.length - 1))].id;
+    }
+    renderTabBar();
+    const a = tabs.find(t => t.id === activeTabId);
+    if (a) activateView(a.type, activeTabId);
+}
+
+function activateView(type, tabId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const el = document.getElementById('view-' + type);
+    if (el) el.classList.add('active');
+    if (type === 'basic')   renderBasicCalc(tabId);
+    if (type === 'history') loadHistory();
+}
+
+// ── Tab bar render ────────────────────────────────────────────────
+function renderTabBar() {
+    const list = document.getElementById('tabsList');
+    list.innerHTML = '';
+    tabs.forEach(tab => {
+        const div = document.createElement('div');
+        div.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
+        div.id = 'tab-' + tab.id;
+        div.draggable = true;
+        div.innerHTML =
+            `<span class="tab-icon">${TAB_META[tab.type]?.icon ?? '❓'}</span>` +
+            `<span class="tab-label">${escHtml(tab.name)}</span>` +
+            `<button class="tab-close" title="Close tab">✕</button>`;
+
+        // click the label/icon → switch
+        div.querySelector('.tab-label').addEventListener('click', () => switchTab(tab.id));
+        div.querySelector('.tab-icon').addEventListener('click',  () => switchTab(tab.id));
+        // double-click label → rename inline
+        div.querySelector('.tab-label').addEventListener('dblclick', e => { e.stopPropagation(); startRename(div, tab); });
+        // close button
+        div.querySelector('.tab-close').addEventListener('click', e => { e.stopPropagation(); closeTab(tab.id); });
+        setupTabDrag(div, tab.id);
+        list.appendChild(div);
+    });
+}
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Inline rename: double-click
+function startRename(div, tab) {
+    const labelEl = div.querySelector('.tab-label');
+    const input   = document.createElement('input');
+    input.className  = 'tab-label-edit';
+    input.value      = tab.name;
+    labelEl.replaceWith(input);
+    input.focus(); input.select();
+    const commit = () => {
+        const v = input.value.trim() || TAB_META[tab.type]?.name || 'Tab';
+        tab.name = v;
+        renderTabBar();
+    };
+    input.addEventListener('blur',  commit);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { e.preventDefault(); renderTabBar(); }
+    });
+}
+
+// ── Drag-to-reorder ───────────────────────────────────────────────
+let dragSrcId = null;
+
+function setupTabDrag(el, id) {
+    el.addEventListener('dragstart', e => {
+        dragSrcId = id;
+        el.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(id));
+    });
+    el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-target'));
+        dragSrcId = null;
+    });
+    el.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (dragSrcId === id) return;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('drag-target'));
+        el.classList.add('drag-target');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-target'));
+    el.addEventListener('drop', e => {
+        e.preventDefault();
+        el.classList.remove('drag-target');
+        if (dragSrcId === null || dragSrcId === id) return;
+        const fromI = tabs.findIndex(t => t.id === dragSrcId);
+        const toI   = tabs.findIndex(t => t.id === id);
+        if (fromI === -1 || toI === -1) return;
+        const [moved] = tabs.splice(fromI, 1);
+        const insertAt = toI > fromI ? toI : toI;
+        tabs.splice(Math.max(0, Math.min(insertAt, tabs.length)), 0, moved);
+        renderTabBar();
+    });
+}
+
+// ── Picker ────────────────────────────────────────────────────────
+document.getElementById('tabAddBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('pickerOverlay').classList.toggle('open');
+});
+document.getElementById('pickerOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closePicker();
+});
+function closePicker() {
+    document.getElementById('pickerOverlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  BASIC CALCULATOR ENGINE
+//  Uses waitingForOperand flag — fixes "1+1 = 12" bug
+// ══════════════════════════════════════════════════════════════════
+function newBasicState() {
+    return {
+        tape:              [],    // [{expr, result}]
+        display:           '0',
+        leftOperand:       null,
+        operator:          null,
+        waitingForOperand: false, // ← KEY: next digit starts fresh after op
+        memory:            0,
+    };
+}
+
+// shorthand: active tab's state
+function bc() { return basicStates[activeTabId]; }
+
+// ── Digit / dot input ──────────────────────────────────────────
+function bcDigit(d) {
+    const s = bc(); if (!s) return;
+    if (s.waitingForOperand) {
+        // after an operator, start a brand new number
+        s.display          = (d === '.') ? '0.' : d;
+        s.waitingForOperand = false;
+    } else {
+        if (s.display.length >= 15) return;
+        if (d === '.' && s.display.includes('.')) return;
+        s.display = (s.display === '0' && d !== '.') ? d : s.display + d;
+    }
+    renderBasicCalc(activeTabId);
+}
+
+// ── Operator ───────────────────────────────────────────────────
+function bcOp(op) {
+    const s = bc(); if (!s) return;
+    const cur = parseFloat(s.display);
+    // chain: evaluate previous op before storing new one
+    if (s.leftOperand !== null && s.operator && !s.waitingForOperand) {
+        const res = bcCompute(s.leftOperand, s.operator, cur);
+        s.display     = bcFmt(res);
+        s.leftOperand = res;
+    } else {
+        s.leftOperand = cur;
+    }
+    s.operator          = op;
+    s.waitingForOperand = true;   // ← next digit starts fresh
+    renderBasicCalc(activeTabId);
+}
+
+// ── Equals ─────────────────────────────────────────────────────
+function bcEval() {
+    const s = bc(); if (!s) return;
+    if (s.operator === null || s.leftOperand === null) return;
+    const right  = parseFloat(s.display);
+    const result = bcCompute(s.leftOperand, s.operator, right);
+    const expr   = `${bcFmt(s.leftOperand)} ${s.operator} ${bcFmt(right)}`;
+    const resStr = bcFmt(result);
+    // push to tape
+    s.tape.push({ expr, result: resStr });
+    s.display           = resStr;
+    s.leftOperand       = null;
+    s.operator          = null;
+    s.waitingForOperand = true;
+    renderBasicCalc(activeTabId);
+}
+
+// ── Function buttons ───────────────────────────────────────────
+function bcFn(fn) {
+    const s = bc(); if (!s) return;
+    switch (fn) {
+        case 'clear': s.display='0'; s.leftOperand=null; s.operator=null; s.waitingForOperand=false; break;
+        case 'ce':    s.display='0'; s.waitingForOperand=false; break;
+        case 'back':
+            if (!s.waitingForOperand)
+                s.display = s.display.length > 1 ? s.display.slice(0,-1) : '0';
+            break;
+        case 'sign':  s.display = s.display.startsWith('-') ? s.display.slice(1) : (s.display==='0'?'0':'-'+s.display); break;
+        case 'pct':   s.display = bcFmt(parseFloat(s.display)/100); break;
+        case 'mc':    s.memory=0; break;
+        case 'mr':    s.display=bcFmt(s.memory); s.waitingForOperand=false; break;
+        case 'm+':    s.memory=parseFloat(bcFmt(s.memory+parseFloat(s.display))); break;
+        case 'm-':    s.memory=parseFloat(bcFmt(s.memory-parseFloat(s.display))); break;
+    }
+    renderBasicCalc(activeTabId);
+}
+
+function bcCompute(a, op, b) {
+    switch (op) {
+        case '+': return a + b;
+        case '−': return a - b;
+        case '×': return a * b;
+        case '÷': return b !== 0 ? a / b : NaN;
+        default:  return b;
+    }
+}
+
+function bcFmt(n) {
+    if (isNaN(n))     return 'Error';
+    if (!isFinite(n)) return '∞';
+    const r = parseFloat(n.toPrecision(12));
+    return Number.isInteger(r) && Math.abs(r) < 1e12 ? String(r) : String(r);
+}
+
+// ── Render ─────────────────────────────────────────────────────
+function renderBasicCalc(tabId) {
+    const s = basicStates[tabId];
+    if (!s) return;
+
+    // Tape (history of calculations)
+    const tapeEl = document.getElementById('bcTape');
+    if (tapeEl) {
+        if (s.tape.length === 0) {
+            tapeEl.innerHTML = '<div class="bc-tape-empty">— no calculations yet —</div>';
+        } else {
+            tapeEl.innerHTML = s.tape.map((entry, i) =>
+                `<div class="bc-entry">` +
+                `<div class="bc-entry-expr">${entry.expr}</div>` +
+                `<div class="bc-entry-result">${entry.result}</div>` +
+                `</div>` +
+                (i < s.tape.length - 1 ? '<div class="bc-entry-sep"></div>' : '')
+            ).join('');
+            tapeEl.scrollTop = tapeEl.scrollHeight;
+        }
+    }
+
+    // Expression hint above display
+    const exprEl = document.getElementById('bcCurExpr');
+    if (exprEl) {
+        exprEl.textContent = (s.leftOperand !== null && s.operator)
+            ? `${bcFmt(s.leftOperand)} ${s.operator}`
+            : '';
+    }
+
+    // Main number display
+    const dispEl = document.getElementById('bcCurDisplay');
+    if (dispEl) {
+        dispEl.textContent = s.display;
+        const len = s.display.length;
+        dispEl.className = 'bc-cur-display' + (len > 13 ? ' s3' : len > 9 ? ' s2' : '');
+    }
+
+    // Highlight active operator button
+    ['add','sub','mul','div'].forEach(k => {
+        const el = document.getElementById('op-' + k);
+        if (el) el.classList.remove('active-op');
+    });
+    const opMap = { '+':'add', '−':'sub', '×':'mul', '÷':'div' };
+    if (s.operator && s.waitingForOperand && opMap[s.operator]) {
+        const btn = document.getElementById('op-' + opMap[s.operator]);
+        if (btn) btn.classList.add('active-op');
+    }
+}
+
+// ── Keyboard support ─────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    const activeTab = tabs.find(t => t.id === activeTabId);
+    if (!activeTab || activeTab.type !== 'basic') return;
+    // don't intercept when user is typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    const k = e.key;
+    if      (k >= '0' && k <= '9')                   { e.preventDefault(); bcDigit(k); }
+    else if (k === '.')                                { e.preventDefault(); bcDigit('.'); }
+    else if (k === '+')                                { e.preventDefault(); bcOp('+'); }
+    else if (k === '-')                                { e.preventDefault(); bcOp('−'); }
+    else if (k === '*' || k === 'x' || k === 'X')     { e.preventDefault(); bcOp('×'); }  // x key = multiply
+    else if (k === '/')                                { e.preventDefault(); bcOp('÷'); }
+    else if (k === 'Enter' || k === '=')               { e.preventDefault(); bcEval(); }
+    else if (k === 'Escape')                           { e.preventDefault(); bcFn('clear'); }
+    else if (k === 'Backspace')                        { e.preventDefault(); bcFn('back'); }
+    else if (k === '%')                                { e.preventDefault(); bcFn('pct'); }
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  CUSTOM TABLE DROPDOWN (GPA & Grade selectors)
+// ══════════════════════════════════════════════════════════════════
+document.addEventListener('click', e => {
+    if (!e.target.closest('.table-dropdown')) {
+        document.querySelectorAll('.table-dropdown-menu.open').forEach(m => {
+            m.classList.remove('open');
+            m.closest('.table-dropdown').style.zIndex = '1';
+        });
+    }
+    const btn = e.target.closest('.table-dropdown-btn');
+    if (btn) {
+        const dd   = btn.closest('.table-dropdown');
+        const menu = btn.nextElementSibling;
+        document.querySelectorAll('.table-dropdown-menu.open').forEach(m => {
+            if (m !== menu) { m.classList.remove('open'); m.closest('.table-dropdown').style.zIndex='1'; }
+        });
+        if (menu.classList.contains('open')) { menu.classList.remove('open'); dd.style.zIndex='1'; }
+        else { menu.classList.add('open'); dd.style.zIndex='100'; }
+        return;
+    }
+    const item = e.target.closest('.table-dropdown-item');
+    if (item && !item.hasAttribute('data-target')) {
+        const dd     = item.closest('.table-dropdown');
+        const menu   = item.closest('.table-dropdown-menu');
+        const btnEl  = menu.previousElementSibling;
+        const hidden = menu.nextElementSibling;
+        menu.querySelectorAll('.table-dropdown-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        btnEl.querySelector('.dropdown-text').innerText = item.innerText;
+        hidden.value = item.getAttribute('data-value');
+        menu.classList.remove('open'); dd.style.zIndex='1';
+        if (document.getElementById('view-gpa').classList.contains('active'))   calculateGpa();
+        if (document.getElementById('view-grade').classList.contains('active')) calcDetailed();
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  GPA CALCULATOR
+// ══════════════════════════════════════════════════════════════════
+const gradeScale = {
+    '98-100':{ tier3:6.000,tier2:5.000,tier1:4.000 },
+    '93-97': { tier3:5.666,tier2:4.666,tier1:3.666 },
+    '90-92': { tier3:5.333,tier2:4.333,tier1:3.333 },
+    '87-89': { tier3:5.000,tier2:4.000,tier1:3.000 },
+    '83-86': { tier3:4.666,tier2:3.666,tier1:2.666 },
+    '80-82': { tier3:4.333,tier2:3.333,tier1:2.333 },
+    '77-79': { tier3:4.000,tier2:3.000,tier1:2.000 },
+    '73-76': { tier3:3.666,tier2:2.666,tier1:1.666 },
+    '70-72': { tier3:3.333,tier2:2.333,tier1:1.333 },
+    '<70':   { tier3:0.000,tier2:0.000,tier1:0.000 },
+};
+
+function calculateGpa() {
+    const rows = document.querySelectorAll('.gpa-row');
+    let tU=0, tS=0, valid=0;
+    rows.forEach(row => {
+        const grade = row.querySelector('.sel-grade').value;
+        const tier  = row.querySelector('.sel-tier').value;
+        const outU  = row.querySelector('.out-unweighted');
+        const outS  = row.querySelector('.out-weighted');
+        if (grade && tier) {
+            const uVal = gradeScale[grade]['tier1'], sVal = gradeScale[grade][tier];
+            outU.innerText = uVal.toFixed(3); outS.innerText = sVal.toFixed(3);
+            tU += uVal; tS += sVal; valid++;
+        } else { outU.innerText='-'; outS.innerText='-'; }
+    });
+    document.getElementById('res-unweighted').innerText = valid>0 ? (tU/valid).toFixed(3) : '0.000';
+    document.getElementById('res-weighted').innerText   = valid>0 ? (tS/valid).toFixed(3) : '0.000';
+}
+
+function addGpaRow() {
+    const tbody = document.getElementById('gpa-tbody');
+    const tr = document.createElement('tr'); tr.className='gpa-row';
+    tr.innerHTML = `
+        <td><input type="text" class="form-input" placeholder="e.g. Algebra II"></td>
+        <td><div class="table-dropdown">
+            <button class="table-dropdown-btn" type="button">
+                <span class="dropdown-text">Select Grade</span>
+                <span style="font-size:10px;opacity:0.5;">▼</span>
+            </button>
+            <div class="table-dropdown-menu">
+                <div class="table-dropdown-item" data-value="98-100">98–100</div>
+                <div class="table-dropdown-item" data-value="93-97">93–97</div>
+                <div class="table-dropdown-item" data-value="90-92">90–92</div>
+                <div class="table-dropdown-item" data-value="87-89">87–89</div>
+                <div class="table-dropdown-item" data-value="83-86">83–86</div>
+                <div class="table-dropdown-item" data-value="80-82">80–82</div>
+                <div class="table-dropdown-item" data-value="77-79">77–79</div>
+                <div class="table-dropdown-item" data-value="73-76">73–76</div>
+                <div class="table-dropdown-item" data-value="70-72">70–72</div>
+                <div class="table-dropdown-item" data-value="<70">Below 70</div>
+            </div>
+            <input type="hidden" class="sel-grade" value="">
+        </div></td>
+        <td><div class="table-dropdown">
+            <button class="table-dropdown-btn" type="button">
+                <span class="dropdown-text">Tier III</span>
+                <span style="font-size:10px;opacity:0.5;">▼</span>
+            </button>
+            <div class="table-dropdown-menu">
+                <div class="table-dropdown-item active" data-value="tier3">Tier III</div>
+                <div class="table-dropdown-item" data-value="tier2">Tier II</div>
+                <div class="table-dropdown-item" data-value="tier1">Tier I</div>
+            </div>
+            <input type="hidden" class="sel-tier" value="tier3">
+        </div></td>
+        <td class="out-unweighted" style="text-align:center;font-weight:500;">–</td>
+        <td class="out-weighted"   style="text-align:center;font-weight:500;color:var(--accent);">–</td>
+        <td style="text-align:center;">
+            <button class="gpa-btn-remove" onclick="this.closest('tr').remove();calculateGpa();">×</button>
+        </td>`;
+    tbody.appendChild(tr);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  GRADE CALCULATOR
+// ══════════════════════════════════════════════════════════════════
+function calcTerm() {
+    const t1=parseFloat(document.getElementById('term1').value);
+    const t2=parseFloat(document.getElementById('term2').value);
+    const t3=parseFloat(document.getElementById('term3').value);
+    const exam=parseFloat(document.getElementById('termExam').value);
+    const tri=document.getElementById('res-term-trimester');
+    const sem=document.getElementById('res-term-semester');
+    const h1=!isNaN(t1),h2=!isNaN(t2),h3=!isNaN(t3),hE=!isNaN(exam);
+    tri.innerText = (h1&&h2&&hE) ? ((t1*2+t2*2+exam)/5).toFixed(1)+'%' : (h1&&h2) ? ((t1+t2)/2).toFixed(1)+'%' : '–';
+    sem.innerText = (h1&&h2&&h3&&hE) ? ((t1*2+t2*2+t3*2+exam)/7).toFixed(1)+'%' : (h1&&h2&&h3) ? ((t1+t2+t3)/3).toFixed(1)+'%' : '–';
+}
+
+function calcFinal(pA,pB,wA,wB) {
+    if (pA!==null&&pB!==null) return (pA*wA+pB*wB)*100;
+    if (pA!==null) return pA*100;
+    if (pB!==null) return pB*100;
+    return null;
+}
+
+function addPredictionRow() {
+    const c=document.getElementById('predictions-container');
+    const row=document.createElement('div'); row.className='grid-row prediction-row'; row.style.marginBottom='8px';
+    row.innerHTML=`
+        <div class="grid-col"><input type="number" class="form-input pred-score" placeholder="Score (%)" oninput="calcDetailed()"></div>
+        <div class="grid-col"><input type="number" step="0.1" class="form-input pred-weight" placeholder="Weight (e.g. 0.2)" oninput="calcDetailed()"></div>
+        <div class="grid-col">
+            <select class="form-input pred-cat" onchange="calcDetailed()" style="padding-right:8px!important;">
+                <option value="A">Cat A (Test)</option>
+                <option value="B">Cat B (Daily)</option>
+            </select>
+        </div>
+        <button class="gpa-btn-remove" style="margin-bottom:6px;" onclick="this.parentElement.remove();calcDetailed();">×</button>`;
+    c.appendChild(row);
+}
+
+function calcDetailed() {
+    const level=document.getElementById('classLevel')?.value||'onlevel';
+    const wA=level==='ap'?0.6:0.5, wB=level==='ap'?0.4:0.5;
+    const aE=parseFloat(document.getElementById('catAEarned').value)||0;
+    const aT=parseFloat(document.getElementById('catATotal').value)||0;
+    const bE=parseFloat(document.getElementById('catBEarned').value)||0;
+    const bT=parseFloat(document.getElementById('catBTotal').value)||0;
+    const pA=aT>0?(aE/aT):null, pB=bT>0?(bE/bT):null;
+    const cur=calcFinal(pA,pB,wA,wB);
+    document.getElementById('res-current-grade').innerText = cur!==null ? cur.toFixed(2)+'%' : '–';
+    let pjAE=aE,pjAT=aT,pjBE=bE,pjBT=bT,hasPred=false;
+    document.querySelectorAll('.prediction-row').forEach(row=>{
+        const sc=parseFloat(row.querySelector('.pred-score').value);
+        const wt=parseFloat(row.querySelector('.pred-weight').value);
+        const cat=row.querySelector('.pred-cat').value;
+        if(!isNaN(sc)&&!isNaN(wt)&&wt>0){
+            hasPred=true; const mx=wt*100, pt=(sc/100)*mx;
+            if(cat==='A'){pjAE+=pt;pjAT+=mx;}else{pjBE+=pt;pjBT+=mx;}
+        }
+    });
+    if(hasPred){
+        const pjA=pjAT>0?(pjAE/pjAT):null, pjB=pjBT>0?(pjBE/pjBT):null;
+        const pj=calcFinal(pjA,pjB,wA,wB);
+        document.getElementById('res-projected-grade').innerText = pj!==null ? pj.toFixed(2)+'%' : '–';
+    } else {
+        document.getElementById('res-projected-grade').innerText = '–';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HISTORY SYSTEM
+// ══════════════════════════════════════════════════════════════════
+function saveToHistory(type) {
+    let item={date:new Date().toLocaleString(),type,state:{}};
+    if (type==='GPA') {
+        const u=document.getElementById('res-unweighted').innerText;
+        const w=document.getElementById('res-weighted').innerText;
+        if(u==='0.000'&&w==='0.000') return alert('Calculate a GPA first!');
+        item.state.classes=[]; const cs=[];
+        document.querySelectorAll('.gpa-row').forEach(row=>{
+            const name=row.querySelector('input[type="text"]').value;
+            const g=row.querySelector('.sel-grade').value;
+            const t=row.querySelector('.sel-tier').value;
+            item.state.classes.push({name,grade:g,tier:t});
+            if(g&&t) cs.push(`${name||'Unnamed'} (${g})`);
+        });
+        item.title='GPA Calculation'; item.result=`Unweighted: ${u} | Scaled: ${w}`; item.details=cs.join(' • ');
+    } else if(type==='Term') {
+        const tri=document.getElementById('res-term-trimester').innerText;
+        const sem=document.getElementById('res-term-semester').innerText;
+        if(tri==='–'&&sem==='–') return alert('Calculate a term average first!');
+        item.state={t1:document.getElementById('term1').value,t2:document.getElementById('term2').value,t3:document.getElementById('term3').value,exam:document.getElementById('termExam').value};
+        item.title='Term Average'; item.result=`Trimester: ${tri} • Semester: ${sem}`;
+        item.details=`T1: ${item.state.t1||'-'}% • T2: ${item.state.t2||'-'}% • T3: ${item.state.t3||'-'}% • Exam: ${item.state.exam||'-'}%`;
+    } else if(type==='Detailed') {
+        const cur=document.getElementById('res-current-grade').innerText;
+        if(cur==='–') return alert('Calculate a category grade first!');
+        const proj=document.getElementById('res-projected-grade').innerText;
+        item.state={level:document.getElementById('classLevel').value,aE:document.getElementById('catAEarned').value,aT:document.getElementById('catATotal').value,bE:document.getElementById('catBEarned').value,bT:document.getElementById('catBTotal').value,predictions:[]};
+        document.querySelectorAll('.prediction-row').forEach(row=>{const sc=row.querySelector('.pred-score').value,wt=row.querySelector('.pred-weight').value,cat=row.querySelector('.pred-cat').value;if(sc||wt)item.state.predictions.push({score:sc,weight:wt,cat});});
+        item.title='Category Grade'; item.result=`Current: ${cur}${proj!=='–'?` | Projected: ${proj}`:''}`;
+        item.details=`${item.state.level==='ap'?'Advanced':'On-Level'} mode`;
+    }
+    let h=[]; try{h=JSON.parse(localStorage.getItem('ludus_history')||'[]');}catch(e){}
+    h.unshift(item); localStorage.setItem('ludus_history',JSON.stringify(h));
+    alert('Saved to History!');
+    if(window.parent&&typeof window.parent.saveDataToCloud==='function') window.parent.saveDataToCloud(true);
+}
+
+function loadHistory() {
+    const c=document.getElementById('history-container');
+    let h=[]; try{h=JSON.parse(localStorage.getItem('ludus_history')||'[]');}catch(e){}
+    if(h.length===0){ c.innerHTML='<div class="empty-history">No saved calculations yet.</div>'; return; }
+    c.innerHTML=h.map((item,i)=>`
+        <div class="history-card" onclick="restoreHistory(${i})">
+            <button class="history-delete" onclick="event.stopPropagation();deleteHistoryItem(${i})">×</button>
+            <div class="history-header">
+                <span class="history-title">${item.title}</span>
+                <span class="history-date">${item.date}</span>
+            </div>
+            <div class="history-result">${item.result}</div>
+            ${item.details?`<div class="history-details">${item.details}</div>`:''}
+            <div class="restore-hint">Click to restore →</div>
+        </div>`).join('');
+}
+
+function restoreHistory(index) {
+    let h=[]; try{h=JSON.parse(localStorage.getItem('ludus_history')||'[]');}catch(e){}
+    const item=h[index]; if(!item) return;
+    if(item.type==='GPA'){
+        document.getElementById('gpa-tbody').innerHTML='';
+        item.state.classes.forEach(c=>{
+            addGpaRow();
+            const rows=document.querySelectorAll('.gpa-row'), last=rows[rows.length-1];
+            last.querySelector('input[type="text"]').value=c.name||'';
+            if(c.grade){last.querySelector('.sel-grade').value=c.grade;last.querySelectorAll('.table-dropdown-menu')[0].previousElementSibling.querySelector('.dropdown-text').innerText=c.grade;}
+            if(c.tier){last.querySelector('.sel-tier').value=c.tier;const tTxt=c.tier==='tier1'?'Tier I':c.tier==='tier2'?'Tier II':'Tier III';last.querySelectorAll('.table-dropdown-menu')[1].previousElementSibling.querySelector('.dropdown-text').innerText=tTxt;}
+        });
+        calculateGpa();
+        const t=tabs.find(t=>t.type==='gpa'); if(t) switchTab(t.id); else openTab('gpa');
+    } else if(item.type==='Term'){
+        document.getElementById('term1').value=item.state.t1||'';
+        document.getElementById('term2').value=item.state.t2||'';
+        document.getElementById('term3').value=item.state.t3||'';
+        document.getElementById('termExam').value=item.state.exam||'';
+        calcTerm();
+        const t=tabs.find(t=>t.type==='grade'); if(t) switchTab(t.id); else openTab('grade');
+    } else if(item.type==='Detailed'){
+        document.getElementById('classLevel').value=item.state.level||'onlevel';
+        const gradeView=document.getElementById('view-grade');
+        if(gradeView){const dtBtn=gradeView.querySelector('.table-dropdown-btn .dropdown-text');if(dtBtn)dtBtn.innerText=item.state.level==='ap'?'Advanced/AP (60 / 40)':'On-Level (50 / 50)';}
+        document.getElementById('catAEarned').value=item.state.aE||'';
+        document.getElementById('catATotal').value=item.state.aT||'';
+        document.getElementById('catBEarned').value=item.state.bE||'';
+        document.getElementById('catBTotal').value=item.state.bT||'';
+        document.getElementById('predictions-container').innerHTML='';
+        if(item.state.predictions&&item.state.predictions.length>0){
+            item.state.predictions.forEach(p=>{addPredictionRow();const rows=document.querySelectorAll('.prediction-row'),last=rows[rows.length-1];last.querySelector('.pred-score').value=p.score||'';last.querySelector('.pred-weight').value=p.weight||'';last.querySelector('.pred-cat').value=p.cat||'A';});
+        } else { addPredictionRow(); }
+        calcDetailed();
+        const t=tabs.find(t=>t.type==='grade'); if(t) switchTab(t.id); else openTab('grade');
+    }
+    if(window.parent&&typeof window.parent.saveDataToCloud==='function') window.parent.saveDataToCloud(true);
+}
+
+function deleteHistoryItem(i) {
+    let h=[]; try{h=JSON.parse(localStorage.getItem('ludus_history')||'[]');}catch(e){}
+    h.splice(i,1); localStorage.setItem('ludus_history',JSON.stringify(h)); loadHistory();
+    if(window.parent&&typeof window.parent.saveDataToCloud==='function') window.parent.saveDataToCloud(true);
+}
+function clearHistory() {
+    if(confirm('Delete all saved calculations?')){
+        localStorage.removeItem('ludus_history'); loadHistory();
+        if(window.parent&&typeof window.parent.saveDataToCloud==='function') window.parent.saveDataToCloud(true);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PDF PARSING (GPA)
+// ══════════════════════════════════════════════════════════════════
+async function handlePDFUpload(event, type) {
+    const file=event.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=async function(){
+        const ta=new Uint8Array(this.result);
+        try{
+            const pdf=await pdfjsLib.getDocument(ta).promise;
+            let txt='';
+            for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const tc=await page.getTextContent();txt+=tc.items.map(it=>it.str).join(' ')+' ';}
+            if(type==='gpa') parseTranscript(txt);
+        }catch(e){alert('Error reading PDF.');}
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function parseTranscript(text) {
+    const wGpa=text.match(/Weighted GPA[\s\n]*([\d.]+)/i);
+    const uGpa=text.match(/Non-weighted GPA[\s\n]*([\d.]+)/i);
+    let msg=''; if(wGpa&&uGpa) msg=`Found Official GPA!\nUnweighted: ${uGpa[1]}\nWeighted: ${wGpa[1]}\n\n`;
+    const codeRgx=/([A-Z0-9]{8}-\d)/g; let codes=[],match;
+    while((match=codeRgx.exec(text))!==null) codes.push({code:match[1],index:match.index});
+    const matches=[];
+    for(let i=0;i<codes.length;i++){
+        const start=codes[i].index, end=(i+1<codes.length)?codes[i+1].index:text.length;
+        const chunk=text.substring(start,end).trim().split(/\s+/);
+        let gIdx=-1,gVal=0;
+        for(let j=1;j<chunk.length;j++){const n=parseInt(chunk[j].replace(/[^0-9]/g,''));if(!isNaN(n)&&n>=10&&n<=100){gIdx=j;gVal=n;break;}}
+        if(gIdx>1){const name=chunk.slice(1,gIdx).join(' ').replace(/[^a-zA-Z0-9\s-]/g,'');matches.push({name,grade:gVal});}
+    }
+    if(matches.length>0){
+        alert(msg+`Detected ${matches.length} classes! Importing...`);
+        document.getElementById('gpa-tbody').innerHTML='';
+        matches.forEach(course=>{
+            addGpaRow();
+            const rows=document.querySelectorAll('.gpa-row'), last=rows[rows.length-1];
+            last.querySelector('input[type="text"]').value=course.name;
+            let bracket='';
+            if(course.grade>=98)bracket='98-100';else if(course.grade>=93)bracket='93-97';else if(course.grade>=90)bracket='90-92';else if(course.grade>=87)bracket='87-89';else if(course.grade>=83)bracket='83-86';else if(course.grade>=80)bracket='80-82';else if(course.grade>=77)bracket='77-79';else if(course.grade>=73)bracket='73-76';else if(course.grade>=70)bracket='70-72';
+            if(bracket){last.querySelector('.sel-grade').value=bracket;last.querySelectorAll('.table-dropdown-menu')[0].previousElementSibling.querySelector('.dropdown-text').innerText=bracket;}
+            let tier='tier3',tierTxt='Tier III'; const up=course.name.toUpperCase();
+            if(up.includes('AP ')||up.startsWith('AP')||up.endsWith('W')||up.includes('IB ')){tier='tier1';tierTxt='Tier I';}
+            else if(up.includes('HONORS')||up.includes('PAP')||up.includes('PRE-AP')){tier='tier2';tierTxt='Tier II';}
+            last.querySelector('.sel-tier').value=tier;
+            last.querySelectorAll('.table-dropdown-menu')[1].previousElementSibling.querySelector('.dropdown-text').innerText=tierTxt;
+        });
+        calculateGpa();
+    } else { alert(msg+'Could not detect grades. Please enter manually.'); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TI-84 RESIZE
+// ══════════════════════════════════════════════════════════════════
+let currentCalcScale = 1;
+window.resizeCalc = function(change) {
+    currentCalcScale = Math.max(0.5, Math.min(1.8, currentCalcScale + change));
+    const d = document.getElementById('calculatorDiv');
+    if (d) { d.style.transform = `scale(${currentCalcScale}) translateY(-10px)`; d.style.transformOrigin = 'top center'; }
+};
+window.resetCalcSize = function() {
+    currentCalcScale = 1;
+    const d = document.getElementById('calculatorDiv');
+    if (d) d.style.transform = 'scale(1) translateY(-10px)';
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+    // Init GPA default rows
+    for (let i=0; i<4; i++) addGpaRow();
+    addPredictionRow();
+
+    // Boot TI-84 emulator
+    const h84  = document.getElementById('h84statej');
+    const face = document.getElementById('ti84faceplate');
+    XMLHttpRequest.prototype.open = new Proxy(XMLHttpRequest.prototype.open, {
+        apply(target, thisArg, args) {
+            if (typeof args[1] === 'string') args[1] = args[1].replace(/#.*$/, '');
+            Reflect.apply(target, thisArg, args);
+        }
+    });
+    const romUrl  = (h84.innerHTML  ? URL.createObjectURL(new Blob([JSON.parse(h84.innerHTML)]))  : h84.getAttribute('data-url'))  + '#.h84statej';
+    const faceUrl = (face.innerHTML ? URL.createObjectURL(new Blob([JSON.parse(face.innerHTML)])) : face.getAttribute('data-url')) + '#.svg';
+    new TI84PCE({ ROMLocation: romUrl, FaceplateLocation: faceUrl });
+
+    // Open default tab
+    openTab('basic');
+});
+</script>
+</body>
+</html>

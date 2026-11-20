@@ -1,11 +1,11 @@
-<]]<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Ludus Music</title>
   <script src="ludus-servers.js"></script>
-  <script src="ludus-core.js?v=379570e499"></script>
+  <script src="ludus-core.js?v=ngrok1"></script>
   <style>
 /* =========================================================
    Ludus Music — glass theme
@@ -503,19 +503,24 @@ dialog input:focus { border-color: var(--accent-line); }
 .np-stage { display: grid; grid-template-columns: minmax(280px, 420px) minmax(280px, 1fr); gap: 54px; align-items: center; max-width: 1180px; min-height: 100vh; margin: auto; padding: 78px 40px 56px; width: 100%; }
 .nowplaying-full .np-stage { grid-template-columns: 1fr; max-width: 520px; }
 @media (min-width: 621px) {
-  .nowplaying-full.lyrics-open .np-stage { grid-template-columns: minmax(280px, 420px) minmax(280px, 1fr); max-width: 1180px; }
+  .nowplaying-full.side-open .np-stage { grid-template-columns: minmax(280px, 420px) minmax(280px, 1fr); max-width: 1180px; }
 }
 .np-art-col { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .np-art-frame { display: grid; place-items: center; width: min(360px, 78vw); aspect-ratio: 1; margin-bottom: 26px; border-radius: var(--r-lg); overflow: hidden; background: linear-gradient(150deg, #102028, #17171a); box-shadow: var(--shadow-lg); border: 1px solid var(--line); }
 .np-art-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .np-art-placeholder { width: 100%; height: 100%; }
 .np-title { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 23px; font-weight: 700; }
-.np-artist { margin-top: 6px; color: var(--muted); font-size: 14px; }
+.np-artist { max-width: 100%; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 14px; }
 .np-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; margin-top: 22px; }
 .np-actions button { padding: 9px 16px; border-radius: var(--r-pill); background: rgba(255, 255, 255, .07); border: 1px solid var(--line); color: #fff; font-size: 12px; font-weight: 700; transition: .15s; }
 .np-actions button, .hero-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .np-actions button svg, .hero-actions button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .np-actions button:hover { background: rgba(255, 255, 255, .14); }
+.np-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; max-width: 420px; margin: 22px auto 0; }
+.np-actions button { min-width: 0; padding: 9px 8px; white-space: nowrap; }
+.np-actions button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.np-actions button svg { flex: none; }
+.np-actions button.liked svg { fill: currentColor; }
 .np-actions button.liked { color: #ff4d78; background: rgba(255, 77, 120, .13); border-color: rgba(255, 77, 120, .3); }
 .np-actions button.added, .np-actions button.active { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-line); }
 .np-transport { width: 100%; max-width: 380px; margin: 30px auto 0; display: grid; gap: 11px; }
@@ -525,17 +530,47 @@ dialog input:focus { border-color: var(--accent-line); }
 .np-buttons button:hover, .np-buttons button.active { color: var(--accent); background: var(--accent-soft); }
 .np-play { width: 50px; height: 50px; border-radius: 50%; background: #fff; color: #000; font-size: 18px; box-shadow: 0 6px 18px rgba(255, 255, 255, .18); }
 .np-play:hover { background: var(--accent); color: #001217; box-shadow: 0 8px 22px var(--accent-glow); }
-.np-lyrics-col { display: none; flex-direction: column; height: min(560px, 72vh); border: 1px solid var(--line); border-radius: var(--r-lg); background: rgba(255, 255, 255, .035); backdrop-filter: blur(14px); overflow: hidden; }
-.nowplaying-full.lyrics-open .np-lyrics-col { display: flex; }
+/* The right-hand side of fullscreen holds two panes — lyrics (on by default) and the queue (an option). With both open they are
+   stacked and share a taller column; the bar between them resizes the split. The music video is a third option: it takes the
+   artwork's place, so the order is music video, then title and artist. */
+.np-side { display: none; flex-direction: column; gap: 12px; min-width: 0; }
+.nowplaying-full.side-open .np-side { display: flex; }
+.np-pane { display: none; flex-direction: column; flex: none; height: 300px; min-height: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: rgba(255, 255, 255, .035); backdrop-filter: blur(14px); overflow: hidden; }
+.nowplaying-full.lyrics-open .np-lyrics-col, .nowplaying-full.queue-open .np-queue-col { display: flex; }
 .np-lyrics-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 17px 22px; border-bottom: 1px solid var(--line); color: var(--accent); font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .np-lyrics-body { flex: 1; overflow: auto; padding: 22px 26px; }
 .np-lyrics-body .lyrics-line { font-size: 16px; }
 .np-lyrics-body .lyrics-line.active { font-size: 17.5px; }
+.np-queue-body { flex: 1; min-height: 0; overflow: auto; }
+.np-splitter { display: none; flex: none; align-items: center; justify-content: center; height: 16px; cursor: row-resize; touch-action: none; outline: none; }
+.np-splitter::before { content: ""; width: 44px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .2); transition: .15s; }
+.np-splitter:hover::before, .np-splitter:focus-visible::before, .np-splitter.dragging::before { width: 68px; background: var(--accent); }
+.np-video-host { display: none; position: relative; width: 100%; margin-bottom: 26px; border-radius: var(--r-lg); overflow: hidden; background: #000; border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
+.nowplaying-full.video-open .np-video-host { display: block; }
+.nowplaying-full.video-open .np-art-frame { display: none; }
+.nowplaying-full.video-open .np-actions, .nowplaying-full.video-open .np-transport { max-width: none; }
+.np-video-host .music-video-wrap { width: 100%; border-radius: 0; box-shadow: none; }
+.np-video-host .relay-controls { padding: 0 8px 8px; }
+.np-video-host .relay-controls-row { flex-wrap: wrap; gap: 6px; padding: 7px 10px; border-radius: 16px; }
+.np-video-host .relay-seek { min-width: 110px; }
+.np-video-x { position: absolute; top: 10px; right: 10px; z-index: 4; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(0, 0, 0, .55); border: 1px solid var(--line); color: #fff; }
+.np-video-x:hover { color: var(--accent); border-color: var(--accent-line); }
+@media (min-width: 621px) {
+  .np-side { gap: 0; height: min(620px, 76vh); overflow-y: auto; }
+  .nowplaying-full.lyrics-open.queue-open .np-side { height: clamp(440px, calc(100vh - 240px), 800px); }
+  .np-pane { flex: 1 1 0; height: auto; min-height: 150px; }
+  .nowplaying-full.lyrics-open.queue-open .np-splitter { display: flex; }
+  .nowplaying-full.video-open:not(.side-open) .np-stage { max-width: 660px; }
+  .nowplaying-full.video-open.side-open .np-stage { grid-template-columns: minmax(320px, 520px) minmax(280px, 1fr); max-width: 1320px; }
+}
 
 /* --- Music video shell --- */
-.music-video-shell { position: fixed; inset: 0; z-index: 520; display: grid; place-items: center; padding: 56px 40px; background: #030304; }
+.music-video-shell { position: fixed; inset: 0; z-index: 520; display: grid; place-items: center; padding: 12px; background: #030304; }
 .music-video-shell[hidden] { display: none; }
 .music-video-wrap { position: relative; width: min(1180px, 100%); aspect-ratio: 16 / 9; background: #000; border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-lg); }
+/* Opened from the player: the video takes as much of the tab as a 16:9 picture can (not browser fullscreen — its own fullscreen button does that). */
+.music-video-shell .music-video-wrap { width: min(100%, calc((100vh - 24px) * 16 / 9)); width: min(100%, calc((100dvh - 24px) * 16 / 9)); }
+.music-video-shell .relay-player-title { padding-right: 76px; }
 .yt-player-loader { position: absolute; z-index: 3; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--muted); background: #050506; }
 .yt-player-loader[hidden] { display: none !important; }
 .yt-player-loader-spinner { width: 30px; height: 30px; margin: auto; border: 3px solid rgba(255, 255, 255, .15); border-top-color: var(--accent); border-radius: 50%; animation: musicSpin .8s linear infinite; }
@@ -603,7 +638,8 @@ dialog input:focus { border-color: var(--accent-line); }
   .import-stack { right: 12px; bottom: 132px; }
   .toast { bottom: 132px; }
   .np-stage { grid-template-columns: 1fr; padding: 62px 18px 34px; gap: 28px; }
-  .np-lyrics-col { height: 280px; }
+  .np-pane { height: 280px; }
+  .np-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .np-art-frame { width: min(260px, 72vw); }
 }
 
@@ -801,7 +837,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     <div class="topbar-inner">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="8" cy="17" r="4"></circle><rect x="10.5" y="3" width="2.2" height="14.5" rx="1"></rect><path d="M12.7 3c3.6 0.9 5.4 3.4 4.9 7.1-1-2.4-2.9-3.8-4.9-4.1z"></path></svg>
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 5.4 21 2.6v3.5L9 8.9z"></path><rect x="9" y="5.4" width="1.8" height="12.8"></rect><rect x="19.2" y="3" width="1.8" height="15.2"></rect><ellipse cx="7" cy="18.4" rx="3.3" ry="2.5" transform="rotate(-20 7 18.4)"></ellipse><ellipse cx="17.2" cy="18.4" rx="3.3" ry="2.5" transform="rotate(-20 17.2 18.4)"></ellipse></svg>
         </span>
         <span class="brand-text">Ludus<b>Music</b></span>
       </div>
@@ -912,14 +948,17 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     <button class="np-close" id="np-close" title="Close full screen" aria-label="Close full screen"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="20" y2="20"></line><line x1="20" y1="4" x2="4" y2="20"></line></svg></button>
     <div class="np-stage">
       <div class="np-art-col">
+        <div class="np-video-host" id="np-video-host"><button class="np-video-x" id="np-video-close" type="button" title="Close music video" aria-label="Close music video"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"></line><line x1="16" y1="4" x2="4" y2="16"></line></svg></button></div>
         <div class="np-art-frame"><img id="np-art" alt="" hidden><div class="np-art-placeholder" id="np-art-placeholder"></div></div>
         <b id="np-title" class="np-title">Choose a song</b>
         <span id="np-artist" class="np-artist">Ludus Music</span>
         <div class="np-actions">
-          <button id="np-like" title="Like">♡ Like</button>
-          <button id="np-library" title="Add to library">⊕ Add to library</button>
-          <button id="np-lyrics" title="Lyrics" aria-expanded="false">▤ Lyrics</button>
-          <button id="np-playlist" title="Add to playlist">☰ Add to playlist</button>
+          <button id="np-like" title="Like"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg><span>Like</span></button>
+          <button id="np-library" title="Add to library"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8M8 12h8"></path></svg><span>Add to library</span></button>
+          <button id="np-playlist" title="Add to playlist"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="14" y2="6"></line><line x1="3" y1="12" x2="14" y2="12"></line><line x1="3" y1="18" x2="10" y2="18"></line><path d="M18 14v7"></path><path d="M14.5 17.5h7"></path></svg><span>Add to playlist</span></button>
+          <button id="np-lyrics" title="Lyrics" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"></path><line x1="7" y1="9" x2="17" y2="9"></line><line x1="7" y1="13" x2="13" y2="13"></line></svg><span>Lyrics</span></button>
+          <button id="np-queue" title="Queue" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="14" y2="17"></line></svg><span>Queue</span></button>
+          <button id="np-video" title="Music video" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m10 9 5 3-5 3Z" fill="currentColor" stroke="none"></path></svg><span>Music video</span></button>
         </div>
         <div class="np-transport">
           <div class="np-timeline"><span id="np-elapsed">0:00</span><input id="np-progress" type="range" min="0" max="1000" value="0"><span id="np-duration">0:00</span></div>
@@ -932,9 +971,16 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
           </div>
         </div>
       </div>
-      <div class="np-lyrics-col" id="np-lyrics-col">
+      <div class="np-side" id="np-side">
+      <div class="np-pane np-lyrics-col" id="np-lyrics-col">
         <div class="np-lyrics-head"><span>Lyrics</span><select class="lyrics-provider" aria-label="Lyrics provider for this song" title="Lyrics provider for this song"></select><button class="panel-x lyrics-close" id="np-lyrics-close" type="button" title="Hide lyrics" aria-label="Hide lyrics"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"></line><line x1="16" y1="4" x2="4" y2="16"></line></svg></button></div>
         <div class="np-lyrics-body" id="np-lyrics-body"><div class="empty">Nothing is playing.</div></div>
+      </div>
+      <div class="np-splitter" id="np-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize lyrics and queue" aria-valuemin="20" aria-valuemax="80" aria-valuenow="50" tabindex="0" title="Drag to resize · double-click to reset"></div>
+      <div class="np-pane np-queue-col" id="np-queue-col">
+        <div class="np-lyrics-head"><span>Queue</span><button class="panel-x" id="np-queue-close" type="button" title="Hide queue" aria-label="Hide queue"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"></line><line x1="16" y1="4" x2="4" y2="16"></line></svg></button></div>
+        <div class="np-queue-body" id="np-queue-body"></div>
+      </div>
       </div>
     </div>
   </div>
@@ -1049,8 +1095,8 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
         });
         // A resolver running on this computer or network can't be reached through the remote proxy, so it goes direct.
         const _isLocalHost = host => /^(localhost|\[?::1\]?|127(\.\d+){3}|10(\.\d+){3}|192\.168(\.\d+){2}|172\.(1[6-9]|2\d|3[01])(\.\d+){2}|[^.]+\.local)$/i.test(host);
-        // Keep resolver tunnel requests direct so their own CORS and zrok headers arrive unchanged.
-        const _isResolverTunnel = host => /(?:^|\.)(?:shares\.zrok\.io|trycloudflare\.com|workers\.dev)$/i.test(host);
+        // Keep resolver tunnel requests direct so their own CORS and zrok/ngrok headers arrive unchanged.
+        const _isResolverTunnel = host => /(?:^|\.)(?:shares\.zrok\.io|trycloudflare\.com|workers\.dev|ngrok-free\.(?:dev|app)|ngrok\.(?:io|app|dev))$/i.test(host);
 
         // Install this before the application script runs. Music starts its
         // resolver requests immediately, so waiting to patch fetch until after
@@ -1166,7 +1212,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   // Built-in servers always retain the first four slots; personal servers begin at Server 5.
   const resolverCandidates = () => LudusCore.resolver.all();
   const activeResolver = () => selectedResolver || resolverCandidates()[0] || RESOLVER_URL;
-  const resolverHeaders = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url)) ? { [ZROK_INTERSTITIAL_HEADER]: 'true' } : {};
+  const NGROK_INTERSTITIAL_HEADER = 'ngrok-skip-browser-warning';
+  const urlHost = url => { try { return new URL(String(url), location.href).hostname; } catch { return ''; } };
+  const isNgrokUrl = url => /(?:^|\.)(?:ngrok-free\.(?:dev|app)|ngrok\.(?:io|app|dev))$/i.test(urlHost(url));
+  const resolverHeaders = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url)) ? { [ZROK_INTERSTITIAL_HEADER]: 'true' } : isNgrokUrl(url) ? { [NGROK_INTERSTITIAL_HEADER]: 'true' } : {};
   const resolverFetch = (url, options = {}) => fetch(url, { ...options, headers: { ...resolverHeaders(url), ...(options.headers || {}) } });
   const state = {
     queue: [], index: -1, queueMode: 'collection', radioRequest: 0,
@@ -1198,10 +1247,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   const resolveUrlFor = (resolver, id, type = 'audio') => `${String(resolver).replace(/\/+$/, '')}?v=${encodeURIComponent(id)}&type=${encodeURIComponent(type)}`;
   const lyricsUrlFor = (resolver, song, provider = 'auto') => `${baseUrlFor(resolver)}/lyrics?v=${encodeURIComponent(song.videoId)}&artist=${encodeURIComponent(song.artist || '')}&title=${encodeURIComponent(song.title || '')}&album=${encodeURIComponent(song.album || '')}&duration=${encodeURIComponent(Number(song.duration) || 0)}&provider=${encodeURIComponent(provider)}`;
   // Lyrics providers: a default for every song (Settings) and an optional choice for one song (the lyrics panel).
-  // Main sources: LRCLIB, then YouTube captions. Backups (only used when both have nothing): whatever the resolver offers in
-  // its lyrics-providers.json (e.g. lrc.red, QApple, Bini Lyrics), then am-lyrics, which is built into this page.
+  // Automatic order: am-lyrics first (built into this page), then LRCLIB, then YouTube captions. Backups (only used when all
+  // of those have nothing): whatever the resolver offers in its lyrics-providers.json (e.g. lrc.red, QApple, Bini Lyrics).
   let lyricProviderList = [{ id: 'lrclib', label: 'LRCLIB', group: 'main' }, { id: 'youtube-captions', label: 'YouTube captions', group: 'main' }];
-  const AM_LYRICS = { id: 'amlyrics', label: 'am-lyrics', group: 'backup' };
+  const AM_LYRICS = { id: 'amlyrics', label: 'am-lyrics', group: 'main' };
   const lyricProviderLabel = id => id === 'auto' ? 'Automatic' : [...lyricProviderList, AM_LYRICS].find(item => item.id === id)?.label || id;
   // Lenient on purpose: a saved backup id must survive until the resolver's list has loaded. SimpMusic was removed.
   const validLyricProvider = value => /^[a-z0-9-]{2,24}$/.test(String(value)) && value !== 'simpmusic' ? value : 'auto';
@@ -1229,6 +1278,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   const downloadedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.2 4.2L19 6.5"></path></svg>';
   const playNextGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 5 10 7-10 7Z"></path><path d="m14 5 6 7-6 7Z"></path></svg>';
   const libraryGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8M8 12h8"></path></svg>';
+  const heartGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d=\"M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z\"></path></svg>';
   const libraryAddedGlyph = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg>';
   function downloadedPlaylist() {
     let playlist = state.playlists.find(item => item.id === DOWNLOADS_PLAYLIST_ID);
@@ -2826,12 +2876,12 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     // A song that was read from the backup folder is dropped from memory the moment it is no longer playing.
     if (state.folderPlaybackId) { if (state.offlineObjectUrl) URL.revokeObjectURL(state.offlineObjectUrl); state.offlineObjectUrl = null; state.folderPlaybackId = null; }
   }
-  const isZrokUrl = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url));
+  const isZrokUrl = url => /\.shares\.zrok\.io(?:\/|$)/i.test(String(url)) || isNgrokUrl(url); // any tunnel host whose interstitial needs a request header
   // zrok needs a request header that media elements cannot send themselves. sw.js adds it to every request for a
   // zrok host, so when the service worker controls this page the stream plays straight from the server
   // (progressively, nothing held in memory). If that ever fails the page falls back, for the rest of the session,
   // to the older route: fetch the audio with the header and play it from a local Blob URL.
-  const zrokDirectOk = () => LudusCore.swControlled() && sessionStorage.getItem('ludus_zrok_direct_failed') !== '1';
+  const zrokDirectOk = url => LudusCore.swControlled() && !isNgrokUrl(url) && sessionStorage.getItem('ludus_zrok_direct_failed') !== '1'; // ngrok: sw.js does not add its header, so always buffer
   const markZrokDirectFailed = () => { try { sessionStorage.setItem('ludus_zrok_direct_failed', '1'); } catch {} };
   // Resolves once the element has loaded enough to know the stream works; rejects on error or after `ms`.
   const waitForPlayable = (element, ms) => new Promise((resolve, reject) => {
@@ -2845,7 +2895,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   });
   async function mediaPlayableUrl(url, signal, slot = 'streamObjectUrl', forceBuffer = false) {
     if (!isZrokUrl(url)) return url;
-    if (!forceBuffer && zrokDirectOk()) return url;
+    if (!forceBuffer && zrokDirectOk(url)) return url;
     const response = await resolverFetch(url, { signal });
     if (!response.ok) throw new Error('The music server could not load this audio stream');
     const type = String(response.headers.get('content-type') || '').toLowerCase();
@@ -2930,7 +2980,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       if (resumeTime > 1) audio.addEventListener('loadedmetadata', applyResume);
       const bareZrok = url => isZrokUrl(url) && !String(url).startsWith('blob:');
       // A preloaded zrok URL is only usable directly while direct mode is still allowed.
-      if (bareZrok(streamUrl) && !zrokDirectOk()) streamUrl = await mediaPlayableUrl(streamUrl, AbortSignal.timeout(30000));
+      if (bareZrok(streamUrl) && !zrokDirectOk(streamUrl)) streamUrl = await mediaPlayableUrl(streamUrl, AbortSignal.timeout(30000));
       if (request !== state.playbackRequest) return;
       audio.src = streamUrl;
       if (bareZrok(streamUrl)) {
@@ -2971,7 +3021,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   function refreshLikeUI(song) {
     const liked = Boolean(song) && state.likes.some(item => item.videoId === song.videoId);
     $('#like').classList.toggle('liked', liked); $('#like').textContent = liked ? '♥' : '♡';
-    $('#np-like').classList.toggle('liked', liked); $('#np-like').textContent = liked ? '♥ Liked' : '♡ Like';
+    $('#np-like').classList.toggle('liked', liked); $('#np-like').innerHTML = `${heartGlyph}<span>${liked ? 'Liked' : 'Like'}</span>`;
   }
   function refreshLibraryUI(song) {
     const added = Boolean(song) && libraryHas(song.videoId);
@@ -3137,13 +3187,13 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       const stream = (data.adaptiveFormats || []).filter(item => String(item.type).startsWith('audio/mp4')).sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
       // A bare zrok URL is only safe to pre-store while direct playback works (sw.js adds the header); otherwise it
       // is converted to a Blob when playback actually starts.
-      if (stream?.url && (!isZrokUrl(stream.url) || zrokDirectOk())) state.preload.streamUrl = stream.url;
+      if (stream?.url && (!isZrokUrl(stream.url) || zrokDirectOk(stream.url))) state.preload.streamUrl = stream.url;
       else if (state.preload.videoId === song.videoId) state.preload = { videoId: null, streamUrl: null, ts: 0 };
     }).catch(() => { if (state.preload.videoId === song.videoId) state.preload = { videoId: null, streamUrl: null, ts: 0 }; });
   }
-  // Like the big streamers: more than 30 seconds into a song, "previous" restarts it; sooner than that it goes back
+  // Like the big streamers: more than 5 seconds into a song, "previous" restarts it; sooner than that it goes back
   // to the previous song. Used by every previous control (buttons, media keys, the index mixer).
-  const PREVIOUS_RESTART_AFTER = 30;
+  const PREVIOUS_RESTART_AFTER = 5;
   function previousTrack() {
     if (!state.queue.length) return;
     if (audio.currentTime > PREVIOUS_RESTART_AFTER) { audio.currentTime = 0; return; }
@@ -3212,9 +3262,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   }
 
   // Fullscreen Now Playing opens with lyrics already showing beside the artwork by default — the
-  // np-lyrics button and its × both still toggle it off for anyone who doesn't want them up.
+  // np-lyrics button and its × both still toggle it off for anyone who doesn't want them up. The queue and the
+  // music video are options there too (np-queue / np-video buttons), but they are never open by default.
   function openFullscreen() { if (!state.queue[state.index]) { toast('Choose a song first.'); return; } setSidePanel(null); $('#nowplaying-full').hidden = false; document.body.style.overflow = 'hidden'; toggleNpLyrics(true); }
-  function closeFullscreen() { $('#nowplaying-full').hidden = true; document.body.style.overflow = ''; }
+  function closeFullscreen() { if (state.musicVideo?.inline) closeMusicVideo(); toggleNpQueue(false); $('#nowplaying-full').hidden = true; document.body.style.overflow = ''; }
 
   // Playlist picker for the footer/fullscreen "add to playlist" action, which (unlike the per-playlist
   // ＋ buttons inside a playlist's own search results) doesn't already know which playlist to target.
@@ -3240,9 +3291,62 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   function toggleNpLyrics(force) {
     const stage = $('#nowplaying-full');
     const open = typeof force === 'boolean' ? force : !stage.classList.contains('lyrics-open');
-    stage.classList.toggle('lyrics-open', open);
-    $('#np-lyrics').classList.toggle('active', open); $('#np-lyrics').setAttribute('aria-expanded', String(open));
+    stage.classList.toggle('lyrics-open', open); syncNpSide();
     if (open) loadLyricsForCurrent();
+  }
+  // Keeps the right-hand column and the three option buttons (lyrics, queue, music video) in step with what is open.
+  function syncNpSide() {
+    const stage = $('#nowplaying-full'), lyrics = stage.classList.contains('lyrics-open'), queue = stage.classList.contains('queue-open'), video = stage.classList.contains('video-open');
+    stage.classList.toggle('side-open', lyrics || queue); applyNpSplit();
+    [['#np-lyrics', lyrics], ['#np-queue', queue], ['#np-video', video]].forEach(([selector, on]) => { const button = $(selector); button.classList.toggle('active', on); button.setAttribute('aria-expanded', String(on)); });
+  }
+  // The bar between the stacked lyrics and queue panes: drag it (or use the arrow keys, double-click to reset) to change how
+  // the height is shared. The split is remembered.
+  let npSplit = Math.min(.8, Math.max(.2, Number(load('ludus_music_np_split', .5)) || .5));
+  function applyNpSplit() {
+    const stage = $('#nowplaying-full'), both = stage.classList.contains('lyrics-open') && stage.classList.contains('queue-open');
+    $('#np-lyrics-col').style.flexGrow = both ? String(Math.round(npSplit * 1000)) : '';
+    $('#np-queue-col').style.flexGrow = both ? String(Math.round((1 - npSplit) * 1000)) : '';
+    $('#np-splitter').setAttribute('aria-valuenow', String(Math.round(npSplit * 100)));
+  }
+  function setNpSplit(value, persist = false) { npSplit = Math.min(.8, Math.max(.2, value)); applyNpSplit(); if (persist) save('ludus_music_np_split', npSplit); }
+  function wireNpSplitter() {
+    const bar = $('#np-splitter'); let drag = null;
+    bar.addEventListener('pointerdown', event => { if (event.pointerType === 'mouse' && event.button !== 0) return; drag = event.pointerId; bar.classList.add('dragging'); try { bar.setPointerCapture(drag); } catch { /* capture is a nicety */ } event.preventDefault(); });
+    bar.addEventListener('pointermove', event => {
+      if (drag !== event.pointerId) return;
+      const top = $('#np-lyrics-col').getBoundingClientRect().top, free = $('#np-queue-col').getBoundingClientRect().bottom - top - bar.offsetHeight;
+      if (free > 0) setNpSplit((event.clientY - top - bar.offsetHeight / 2) / free);
+    });
+    const end = event => { if (drag !== event.pointerId) return; drag = null; bar.classList.remove('dragging'); save('ludus_music_np_split', npSplit); };
+    bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+    bar.addEventListener('keydown', event => {
+      const step = event.shiftKey ? .1 : .04;
+      if (event.key === 'ArrowUp') setNpSplit(npSplit - step, true); else if (event.key === 'ArrowDown') setNpSplit(npSplit + step, true);
+      else if (event.key === 'Home') setNpSplit(.2, true); else if (event.key === 'End') setNpSplit(.8, true); else return;
+      event.preventDefault();
+    });
+    bar.addEventListener('dblclick', () => setNpSplit(.5, true));
+  }
+  // The fullscreen queue is the same queue as the side panel: its tabs and rows are moved in here while it is shown
+  // (and back when it is hidden), so every queue feature — drag to reorder, remove, radio — keeps working unchanged.
+  function toggleNpQueue(force) {
+    const stage = $('#nowplaying-full');
+    const open = typeof force === 'boolean' ? force : !stage.classList.contains('queue-open');
+    stage.classList.toggle('queue-open', open);
+    (open ? $('#np-queue-body') : $('#queue')).append($('#queue-tabs'), $('#queue-items'));
+    syncNpSide();
+  }
+  // Music video inside fullscreen: the same player as the music video button, shown where the cover art is (above the title and artist).
+  function toggleNpVideo(force) {
+    const open = typeof force === 'boolean' ? force : !$('#nowplaying-full').classList.contains('video-open');
+    if (open) openMusicVideo({ inline: true }); else if (state.musicVideo) closeMusicVideo();
+  }
+  // Moves the video player between the full-page overlay (the footer button) and the fullscreen column.
+  function placeMusicVideo(inline) {
+    const wrap = document.querySelector('.music-video-wrap'), host = inline ? $('#np-video-host') : $('#music-video-shell');
+    if (wrap.parentElement !== host) host.appendChild(wrap);
+    $('#nowplaying-full').classList.toggle('video-open', inline); syncNpSide();
   }
 
   // Try a lyric provider first, then fall back to timed captions from the existing resolver.
@@ -3284,7 +3388,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     $('#lyrics-source').textContent = state.lyrics.source || 'Lyrics';
     const html = state.lyrics.lines.length ? state.lyrics.lines.map((line, index) => `<p class="lyrics-line" data-index="${index}">${safe(line.text)}</p>`).join('') : '<div class="empty">Still looking for lyrics…</div>';
     bodies.forEach(body => { body.innerHTML = html; });
-    document.querySelectorAll('#lyrics-body .lyrics-line, #np-lyrics-body .lyrics-line').forEach(el => el.onclick = () => { const line = state.lyrics.lines[Number(el.dataset.index)]; if (line && Number.isFinite(line.start) && Number.isFinite(audio.duration)) audio.currentTime = line.start; });
+    document.querySelectorAll('#lyrics-body .lyrics-line, #np-lyrics-body .lyrics-line').forEach(el => el.onclick = () => { const line = state.lyrics.lines[Number(el.dataset.index)]; if (line && Number.isFinite(line.start)) seekPlayback(line.start); });
     showCredits();
   }
   // "Written by …" under the lyrics, like Apple Music. The resolver looks the writers up (MusicBrainz); a song with no
@@ -3365,44 +3469,78 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     if (!choice && savedLyrics?.lines?.length) { state.lyrics = { videoId: song.videoId, lines: savedLyrics.lines.map(line => ({ ...line, start: line.start ?? NaN, end: line.end ?? NaN })), index: -1, source: savedLyrics.source || 'Saved lyrics', retryAt: 0 }; renderLyricsLines(); return; }
     state.lyrics = { videoId: song.videoId, lines: [], index: -1, source: 'Finding lyrics…', retryAt: Date.now() + 12000 };
     lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">Finding lyrics…</div>'; });
-    if (provider === 'amlyrics') { await showAmLyrics(song, token); return; } // picked for this song (or as the default)
+    // Automatic (and am-lyrics set as the default) starts with am-lyrics. If it has nothing, the rest follows in order: LRCLIB,
+    // then YouTube captions, then the resolver's backups. A provider picked for this one song is honoured as it is.
+    const amFirst = provider === 'auto' || provider === 'amlyrics';
+    if (amFirst) {
+      const shown = await showAmLyrics(song, token, { verify: !choice });
+      if (shown !== false) return; // lyrics are showing, or a newer load has taken over
+      state.lyrics.final = false; state.lyrics.source = 'Finding lyrics…'; $('#lyrics-source').textContent = 'Lyrics';
+      lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">Finding lyrics…</div>'; });
+    }
     try {
-      let result = await resolverLyrics(song, provider);
+      let result = await resolverLyrics(song, amFirst ? 'auto' : provider); // the resolver's "auto" is LRCLIB, YouTube, then its backups
       // The default provider never leaves a song without lyrics another one has; a provider chosen for this song is honoured.
-      if (!result.lines.length && provider !== 'auto' && !choice) result = await resolverLyrics(song, 'auto');
+      if (!result.lines.length && !amFirst && provider !== 'auto' && !choice) result = await resolverLyrics(song, 'auto');
       if (token !== lyricsLoadToken || state.lyrics.videoId !== song.videoId) return;
-      if (result.lines.length) { state.lyrics.lines = result.lines; state.lyrics.source = result.source; renderLyricsLines(); return; }
+      if (result.lines.length) { state.amLyricsEls = []; state.lyrics.lines = result.lines; state.lyrics.source = result.source; renderLyricsLines(); return; }
       if (choice) {
         state.lyrics.source = `Lyrics · none from ${lyricProviderLabel(choice)}`; state.lyrics.final = true;
         $('#lyrics-source').textContent = state.lyrics.source;
         lyricsBodies().forEach(body => { body.innerHTML = `<div class="empty">${safe(lyricProviderLabel(choice))} has no lyrics for this song. Try another provider from the dropdown above.</div>`; });
         return;
       }
-      // Nothing from LRCLIB, YouTube or the configured backups: am-lyrics is the last resort.
+      if (amFirst) { // nothing from am-lyrics, LRCLIB, YouTube or the configured backups
+        state.lyrics.source = 'Lyrics · none found'; state.lyrics.final = true; $('#lyrics-source').textContent = state.lyrics.source;
+        lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">No lyrics found for this song.</div>'; });
+        return;
+      }
+      // A specific provider set as the default had nothing, and neither did the others: am-lyrics is the last resort.
       await showAmLyrics(song, token); return;
     } catch { if (state.lyrics.videoId === song.videoId) { state.lyrics.source = 'Lyrics · retrying'; lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">Lyrics are not available yet. We’ll keep checking while this panel is open.</div>'; }); } }
   }
-  // ── am-lyrics: the last-resort backup. Its own component fetches and renders the lyrics (word by word), so it is only
+  // ── am-lyrics: the first lyrics source. Its own component fetches and renders the lyrics (word by word), so it is only
   // loaded from the CDN when needed. It is driven by the audio time (ms) and a click on a line seeks the song.
   const AM_LYRICS_URL = 'https://cdn.jsdelivr.net/npm/@uimaxbai/am-lyrics@1.5.6/dist/src/am-lyrics.min.js';
   let amLyricsLoad = null, amLyricsFrame = 0;
   const loadAmLyrics = () => amLyricsLoad || (amLyricsLoad = import(AM_LYRICS_URL).catch(error => { amLyricsLoad = null; throw error; }));
+  // Lyrics follow the music video's clock while one is open (the song itself is paused then), otherwise the song's.
+  const playbackTime = () => { const video = state.musicVideo?.video; return video && Number.isFinite(video.currentTime) ? video.currentTime : (audio.currentTime || 0); };
+  const playbackPlaying = () => { const video = state.musicVideo?.video; return video ? !video.paused : !audio.paused; };
+  function seekPlayback(seconds, { play = false } = {}) {
+    const video = state.musicVideo?.video;
+    if (video) { video.currentTime = Math.max(0, seconds); if (play && video.paused) video.play().catch(() => {}); return; }
+    if (!Number.isFinite(audio.duration)) return;
+    audio.currentTime = seconds; if (play && audio.paused) audio.play().catch(() => {});
+  }
+  function syncAmLyricsTime() { const ms = playbackTime() * 1000; state.amLyricsEls?.forEach(el => { el.currentTime = ms; }); }
   function amLyricsTick() {
     amLyricsFrame = 0;
     if (!state.amLyricsEls?.length) return;
-    if (!LudusCore.isHidden()) state.amLyricsEls.forEach(el => { el.currentTime = audio.currentTime * 1000; });
-    if (!audio.paused) amLyricsFrame = requestAnimationFrame(amLyricsTick);
+    if (!LudusCore.isHidden()) syncAmLyricsTime();
+    if (playbackPlaying()) amLyricsFrame = requestAnimationFrame(amLyricsTick);
   }
   const startAmLyricsClock = () => { if (!amLyricsFrame && state.amLyricsEls?.length) amLyricsFrame = requestAnimationFrame(amLyricsTick); };
-  async function showAmLyrics(song, token) {
+  // What an am-lyrics element is doing right now: showing its loading skeleton, its own "No lyrics found." notice, or lyric lines.
+  function amLyricsStatus(el) {
+    const root = el.shadowRoot; if (!root) return 'loading';
+    if (root.querySelector('.skeleton-line')) return 'loading';
+    if (root.querySelector('.no-lyrics')) return 'empty';
+    return root.querySelector('.lyrics-line') ? 'found' : 'loading';
+  }
+  // Shows am-lyrics. With verify, waits (up to 15 s) to learn whether it found anything and resolves true/false so the caller
+  // can fall back to the next source; without verify it just shows it. Resolves null when a newer load has replaced this one.
+  async function showAmLyrics(song, token, { verify = false } = {}) {
     state.lyrics.source = 'Lyrics · am-lyrics'; state.lyrics.final = true; $('#lyrics-source').textContent = state.lyrics.source;
     lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">Looking in am-lyrics…</div>'; });
     try { await loadAmLyrics(); }
     catch {
-      if (token === lyricsLoadToken) lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">am-lyrics could not be loaded (it needs internet access). Pick another provider above.</div>'; });
-      return;
+      if (token !== lyricsLoadToken) return null;
+      if (verify) return false; // could not load (offline?): the other sources are tried next
+      lyricsBodies().forEach(body => { body.innerHTML = '<div class="empty">am-lyrics could not be loaded (it needs internet access). Pick another provider above.</div>'; });
+      return true;
     }
-    if (token !== lyricsLoadToken || state.queue[state.index]?.videoId !== song.videoId) return;
+    if (token !== lyricsLoadToken || state.queue[state.index]?.videoId !== song.videoId) return null;
     state.amLyricsEls = [];
     lyricsBodies().forEach(body => {
       body.innerHTML = '';
@@ -3411,17 +3549,26 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       if (Number(song.duration) > 0) el.setAttribute('song-duration', String(Math.round(Number(song.duration) * 1000)));
       el.setAttribute('query', `${song.title || ''} ${song.artist || ''}`.trim());
       el.setAttribute('highlight-color', '#00c9ff'); el.className = 'am-lyrics-host';
-      el.currentTime = audio.currentTime * 1000;
-      el.addEventListener('line-click', event => { const ms = Number(event.detail?.timestamp); if (Number.isFinite(ms)) { audio.currentTime = ms / 1000; if (audio.paused) audio.play().catch(() => {}); } });
+      el.currentTime = playbackTime() * 1000;
+      el.addEventListener('line-click', event => { const ms = Number(event.detail?.timestamp); if (Number.isFinite(ms)) seekPlayback(ms / 1000, { play: true }); });
       body.appendChild(el); state.amLyricsEls.push(el);
     });
     startAmLyricsClock();
+    if (!verify) return true;
+    const probe = state.amLyricsEls[0], deadline = Date.now() + 15000;
+    while (probe && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+      if (token !== lyricsLoadToken || state.queue[state.index]?.videoId !== song.videoId) return null;
+      const status = amLyricsStatus(probe);
+      if (status !== 'loading') return status === 'found';
+    }
+    return false; // nothing after 15 s: carry on with the other sources
   }
   function buildLyricProviderOptions() {
     const group = (label, items) => items.length ? `<optgroup label="${label}">${items.map(item => `<option value="${safe(item.id)}">${safe(item.label)}</option>`).join('')}</optgroup>` : '';
-    const options = label => `<option value="auto">${label}</option>${group('Main', lyricProviderList.filter(item => item.group === 'main'))}${group('Backups', [...lyricProviderList.filter(item => item.group === 'backup'), AM_LYRICS])}`;
+    const options = label => `<option value="auto">${label}</option>${group('Main', [AM_LYRICS, ...lyricProviderList.filter(item => item.group === 'main')])}${group('Backups', lyricProviderList.filter(item => item.group === 'backup'))}`;
     document.querySelectorAll('.lyrics-provider').forEach(select => { select.innerHTML = options('Auto'); });
-    if ($('#lyrics-provider-default')) { $('#lyrics-provider-default').innerHTML = options('Automatic (best available)'); $('#lyrics-provider-default').value = lyricsDefaultProvider; }
+    if ($('#lyrics-provider-default')) { $('#lyrics-provider-default').innerHTML = options('Automatic (am-lyrics, LRCLIB, YouTube)'); $('#lyrics-provider-default').value = lyricsDefaultProvider; }
     syncLyricsProviderSelects();
   }
   // Asks the resolver which lyrics sources it has (an older resolver simply keeps the two main ones).
@@ -3437,7 +3584,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   }
   function updateLyricsHighlight() {
     if (!state.lyrics.lines.length || !lyricsPanelOpen()) return;
-    const t = audio.currentTime || 0; const lines = state.lyrics.lines;
+    const t = playbackTime(); const lines = state.lyrics.lines;
     const index = lines.findIndex((line, i) => t >= line.start && (i === lines.length - 1 || t < lines[i + 1].start));
     if (index === state.lyrics.index) return; state.lyrics.index = index;
     document.querySelectorAll('.lyrics-line').forEach(el => el.classList.toggle('active', Number(el.dataset.index) === index));
@@ -3456,7 +3603,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     if (active.video) { active.video.removeAttribute('src'); active.video.load(); }
     if (active.videoAudio) { active.videoAudio.removeAttribute('src'); active.videoAudio.load(); }
     if (state.offlineVideoObjectUrl) { URL.revokeObjectURL(state.offlineVideoObjectUrl); state.offlineVideoObjectUrl = null; }
-    state.musicVideo = null; $('#music-video-shell').hidden = true;
+    state.musicVideo = null; $('#music-video-shell').hidden = true; placeMusicVideo(false);
     if (resume && state.queue[state.index]?.videoId === active.song.videoId) {
       if (Number.isFinite(position) && audio.src) audio.currentTime = position;
       if (active.wasPlaying) audio.play().catch(() => {});
@@ -3513,12 +3660,14 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     $('#monochrome-shell').hidden = true;
     $('#monochrome-frame').src = 'about:blank';
   }
-  async function openMusicVideo() {
+  async function openMusicVideo(options) {
+    const inline = options?.inline === true; // true: shown in the fullscreen column; otherwise the full-page overlay
     const song = state.queue[state.index]; if (!song) { toast('Choose a song first.'); return; }
+    const resumeFrom = state.musicVideo ? { wasPlaying: state.musicVideo.wasPlaying, position: state.musicVideo.video?.currentTime ?? state.musicVideo.position } : null;
     closeMusicVideo({ resume: false });
-    const controller = new AbortController(), request = Symbol('music-video'), wasPlaying = !audio.paused, position = audio.currentTime || 0;
-    state.musicVideo = { request, controller, song, wasPlaying, position };
-    audio.pause(); $('#music-video-shell').hidden = false; $('#music-video-title').textContent = song.title; $('#music-video-loading').hidden = false;
+    const controller = new AbortController(), request = Symbol('music-video'), wasPlaying = resumeFrom ? resumeFrom.wasPlaying : !audio.paused, position = resumeFrom ? resumeFrom.position : (audio.currentTime || 0);
+    state.musicVideo = { request, controller, song, wasPlaying, position, inline };
+    audio.pause(); placeMusicVideo(inline); $('#music-video-shell').hidden = inline; $('#music-video-title').textContent = song.title; $('#music-video-loading').hidden = false;
     try {
       // Prefer a saved low-resolution music video when one exists; otherwise
       // resolve the matching official upload through the normal relay.
@@ -3551,6 +3700,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       const updateControls = () => {
         if (state.musicVideo?.request !== request) return;
         $('#music-video-play').textContent = video.paused ? '▶' : '❚❚';
+        if (state.musicVideo.inline) { $('#np-play').textContent = video.paused ? '▶' : '❚❚'; $('#play').textContent = video.paused ? '▶' : '❚❚'; }
         if (Number.isFinite(video.duration) && !$('#music-video-seek').matches(':active')) $('#music-video-seek').value = String(Math.round(video.currentTime / video.duration * 1000) || 0);
         $('#music-video-time').textContent = `${videoTime(video.currentTime)} / ${videoTime(video.duration)}`;
       };
@@ -3559,10 +3709,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
       video.addEventListener('loadedmetadata', () => { if (state.musicVideo?.request !== request) return; ready(); video.currentTime = position; updateControls(); video.play().catch(fail); }, { once: true });
       video.addEventListener('loadeddata', ready, { once: true });
       video.addEventListener('playing', ready, { once: true });
-      video.addEventListener('play', () => { if (state.musicVideo?.request === request) { ready(); videoAudio.play().catch(fail); updateControls(); } });
+      video.addEventListener('play', () => { if (state.musicVideo?.request === request) { ready(); videoAudio.play().catch(fail); updateControls(); startAmLyricsClock(); } });
       video.addEventListener('pause', () => { if (state.musicVideo?.request === request) { videoAudio.pause(); updateControls(); } });
       video.addEventListener('seeking', syncTime);
-      video.addEventListener('timeupdate', () => { if (state.musicVideo?.request === request) { syncTime(); updateControls(); } });
+      video.addEventListener('timeupdate', () => { if (state.musicVideo?.request === request) { syncTime(); updateControls(); updateLyricsHighlight(); if (video.paused) syncAmLyricsTime(); } });
       video.addEventListener('ratechange', () => { videoAudio.playbackRate = video.playbackRate; $('#music-video-speed').value = String(video.playbackRate); });
       video.addEventListener('error', fail, { once: true }); videoAudio.addEventListener('error', fail, { once: true });
       video.addEventListener('ended', () => { if (state.musicVideo?.request === request) { closeMusicVideo({ resume: false }); next(1, { manual: false }); } }, { once: true });
@@ -3792,7 +3942,7 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     setTimeout(() => buttons.forEach(button => button.classList.remove('shuffling')), 1000);
     if ($('#queue').hidden && $('#nowplaying-full').hidden) setSidePanel('queue'); // open the queue so the shuffle can be watched
     const start = state.index + 1; const count = state.queue.length - start; if (count < 2) return;
-    const panel = $('#queue'); const visible = !panel.hidden;
+    const npQueue = $('#nowplaying-full').classList.contains('queue-open'), panel = npQueue ? $('#np-queue-body') : $('#queue'), visible = npQueue || !panel.hidden;
     const before = visible ? new Map([...document.querySelectorAll('#queue-items .queue-item')].map(row => [Number(row.dataset.index), row.getBoundingClientRect()])) : null;
     const scroll = panel.scrollTop;
     const order = shuffled([...Array(count).keys()]); // order[slot] = where that song sat in the upcoming list before
@@ -3823,7 +3973,10 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
   function setShuffle(value) { state.shuffle = value; save('ludus_music_shuffle', value); document.querySelectorAll('#shuffle,#np-shuffle').forEach(el => el.classList.toggle('active', value)); }
   function setRepeat(value) { state.repeat = value; save('ludus_music_repeat', value); document.querySelectorAll('#repeat,#np-repeat').forEach(el => { el.classList.toggle('active', value !== 'off'); el.textContent = value === 'one' ? '↻¹' : '↻'; }); }
   function cycleRepeat() { setRepeat(state.repeat === 'off' ? 'all' : state.repeat === 'all' ? 'one' : 'off'); toast(`Repeat ${state.repeat === 'off' ? 'off' : state.repeat === 'one' ? 'one song' : 'all'}.`); }
-  function togglePlay() { audio.paused ? (audio.src ? audio.play() : playCurrent()) : audio.pause(); }
+  function togglePlay() {
+    if (state.musicVideo) { const video = state.musicVideo.video; if (video) video.paused ? video.play().catch(() => {}) : video.pause(); return; } // the video has the sound while it is open
+    audio.paused ? (audio.src ? audio.play() : playCurrent()) : audio.pause();
+  }
   async function keepCurrentOffline() {
     const song = state.queue[state.index]; if (!song) { toast('Choose a song before saving it offline.'); return; }
     if (isSavedOffline(song.videoId)) { await removeDownloadWithConfirm(song); return; }
@@ -3914,6 +4067,8 @@ dialog .confirm-check input[type="checkbox"]:checked::after { margin-left: 19px;
     syncLyricsProviderSelects(); loadLyricsForCurrent(true);
   });
   $('#now-info').onclick = openFullscreen; $('#open-lyrics').onclick = openLyrics; $('#np-close').onclick = closeFullscreen;
+  $('#np-queue').onclick = () => toggleNpQueue(); $('#np-queue-close').onclick = () => toggleNpQueue(false);
+  $('#np-video').onclick = () => toggleNpVideo(); $('#np-video-close').onclick = () => closeMusicVideo(); wireNpSplitter();
   $('#np-lyrics').onclick = () => toggleNpLyrics(); $('#np-lyrics-close').onclick = event => { event.preventDefault(); event.stopPropagation(); toggleNpLyrics(false); };
   $('#open-music-video').onclick = openMusicVideo;
   $('#cache-current').onclick = keepCurrentOffline;

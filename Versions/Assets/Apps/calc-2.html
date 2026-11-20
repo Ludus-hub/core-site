@@ -180,6 +180,17 @@
         .result-label { font-size: 12px; color: var(--accent); text-transform: uppercase; margin-bottom: 4px;}
         .result-value { font-size: 24px; font-weight: 700; color: #fff;}
         .result-value.alt { color: var(--accent-alt); }
+        /* result boxes that double as goal inputs (Term/Semester averages) */
+        input.result-value { background: transparent; border: 0; outline: 0; width: 100%; min-width: 0; padding: 0; margin: 0; text-align: right; font-family: inherit; border-radius: 0; }
+        input.result-value::placeholder { color: #888; opacity: 1; font-weight: 500; }
+        input.result-value.editable { border-bottom: 1px dashed rgba(0, 201, 255, 0.7); cursor: text; }
+        input.result-value:read-only { cursor: default; }
+        /* the Term field that a typed goal is solving for */
+        .form-input.solved { border-color: rgba(146, 254, 157, 0.7) !important; }
+        .form-input.solved::placeholder { color: var(--accent-alt) !important; font-weight: 600; opacity: 1; }
+        .form-input.solved.bad { border-color: rgba(255, 107, 107, 0.7) !important; }
+        .form-input.solved.bad::placeholder { color: #ff6b6b !important; }
+        #term-note { white-space: pre-line; }
 
         /* --- Grade Calc Specifics --- */
         .grade-section { margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
@@ -335,6 +346,25 @@
                         </div>
                     </div>
                 </div>
+                <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+                    <div style="min-width:190px;flex:1;max-width:260px;">
+                         <label for="current-gpa" style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Current weighted GPA <span style="font-weight:400;opacity:.75;">(optional)</span></label>
+                         <input class="form-input" id="current-gpa" type="number" min="0" max="6" step="0.001" placeholder="e.g. 4.125" oninput="calculateGpa()">
+                     </div>
+                     <div class="result-box" style="min-width:150px;">
+                         <div class="result-label">True Weighted GPA</div>
+                         <div class="result-value" id="res-true-gpa">-</div>
+                     </div>
+                     <div style="min-width:190px;flex:1;max-width:260px;">
+                         <label for="current-gpa-unweighted" style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;">Current unweighted GPA <span style="font-weight:400;opacity:.75;">(optional)</span></label>
+                         <input class="form-input" id="current-gpa-unweighted" type="number" min="0" max="4" step="0.001" placeholder="e.g. 3.650" oninput="calculateGpa()">
+                     </div>
+                     <div class="result-box" style="min-width:150px;">
+                         <div class="result-label">True Unweighted GPA</div>
+                         <div class="result-value" id="res-true-gpa-unweighted">-</div>
+                     </div>
+                 </div>
+                 <p style="margin-top:8px;text-align:right;font-size:12px;color:var(--text-secondary);">Each True GPA is the even average of your current GPA and the GPA calculated from these classes: weighted with weighted (scaled), unweighted with unweighted (unscaled). Fill in either one or both.</p>
             </div>
         </div>
 
@@ -347,7 +377,7 @@
                 
                 <div class="grade-section">
                     <h3>Term/Semester Calculator</h3>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Enter Term 1 &amp; 2 (+ Exam) for a Trimester average, and add Term 3 for a Semester average too — both update live from the same fields.</p>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Enter Term 1 &amp; 2 (+ Exam) for a Trimester average, and add Term 3 for a Semester average too — both update live from the same fields. To work backwards, leave one field empty (any two of Term 1, Term 2 and the Exam for a Trimester; any three of Term 1–3 and the Exam for a Semester) and type your goal in that average box.</p>
                     <div class="grid-row">
                         <div class="grid-col"><label>Term 1 (%)</label><input type="number" class="form-input" id="term1" placeholder="e.g. 88" oninput="calcTerm()"></div>
                         <div class="grid-col"><label>Term 2 (%)</label><input type="number" class="form-input" id="term2" placeholder="e.g. 92" oninput="calcTerm()"></div>
@@ -357,14 +387,15 @@
                     <div class="grid-row" style="margin-bottom: 0; align-items: center;">
                         <div class="result-box" style="flex: 1; padding: 6px 16px;">
                             <div class="result-label">Trimester Avg</div>
-                            <div class="result-value" id="res-term-trimester">-</div>
+                            <input type="text" inputmode="decimal" autocomplete="off" class="result-value avg-in" id="res-term-trimester" placeholder="-" readonly onfocus="avgFocus(this)" oninput="avgTyped(this)" onblur="avgBlur(this)" onkeydown="if(event.key==='Enter')this.blur()">
                         </div>
                         <div class="result-box" style="flex: 1; padding: 6px 16px;">
                             <div class="result-label">Semester Avg</div>
-                            <div class="result-value" id="res-term-semester">-</div>
+                            <input type="text" inputmode="decimal" autocomplete="off" class="result-value avg-in" id="res-term-semester" placeholder="-" readonly onfocus="avgFocus(this)" oninput="avgTyped(this)" onblur="avgBlur(this)" onkeydown="if(event.key==='Enter')this.blur()">
                         </div>
                         <button class="btn-action" style="align-self: stretch;" onclick="saveToHistory('Term')">Save</button>
                     </div>
+                    <p id="term-note" style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);"></p>
                 </div>
 
                 <div class="grade-section">
@@ -408,6 +439,28 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="grade-section">
+                    <h3>Final Exam Needed</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Find the final exam score you need. The term average fills in from the Term/Semester calculator above, but you can type your own number, and the exam weight and goal are yours to set.</p>
+                    <div class="grid-row">
+                        <div class="grid-col"><label>Average type</label><select class="form-input" id="fx-type" onchange="fxTypeChanged()"><option value="tri">Trimester</option><option value="sem">Semester</option></select></div>
+                        <div class="grid-col"><label>Term average (%)</label><input type="number" class="form-input" id="fx-avg" placeholder="auto, or type yours" oninput="fxTyped('avg')"></div>
+                        <div class="grid-col"><label>Final exam weight (%)</label><input type="number" class="form-input" id="fx-weight" value="20" min="1" max="100" step="0.01" oninput="fxTyped('weight')"></div>
+                        <div class="grid-col"><label>Goal (%)</label><input type="number" class="form-input" id="fx-goal" value="90" oninput="calcFinalNeeded()"></div>
+                    </div>
+                    <div class="grid-row" style="margin-bottom: 0; align-items: center;">
+                        <div class="result-box" style="flex: 1; padding: 6px 16px;">
+                            <div class="result-label">Final Exam Needed</div>
+                            <div class="result-value" id="res-final-needed">-</div>
+                        </div>
+                        <div class="result-box" style="flex: 2; padding: 6px 16px;">
+                            <div class="result-label">Needed for a 90 / 80 / 70</div>
+                            <div class="result-value" id="res-final-quick" style="font-size: 16px;">-</div>
+                        </div>
+                    </div>
+                    <p id="fx-note" style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);"></p>
+                </div>
             </div>
         </div>
 
@@ -446,7 +499,11 @@
         function toast(m, ms = 1700) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), ms); }
 
         function stateOf(root) { // just the values, so saved tabs pick up later layout changes
-            return { rows: root.querySelectorAll('.gpa-row').length, preds: root.querySelectorAll('.prediction-row').length, v: [...root.querySelectorAll('input:not([type=file]), select')].map(e => e.value) };
+            // The Term/Semester average boxes go on the end (and only hold a value when the person typed a goal), so
+            // older saves, which list every other field in the same order as before, still line up.
+            const main = [...root.querySelectorAll('input:not([type=file]):not(.avg-in), select')].map(e => e.value);
+            const goals = [...root.querySelectorAll('.avg-in')].map(e => e.dataset.auto === '1' ? '' : e.value);
+            return { rows: root.querySelectorAll('.gpa-row').length, preds: root.querySelectorAll('.prediction-row').length, v: main.concat(goals) };
         }
         function snap(t) { return t.type === 'ti84' ? '' : stateOf(t.pane); }
         function syncDrops(root) { // make dropdown labels match their hidden values
@@ -457,7 +514,7 @@
         }
         function summary(t) {
             if (t.type === 'ti84') return 'TI-84 (emulator state is not saved)';
-            return [...t.pane.querySelectorAll('.result-box')].map(b => b.querySelector('.result-label').textContent + ': ' + b.querySelector('.result-value').textContent).join(' · ');
+            return [...t.pane.querySelectorAll('.result-box')].map(b => { const v = b.querySelector('.result-value'); return b.querySelector('.result-label').textContent + ': ' + (v.tagName === 'INPUT' ? (v.value || '-') : v.textContent); }).join(' · ');
         }
         function persist() {
             clearTimeout(pt);
@@ -475,10 +532,12 @@
             if (st) { for (let i = 0; i < st.rows; i++) addGpaRow(); for (let i = 0; i < st.preds; i++) addPredictionRow(); }
             else if (t.type === 'gpa') { for (let i = 0; i < 4; i++) addGpaRow(); } else addPredictionRow();
             if (st) {
-                const f = p.querySelectorAll('input:not([type=file]), select');
-                if (f.length === st.v.length) f.forEach((e, i) => { e.value = st.v[i]; });
+                const f = p.querySelectorAll('input:not([type=file]):not(.avg-in), select'), g = p.querySelectorAll('.avg-in');
+                // New calculator controls may be added after a session was saved.
+                // Restore every matching older field instead of dropping the full tab state.
+                st.v.forEach((value, i) => { if (i < f.length) f[i].value = value; else if (g[i - f.length]) g[i - f.length].value = value; });
                 syncDrops(p);
-                if (t.type === 'gpa') calculateGpa(); else { calcTerm(); calcDetailed(); }
+                if (t.type === 'gpa') calculateGpa(); else { calcTerm(); calcDetailed(); calcFinalNeeded(); }
             }
             CUR = c;
         }
@@ -810,8 +869,16 @@
                     tU += uVal; tS += sVal; valid++;
                 } else { outU.innerText = '-'; outS.innerText = '-'; }
             });
-            $id('res-unweighted').innerText = valid > 0 ? (tU / valid).toFixed(3) : "0.000";
-            $id('res-weighted').innerText = valid > 0 ? (tS / valid).toFixed(3) : "0.000";
+            const unweighted = valid > 0 ? tU / valid : 0;
+            const weighted = valid > 0 ? tS / valid : 0;
+            $id('res-unweighted').innerText = unweighted.toFixed(3);
+            $id('res-weighted').innerText = weighted.toFixed(3);
+            const prior = parseFloat($id('current-gpa')?.value);
+            const trueGpa = $id('res-true-gpa');
+            if (trueGpa) trueGpa.innerText = valid > 0 && Number.isFinite(prior) ? ((prior + weighted) / 2).toFixed(3) : '-';
+            const priorU = parseFloat($id('current-gpa-unweighted')?.value);
+            const trueGpaU = $id('res-true-gpa-unweighted');
+            if (trueGpaU) trueGpaU.innerText = valid > 0 && Number.isFinite(priorU) ? ((priorU + unweighted) / 2).toFixed(3) : '-';
         }
 
         function addGpaRow() {
@@ -847,22 +914,92 @@
         }
 
         // --- Grade Calculator Logic ---
+        // A Trimester average is (2*T1 + 2*T2 + Exam) / 5 and a Semester average is (2*T1 + 2*T2 + 2*T3 + Exam) / 7.
+        // Each average box is a result AND a goal input: while exactly one of its fields is empty (two filled for a
+        // Trimester, three filled for a Semester) you can type a goal into it and the empty field is solved for.
+        // With every field filled, or too many empty, it is a plain locked result.
+        function termAvg(el, parts) {
+            const missing = parts.filter(p => p.v === null);
+            const editable = missing.length === 1;
+            const W = parts.reduce((s, p) => s + p.w, 0);
+            el.readOnly = !editable; el.classList.toggle('editable', editable);
+            el.placeholder = editable ? 'type goal' : '-';
+            if (!editable && el.dataset.auto !== '1' && el.value !== '') el.value = ''; // a goal only lives while it can be solved
+            const typedOn = el.dataset.auto !== '1' && el.value.trim() !== '';
+            if (!typedOn && !(el === document.activeElement && el.value === '')) { // show the normal average (left blank while it is being cleared)
+                const terms = parts.filter(p => !p.exam), exam = parts.find(p => p.exam);
+                let auto = null;
+                if (terms.every(p => p.v !== null)) auto = exam.v !== null ? parts.reduce((s, p) => s + p.w * p.v, 0) / W : terms.reduce((s, p) => s + p.v, 0) / terms.length;
+                el.value = auto === null ? '' : auto.toFixed(2) + '%';
+                if (auto === null) delete el.dataset.auto; else el.dataset.auto = '1';
+            }
+            const goal = typedOn && editable ? parseFloat(el.value) : NaN;
+            if (!Number.isFinite(goal)) return null;
+            const m = missing[0], rest = parts.reduce((s, p) => p.v === null ? s : s + p.w * p.v, 0);
+            return { part: m, goal, need: (goal * W - rest) / m.w };
+        }
+        function avgFocus(el) { setTimeout(() => el.select(), 0); }
+        function avgTyped(el) { delete el.dataset.auto; calcTerm(); }
+        function avgBlur(el) {
+            if (el.dataset.auto !== '1' && el.value.trim() !== '') { const v = parseFloat(el.value); el.value = Number.isFinite(v) ? v.toFixed(2) + '%' : ''; }
+            calcTerm(); persist();
+        }
+
         function calcTerm() {
-            let t1 = parseFloat($id('term1').value); let t2 = parseFloat($id('term2').value);
-            let t3 = parseFloat($id('term3').value); let exam = parseFloat($id('termExam').value);
-            let resTri = $id('res-term-trimester');
-            let resSem = $id('res-term-semester');
-            let hasT1 = !isNaN(t1), hasT2 = !isNaN(t2), hasT3 = !isNaN(t3), hasExam = !isNaN(exam);
+            const num = id => { const v = parseFloat($id(id).value); return isNaN(v) ? null : v; };
+            const T1 = { id: 'term1', label: 'Term 1', w: 2, v: num('term1') }, T2 = { id: 'term2', label: 'Term 2', w: 2, v: num('term2') },
+                  T3 = { id: 'term3', label: 'Term 3', w: 2, v: num('term3') }, EX = { id: 'termExam', label: 'Final Exam', w: 1, v: num('termExam'), exam: true };
+            ['term1', 'term2', 'term3', 'termExam'].forEach(id => { // clear last time's highlight
+                const e = $id(id); if (e.dataset.ph === undefined) e.dataset.ph = e.placeholder;
+                e.placeholder = e.dataset.ph; e.classList.remove('solved', 'bad');
+            });
+            const lines = [], hints = [];
+            [['Trimester', $id('res-term-trimester'), [T1, T2, EX]], ['Semester', $id('res-term-semester'), [T1, T2, T3, EX]]].forEach(([name, el, parts]) => {
+                const s = termAvg(el, parts);
+                if (s) {
+                    const f = $id(s.part.id), over = s.need > 100, secured = s.need <= 0;
+                    if (!f.classList.contains('solved')) { f.placeholder = 'Need ' + (secured ? 0 : s.need).toFixed(2) + '%'; f.classList.add('solved'); f.classList.toggle('bad', over); }
+                    lines.push(name + ' goal ' + s.goal.toFixed(2) + '%: ' + (over ? s.part.label + ' would need ' + s.need.toFixed(2) + '% (over 100, out of reach).'
+                        : secured ? 'already secured, even 0.00% on ' + s.part.label + ' gets you there.' : s.part.label + ' needs ' + s.need.toFixed(2) + '%.'));
+                } else if (!el.readOnly) hints.push('Type a goal in the ' + name + ' Avg box to find the ' + parts.find(p => p.v === null).label + ' you need.');
+            });
+            const note = $id('term-note');
+            if (note) { note.textContent = lines.concat(hints).join('\n'); note.style.color = lines.length ? 'var(--accent-alt)' : ''; }
+            if (typeof calcFinalNeeded === "function") calcFinalNeeded();
+        }
 
-            // Trimester average: Term 1 + Term 2 (+ Exam weighted double each term, half the exam)
-            if(hasT1 && hasT2 && hasExam) { resTri.innerText = ((t1*2 + t2*2 + exam) / 5).toFixed(1) + "%"; }
-            else if(hasT1 && hasT2) { resTri.innerText = ((t1 + t2) / 2).toFixed(1) + "%"; }
-            else { resTri.innerText = "-"; }
-
-            // Semester average: Term 1 + Term 2 + Term 3 (+ Exam), same weighting pattern
-            if(hasT1 && hasT2 && hasT3 && hasExam) { resSem.innerText = ((t1*2 + t2*2 + t3*2 + exam) / 7).toFixed(1) + "%"; }
-            else if (hasT1 && hasT2 && hasT3) { resSem.innerText = ((t1 + t2 + t3) / 3).toFixed(1) + "%"; }
-            else { resSem.innerText = "-"; }
+        // --- Final exam needed ---
+        // need = (goal - average x (1 - weight)) / weight, with the weight as a fraction. The average and the weight fill in by
+        // themselves (from the Term fields above and the usual weighting) until the person types their own number.
+        function fxAutoValues() {
+            const type = $id('fx-type').value;
+            const terms = (type === 'sem' ? ['term1', 'term2', 'term3'] : ['term1', 'term2']).map(id => parseFloat($id(id).value));
+            const avg = terms.every(x => !isNaN(x)) ? terms.reduce((a, b) => a + b, 0) / terms.length : null;
+            return { avg, weight: type === 'sem' ? 100 / 7 : 20 };
+        }
+        function fxTyped(which) { const el = $id(which === 'avg' ? 'fx-avg' : 'fx-weight'); delete el.dataset.auto; calcFinalNeeded(); }
+        function fxTypeChanged() { const w = $id('fx-weight'); w.value = +fxAutoValues().weight.toFixed(2); w.dataset.auto = '1'; const a = $id('fx-avg'); if (a.dataset.auto === '1') { a.value = ''; delete a.dataset.auto; } calcFinalNeeded(); }
+        function calcFinalNeeded() {
+            const avgEl = $id('fx-avg'); if (!avgEl) return;
+            const auto = fxAutoValues();
+            // fill from the fields above only while the box is empty or still holds a number we filled in ourselves
+            if (avgEl.value === '' || avgEl.dataset.auto === '1') {
+                if (auto.avg === null) { if (avgEl.dataset.auto === '1') { avgEl.value = ''; delete avgEl.dataset.auto; } }
+                else { avgEl.value = auto.avg.toFixed(2); avgEl.dataset.auto = '1'; }
+            }
+            const avg = parseFloat(avgEl.value), w = parseFloat($id('fx-weight').value) / 100, goal = parseFloat($id('fx-goal').value);
+            const out = $id('res-final-needed'), quick = $id('res-final-quick'), note = $id('fx-note');
+            const need = g => (g - avg * (1 - w)) / w;
+            const show = x => x > 100 ? x.toFixed(2) + '% (over 100)' : x <= 0 ? '0.00% (secured)' : x.toFixed(2) + '%';
+            out.style.color = '';
+            if (isNaN(avg) || !(w > 0 && w <= 1)) { out.innerText = '-'; quick.innerText = '-'; note.textContent = isNaN(avg) ? 'Enter your term average (or fill Term 1 and 2 above) to see what you need.' : 'The final exam weight must be between 0 and 100.'; return; }
+            quick.innerText = [90, 80, 70].map(g => g + ': ' + show(need(g))).join('    ');
+            if (isNaN(goal)) { out.innerText = '-'; note.textContent = 'Enter a goal to see the exam score you need.'; return; }
+            const x = need(goal);
+            out.innerText = x <= 0 ? '0.00%' : x.toFixed(2) + '%';
+            if (x > 100) { out.style.color = '#ff6b6b'; note.textContent = 'That is more than 100% on the exam, so a ' + goal + ' is out of reach with this average and weight.'; }
+            else if (x <= 0) note.textContent = 'You already have a ' + goal + ' secured: even a 0 on the exam keeps you there.';
+            else note.textContent = 'You need ' + x.toFixed(2) + '% on the final exam to finish with a ' + goal + '.';
         }
 
         function calculateFinal(pctA, pctB, weightA, weightB) {

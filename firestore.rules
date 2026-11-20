@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      // Profiles, including isPremium, are maintained by an administrator.
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /premiumSessions/{userId} {
+      // This lease is used only to coordinate the signed-in user's browsers.
+      // Firestore transactions in auth.js prevent two normal browsers from
+      // claiming it at the same time.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

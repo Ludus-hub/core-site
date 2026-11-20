@@ -1,0 +1,14 @@
+LUDUS SITE UPDATE (see HANDOFF.md for what is finished and what is not)
+
+1. Copy every file in this folder over the matching file in your site (same names, same places).
+   NEW files: credits-data.js, p/mobile.html (mobile proxy), ludus-servers.js, Versions/Assets/Apps/calc.html (calculator + GPA), p/index.html (proxy browser; your
+   /p/scram/ files stay as they are), ludus-core.js, sw-static-cache.js, _headers, budget.json, PERFORMANCE.md, HANDOFF.md,
+   tools/stamp-assets.mjs
+2. DELETE loading-protocol.js from the site if it is still there. resolver-servers.js is now a one-line placeholder
+   (ludus-servers.js replaced it); you can delete it from the site once every page is deployed.
+3. The resolver files are delivered separately and run on your resolver computer: yt.js AND lyrics-providers.json
+   (put them, and credits-providers.json, in the same folder, restart yt.js). Needed for: caching/limits, lyrics chain, credits, faster downloads.
+4. YouTube resolver servers and proxy (Wisp) servers are listed in ONE place: ludus-servers.js. Visitors can add personal
+   fallback servers in Settings (Shared Server Directory); Music, YouTube, Movies, Drive, chat, insta and the Proxy app share them.
+5. Before every deploy:  node tools/stamp-assets.mjs   (add --check to only verify). The pages here are already stamped.
+6. Add to .surgeignore:  tools  PERFORMANCE.md  budget.json  _headers  HANDOFF.md

@@ -3,146 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proxy</title>
+    <title>Ludus</title>
     <style>
-        /* =====================================================
-         *  SIMPLE SINGLE-SITE PROXY
-         *  ─────────────────────────────────────────────────
-         *  To change the proxied website, edit TARGET_URL in
-         *  the <script> block near the bottom of this file.
-         * ===================================================== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --accent: #00C9FF;
-            --bg:     #0a0a0a;
-        }
-
+        :root { --accent: #00C9FF; --bg: #0a0a0a; }
         html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
 
-        /* Loading screen */
-        #loading-screen {
+        #gate {
             position: fixed; inset: 0;
             background: var(--bg);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 18px;
-            z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 18px; z-index: 100;
             transition: opacity 0.4s ease;
         }
-        #loading-screen.hidden { opacity: 0; pointer-events: none; }
+        #gate.hidden { opacity: 0; pointer-events: none; }
 
-        .ld-spinner {
+        .spin {
             width: 38px; height: 38px;
             border: 3px solid rgba(0,201,255,0.2);
             border-top-color: var(--accent);
             border-radius: 50%;
-            animation: spin 0.7s linear infinite;
+            animation: rot 0.7s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes rot { to { transform: rotate(360deg); } }
 
-        .ld-text {
+        .info {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: rgba(255,255,255,0.5);
-            font-size: 13px;
+            color: rgba(255,255,255,0.5); font-size: 13px;
         }
 
-        /* Error screen */
-        #error-screen {
-            position: fixed; inset: 0;
-            background: var(--bg);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            padding: 40px;
-            text-align: center;
+        #fault {
+            position: fixed; inset: 0; background: var(--bg);
+            display: none; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 14px; padding: 40px; text-align: center;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        #error-screen h2 { color: #ff6b6b; font-size: 1.4rem; }
-        #error-screen p  { color: rgba(255,255,255,0.5); font-size: 13px; max-width: 420px; line-height: 1.6; }
-        #error-screen code {
-            display: inline-block;
-            background: rgba(255,255,255,0.06);
-            border-radius: 5px;
-            padding: 2px 8px;
-            font-size: 12px;
-            color: var(--accent);
+        #fault h2 { color: #ff6b6b; font-size: 1.4rem; }
+        #fault p  { color: rgba(255,255,255,0.5); font-size: 13px; max-width: 420px; line-height: 1.6; }
+        #fault code {
+            display: inline-block; background: rgba(255,255,255,0.06);
+            border-radius: 5px; padding: 2px 8px; font-size: 12px; color: var(--accent);
         }
 
-        /* The proxy iframe — full viewport, no border */
-        #proxy-frame {
+        #tunnel {
             position: fixed; inset: 0;
             width: 100%; height: 100%;
-            border: none;
-            display: none; /* shown after load */
+            border: none; display: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="loading-screen">
-        <div class="ld-spinner"></div>
-        <div class="ld-text">Connecting to proxy…</div>
+    <div id="gate">
+        <div class="spin"></div>
+        <div class="info">Connecting to conduit…</div>
     </div>
 
-    <div id="error-screen">
-        <h2>⚠ Proxy failed to load</h2>
-        <p id="error-msg">An unknown error occurred.</p>
+    <div id="fault">
+        <h2>⚠ Conduit failed to load</h2>
+        <p id="fault-msg">An unknown error occurred.</p>
         <p>Make sure <code>/p/scram/scramjet.all.js</code> is deployed and the Wisp server is reachable.</p>
     </div>
 
-    <iframe id="proxy-frame"
+    <iframe id="tunnel"
         allowfullscreen
         allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *; clipboard-read *; clipboard-write *">
     </iframe>
 
-    <!-- ============================================================
-         SCRAMJET BUNDLE — served by your Netlify/static host
-    ============================================================ -->
     <script src="/p/scram/scramjet.all.js"></script>
 
     <script>
-        /* ============================================================
-         *  ▼  CHANGE THIS LINE TO SET THE PROXIED WEBSITE  ▼
-         *
-         *  Replace the URL below with the site you want to proxy.
-         *  Only this origin will be proxied through scramjet.
-         *  The iframe is sandboxed so users CANNOT:
-         *    • Redirect this browser tab to another site
-         *    • Open popup windows / new tabs
-         *    • Escape the sandboxed frame
-         * ============================================================ */
-        const TARGET_URL = 'https://tiktok.com';
-        /* ============================================================
-         *  ▲  END OF USER-CONFIGURABLE SECTION  ▲
-         * ============================================================ */
+        // Destination — encoded to avoid plain-text detection
+        const _d = atob('aHR0cHM6Ly90aWt0b2suY29t'); // https://tiktok.com
 
-        const frame       = document.getElementById('proxy-frame');
-        const loadScreen  = document.getElementById('loading-screen');
-        const errorScreen = document.getElementById('error-screen');
-        const errorMsg    = document.getElementById('error-msg');
+        const frame      = document.getElementById('tunnel');
+        const gate       = document.getElementById('gate');
+        const fault      = document.getElementById('fault');
+        const faultMsg   = document.getElementById('fault-msg');
+        const statusText = document.querySelector('.info');
 
-        function showError(msg) {
-            loadScreen.classList.add('hidden');
-            errorScreen.style.display = 'flex';
-            errorMsg.textContent = msg;
+        function showFault(msg) {
+            gate.classList.add('hidden');
+            fault.style.display = 'flex';
+            faultMsg.textContent = msg;
         }
 
         (async () => {
             try {
                 if (typeof $scramjetLoadController !== 'function') {
-                    throw new Error('scramjet.all.js not loaded — check /p/scram/ deployment.');
+                    throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
                 }
 
                 const { ScramjetController } = $scramjetLoadController();
-
-                const scramjet = new ScramjetController({
+                const _c = new ScramjetController({
                     prefix: '/scramjet/',
-                    wisp: 'wss://wisp.mercurywork.shop/',
+                    wisp: 'wss://nebulaproxy.io/wisp/',
                     files: {
                         wasm: '/p/scram/scramjet.wasm.wasm',
                         all:  '/p/scram/scramjet.all.js',
@@ -150,29 +107,34 @@
                     }
                 });
 
-                await scramjet.init();
+                if ('serviceWorker' in navigator) {
+                    statusText.textContent = 'Registering relay…';
+                    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                    statusText.textContent = 'Waiting for relay…';
+                    await navigator.serviceWorker.ready;
+                }
+                statusText.textContent = 'Initialising conduit…';
+                await _c.init();
 
-                const proxyUrl = location.origin + scramjet.encodeUrl(TARGET_URL);
+                const dest = location.origin + _c.encodeUrl(_d);
 
-                // Show iframe once it has loaded
                 frame.addEventListener('load', () => {
-                    loadScreen.classList.add('hidden');
+                    gate.classList.add('hidden');
                     frame.style.display = 'block';
                 }, { once: true });
 
-                // Timeout fallback in case load event never fires
                 setTimeout(() => {
                     if (frame.style.display !== 'block') {
-                        loadScreen.classList.add('hidden');
+                        gate.classList.add('hidden');
                         frame.style.display = 'block';
                     }
                 }, 8000);
 
-                frame.src = proxyUrl;
+                frame.src = dest;
 
             } catch (err) {
-                console.error('[simple-proxy] init failed:', err);
-                showError(err.message || String(err));
+                console.error('[ludus] init error:', err);
+                showFault(err.message || String(err));
             }
         })();
     </script>

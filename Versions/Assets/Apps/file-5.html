@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludus Drive</title>
-    <script src="loading-protocol.js"></script>
-    <script src="resolver-servers.js"></script>
+    <script src="ludus-servers.js"></script>
+    <script src="ludus-core.js?v=379570e499"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -525,6 +525,24 @@
         }
         .yt-err  { color: #f87171; }
         .yt-done { color: #4ade80; }
+        .yt-job-head { display: flex; align-items: center; gap: 10px; }
+        .yt-job-head .yt-job-title { flex: 1; min-width: 0; }
+        .yt-job-retry, .yt-retry-all {
+            flex: none;
+            padding: 4px 11px;
+            background: rgba(239,68,68,.12);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,.35);
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .15s, border-color .15s;
+        }
+        .yt-job-retry:hover, .yt-retry-all:hover { background: rgba(239,68,68,.22); border-color: rgba(239,68,68,.6); }
+        .yt-job-actions { display: flex; justify-content: flex-end; }
+        .yt-job-actions[hidden] { display: none; }
+        .yt-retry-all { padding: 7px 14px; font-size: 12px; }
 
         .conv-topbar {
             height: 64px;
@@ -981,8 +999,7 @@
         <div class="top-bar">
             <div class="breadcrumb" id="breadcrumb-container"></div>
             <div class="conduit-status">
-                <button id="resolver-status" class="conduit-status-btn pending" type="button" title="Resolver status">Connecting to server…</button>
-                <select id="resolver-server-picker" aria-label="Choose Ludus server" style="max-width:150px;padding:6px 8px;border:1px solid var(--glass-border);border-radius:999px;background:var(--glass);color:var(--text-primary);font:600 11px inherit;"></select>
+                <div id="resolver-status"></div>
                 <button id="proxy-status" class="conduit-status-btn pending" type="button" aria-pressed="true" title="Conduit is starting">Starting Conduit…</button>
             </div>
         </div>
@@ -1217,6 +1234,7 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"></path><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"></polygon></svg>
                 Convert &amp; Download
             </button>
+            <div class="yt-job-actions" id="yt-job-actions" hidden><button type="button" class="yt-retry-all" id="yt-retry-all">Retry all failed (0)</button></div>
             <div id="yt-job-list" class="yt-job-list"></div>
         </div>
     </div>
@@ -1254,21 +1272,21 @@
         const nativeFetch = window.fetch.bind(window);
         // One resolver (yt.js behind the tunnel) serves the YouTube converter and the Quizlet importer.
         // Both are plain fetch() calls, so both go through the Conduit-gated fetch installed below.
-        let RESOLVER_BASE = (localStorage.getItem('ludus_active_resolver') || window.LUDUS_RESOLVER_URLS?.[0] ||
-            'https://u6dhtt3vfobb.shares.zrok.io/resolve').replace(/\/+$/, '').replace(/\/resolve$/, '');
+        // The server list lives ONLY in ludus-servers.js (read through ludus-core.js); nothing is hard-coded here.
+        let RESOLVER_BASE = LudusCore.resolver.baseOf(LudusCore.resolver.active());
+        // "Music app setup" for Drive: the shared monitor checks every server, measures their speed, connects to the
+        // fastest and keeps re-checking. The merged status + selector is the shared control from ludus-core.js.
+        let serverPicker = null;
         function initResolverPicker() {
-            const picker = document.getElementById('resolver-server-picker'); if (!picker) return;
-            const servers = Array.isArray(window.LUDUS_RESOLVERS) ? window.LUDUS_RESOLVERS : [{ id: 'server-1', label: 'Server 1', url: `${RESOLVER_BASE}/resolve` }];
-            picker.innerHTML = servers.map((server, index) => `<option value="${server.url}">Ludus server ${index + 1}</option>`).join('');
-            picker.value = `${RESOLVER_BASE}/resolve`;
-            picker.addEventListener('change', async () => {
-                const next = picker.value, base = next.replace(/\/resolve\/?$/, ''); picker.disabled = true;
-                try { const health = await nativeFetch(`${base}/health`, { signal: AbortSignal.timeout(8000), headers: /\.shares\.zrok\.io/i.test(base) ? { skip_zrok_interstitial: 'true' } : {} }); if (!health.ok) throw new Error(); RESOLVER_BASE = base; localStorage.setItem('ludus_active_resolver', next); checkResolver(); }
-                catch { picker.value = `${RESOLVER_BASE}/resolve`; } finally { picker.disabled = false; }
-            });
+            const host = document.getElementById('resolver-status'); if (!host || serverPicker) return;
+            serverPicker = LudusCore.servers.mountPicker(host, { skin: 'music', onChange: url => { RESOLVER_BASE = LudusCore.resolver.baseOf(url); } });
+            LudusCore.servers.monitor.subscribe(snap => { RESOLVER_BASE = LudusCore.resolver.baseOf(snap.active); });
         }
         initResolverPicker();
         const isLocalHost = host => /^(localhost|\[?::1\]?|127(\.\d+){3}|10(\.\d+){3}|192\.168(\.\d+){2}|172\.(1[6-9]|2\d|3[01])(\.\d+){2}|[^.]+\.local)$/i.test(host);
+        // Resolver tunnels proxy their own traffic. Sending them through Conduit added a proxy hop to every
+        // /resolve, /quizlet and large /stream download (YouTube and Music already bypass it).
+        const isResolverTunnel = host => /(?:\.shares\.zrok\.io|\.trycloudflare\.com)$/i.test(host);
 
         const renderConduitStatus = () => {
             const proxy = document.getElementById('proxy-status');
@@ -1282,11 +1300,11 @@
                 : state === 'fail' ? `Conduit failed: ${_conduitError || 'unknown error'} — click to retry` : text;
             proxy.setAttribute('aria-pressed', String(conduitEnabled()));
         };
+        // Tools report progress here; the merged picker shows it as a note and goes back to the live server status on success.
         const setResolverStatus = (state, text) => {
-            const resolver = document.getElementById('resolver-status');
-            if (!resolver) return;
-            resolver.className = `conduit-status-btn ${state}`;
-            resolver.textContent = text;
+            if (!serverPicker) return;
+            if (state === 'ok') serverPicker.clearNote();
+            else serverPicker.setNote(state === 'fail' ? 'offline' : 'pending', text);
         };
 
         // Installed before the Drive tools run. Cloudflare resolver calls wait
@@ -1294,7 +1312,7 @@
         window.fetch = async function conduitFetch(resource, options) {
             let target;
             try { target = new URL(resource instanceof Request ? resource.url : resource, location.href); } catch {}
-            if (!target || !conduitEnabled() || !/^https?:$/.test(target.protocol) || target.origin === location.origin || isLocalHost(target.hostname)) return nativeFetch(resource, options);
+            if (!target || !conduitEnabled() || !/^https?:$/.test(target.protocol) || target.origin === location.origin || isLocalHost(target.hostname) || isResolverTunnel(target.hostname)) return nativeFetch(resource, options);
             try {
                 const controller = await Promise.race([_conduitReady, new Promise((_, reject) => setTimeout(() => reject(new Error('Conduit start timed out')), 20000))]);
                 const proxied = location.origin + controller.encodeUrl(target.href);
@@ -1319,7 +1337,7 @@
                 if (!_conduitController) {
                     const { ScramjetController } = $scramjetLoadController();
                     _conduitController = new ScramjetController({
-                        prefix: '/scramjet/', wisp: 'wss://nebulaproxy.io/wisp/',
+                        prefix: '/scramjet/', wisp: window.LudusServers?.proxy?.active?.()?.url,
                         files: { wasm: '/p/scram/scramjet.wasm.wasm', all: '/p/scram/scramjet.all.js', sync: '/p/scram/scramjet.sync.js' },
                     });
                 }
@@ -1373,7 +1391,8 @@
         const _sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
         async function resolverFetch(url, { timeout, ...options } = {}) {
-            if (conduitEnabled()) await Promise.race([conduitSettled(), _sleep(20000)]);
+            let viaTunnel = false; try { viaTunnel = isResolverTunnel(new URL(url, location.href).hostname); } catch {}
+            if (conduitEnabled() && !viaTunnel) await Promise.race([conduitSettled(), _sleep(20000)]); // tunnels bypass Conduit, so nothing to wait for
             const init = timeout ? { ...options, signal: AbortSignal.timeout(timeout) } : options;
             try { return await fetch(url, init); }
             catch (error) {
@@ -1385,8 +1404,10 @@
 
         async function resolverJSON(path, params = {}) {
             let res;
-            try { res = await resolverFetch(`${RESOLVER_BASE}/${path}?${new URLSearchParams(params)}`, { timeout: 30000 }); }
+            // The core picks a healthy server and fails over to another one if this one is down.
+            try { res = await LudusCore.resolver.request(path, params, { timeout: 30000 }); RESOLVER_BASE = LudusCore.resolver.baseOf(LudusCore.resolver.active()); }
             catch (error) {
+                if (error.resolverListMissing) throw error;
                 throw new Error(error.name === 'TimeoutError' || error.name === 'AbortError'
                     ? 'The server took too long to answer.'
                     : 'Could not reach the server — check that yt.js is running and the tunnel URL is current.');
@@ -1396,19 +1417,9 @@
             return data;
         }
 
-        let _resolverChecking = false;
-        async function checkResolver() {
-            if (_resolverChecking) return;
-            _resolverChecking = true;
-            setResolverStatus('pending', 'Connecting to server…');
-            try { await resolverJSON('health'); setResolverStatus('ok', 'Server connected'); }
-            catch (error) { setResolverStatus('fail', 'Server unavailable'); console.warn('[Ludus Drive] Resolver check:', error.message); }
-            finally { _resolverChecking = false; }
-        }
-        // Check on load (after Conduit settles) and again whenever Conduit is retried or toggled, so the pill tells the truth.
-        (async () => { await Promise.race([conduitSettled(), _sleep(20000)]); checkResolver(); })();
+        // Re-check every server now (the shared monitor also does this on its own every 30 seconds).
+        function checkResolver() { return LudusCore.servers.monitor.refresh(); }
         window.addEventListener('ludus:conduit-settled', () => setTimeout(checkResolver, 0));
-        document.getElementById('resolver-status')?.addEventListener('click', checkResolver);
         document.getElementById('proxy-status')?.addEventListener('click', () => setTimeout(checkResolver, 0));
 
         // CDN globals are intentionally accessed through window so VS Code's
@@ -4430,124 +4441,290 @@
                 return { vid, aud, missed };
             }
 
-            async function fetchBuf(url, onProgress) {
-                const r = await resolverFetch(url);
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                const total = parseInt(r.headers.get('Content-Length') || '0');
-                const reader = r.body.getReader();
-                const chunks = []; let loaded = 0;
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    chunks.push(value); loaded += value.length;
-                    if (total && onProgress) onProgress(loaded / total);
+            // ── Download engine: the same design as the Music app ─────────────────────────────────────────────
+            // Each stream is fetched as parallel 1 MB range pieces (YouTube throttles one long request), every piece is
+            // retried on its own with a stall watchdog, video and audio of one file download at the same time, up to two
+            // files download at once, and a file that fails is retried with a fresh link before it is given up on.
+            // ffmpeg is single-threaded, so the (fast) mux step is the only part that waits its turn.
+            const CHUNK_BYTES = 1024 * 1024, PIECES_PER_FILE = 4, CHUNK_CONNECTIONS = 5, CHUNK_RETRIES = 3, CHUNK_STALL_MS = 20000;
+            const DOWNLOAD_ATTEMPTS = 3, YT_DOWNLOADS_AT_ONCE = 2;
+            const dlSleep = (ms, signal) => new Promise((resolve, reject) => {
+                const timer = setTimeout(resolve, ms);
+                signal?.addEventListener('abort', () => { clearTimeout(timer); reject(Object.assign(new Error('Stopped'), { name: 'AbortError' })); }, { once: true });
+            });
+            const dlPool = limit => {
+                let running = 0; const waiters = [];
+                const next = () => { while (running < limit() && waiters.length) { running++; waiters.shift()(); } };
+                return { run: async task => { await new Promise(resolve => { waiters.push(resolve); next(); }); try { return await task(); } finally { running--; next(); } } };
+            };
+            // Browsers allow 6 connections per server; one stays free so the resolver's own requests are never stuck behind a piece.
+            const chunkPool = dlPool(() => CHUNK_CONNECTIONS), muxPool = dlPool(() => 1);
+            const fmtBytes = n => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+            const escHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+            async function fetchRange(url, start, end, { signal, onBytes, onHeaders }) {
+                if (signal?.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
+                const controller = new AbortController(); let counted = 0;
+                const forward = () => controller.abort(); signal?.addEventListener('abort', forward, { once: true });
+                const headerTimer = setTimeout(() => controller.abort(), 30000); // no response headers in 30 s
+                try {
+                    const response = await resolverFetch(url, { signal: controller.signal, headers: { Range: `bytes=${start}-${end}` } });
+                    clearTimeout(headerTimer);
+                    if (response.status !== 206 && response.status !== 200) throw Object.assign(new Error(`The server answered HTTP ${response.status}`), { status: response.status });
+                    onHeaders?.({ status: response.status, contentRange: response.headers.get('content-range') || '', length: Number(response.headers.get('content-length')) || 0 });
+                    const reader = response.body.getReader(), parts = [];
+                    while (true) {
+                        const result = await new Promise((resolve, reject) => {
+                            const timer = setTimeout(() => { controller.abort(); reject(Object.assign(new Error('No data for 20 seconds'), { stalled: true })); }, CHUNK_STALL_MS);
+                            reader.read().then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+                        });
+                        if (result.done) break;
+                        parts.push(result.value); counted += result.value.byteLength; onBytes?.(result.value.byteLength);
+                    }
+                    return { status: response.status, parts, bytes: counted, contentRange: response.headers.get('content-range') || '' };
+                } catch (error) {
+                    if (counted) onBytes?.(-counted); // this attempt's bytes will be fetched again, so they must not count twice
+                    if (signal?.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
+                    if (error?.name === 'AbortError' && !error.stalled) throw Object.assign(new Error('The server did not answer in time'), { timedOut: true });
+                    throw error;
+                } finally { clearTimeout(headerTimer); signal?.removeEventListener('abort', forward); }
+            }
+            async function fetchRangeRetry(url, start, end, context) {
+                let lastError;
+                for (let attempt = 1; attempt <= CHUNK_RETRIES; attempt++) {
+                    try { return await fetchRange(url, start, end, context); }
+                    catch (error) {
+                        lastError = error;
+                        if (error?.name === 'AbortError' || context.signal?.aborted || [403, 404, 410].includes(error?.status)) break; // expired link: the file-level retry fetches a fresh one
+                        if (attempt < CHUNK_RETRIES) await dlSleep(600 * attempt, context.signal);
+                    }
                 }
-                const out = new Uint8Array(loaded); let off = 0;
-                for (const c of chunks) { out.set(c, off); off += c.length; }
-                return out;
+                throw lastError;
+            }
+            // One stream -> one Uint8Array. The first answer says how big the file is, so the other pieces start straight
+            // away, and every finished piece is copied into the final buffer at once (no second copy of the file at the end).
+            async function downloadChunked(streamUrl, { signal = null, onProgress = null } = {}) {
+                let received = 0, total = 0, failure = null, launched = false, firstLength = 0, launch = Promise.resolve(), out = null;
+                const stop = new AbortController();
+                const fail = error => { if (!failure) failure = error; stop.abort(); };
+                const relay = () => fail(Object.assign(new Error('Stopped'), { name: 'AbortError' }));
+                if (signal?.aborted) relay(); else signal?.addEventListener('abort', relay, { once: true });
+                const onBytes = count => { received += count; onProgress?.(received, total); };
+                const place = (piece, at) => { let offset = at; for (const part of piece.parts) { out.set(part, offset); offset += part.byteLength; } piece.parts = null; };
+                const downloadRest = async () => {
+                    const ranges = []; for (let at = firstLength; at < total; at += CHUNK_BYTES) ranges.push([at, Math.min(at + CHUNK_BYTES, total) - 1]);
+                    let cursor = 0;
+                    const worker = async () => {
+                        while (cursor < ranges.length && !stop.signal.aborted) {
+                            const [from, to] = ranges[cursor++];
+                            const piece = await chunkPool.run(() => fetchRangeRetry(streamUrl, from, to, { signal: stop.signal, onBytes }));
+                            if (piece.bytes !== to - from + 1) throw new Error('A piece of the file arrived incomplete');
+                            place(piece, from);
+                        }
+                    };
+                    await Promise.all(Array.from({ length: Math.min(PIECES_PER_FILE, ranges.length) }, () => worker().catch(fail)));
+                };
+                const onHeaders = info => {
+                    if (info.status === 200) { total = info.length; onProgress?.(received, total); return; } // no Range support: this one answer is the whole file
+                    if (launched) return; launched = true;
+                    const match = /bytes\s+(\d+)-(\d+)\/(\d+)/i.exec(info.contentRange);
+                    if (!match || match[1] !== '0' || !Number(match[3])) return fail(new Error('The server did not say how big the file is'));
+                    total = Number(match[3]); firstLength = Number(match[2]) + 1;
+                    try { out = new Uint8Array(total); } catch { return fail(new Error(`Not enough memory for a ${fmtBytes(total)} file`)); }
+                    onProgress?.(received, total);
+                    launch = downloadRest().catch(fail);
+                };
+                try {
+                    let first = null;
+                    try { first = await chunkPool.run(() => fetchRangeRetry(streamUrl, 0, CHUNK_BYTES - 1, { signal: stop.signal, onBytes, onHeaders })); }
+                    catch (error) { fail(error); }
+                    await launch;
+                    if (failure) throw failure;
+                    if (first.status === 200) { // whole file in one answer
+                        const whole = new Uint8Array(first.bytes); let offset = 0;
+                        for (const part of first.parts) { whole.set(part, offset); offset += part.byteLength; }
+                        return whole;
+                    }
+                    if (first.bytes !== firstLength) throw new Error('The first piece of the file arrived incomplete');
+                    place(first, 0);
+                    return out;
+                } finally { signal?.removeEventListener('abort', relay); }
             }
 
-            // ── per-job DOM helpers ──────────────────────────────────────
+            // ── per-job DOM helpers ──────────────────────────────────────────
             function setStatus(el, html)  { el.querySelector('.yt-job-status').innerHTML = html; }
             function setBar(el, pct)      { el.querySelector('.yt-job-bar-fill').style.width = (pct * 100).toFixed(1) + '%'; }
+            const PERMANENT = /unavailable|private|removed|copyright|age.restrict|not available|members|no compatible/i;
 
-            // ── process one video ────────────────────────────────────────
+            // Songwriter credits: asked in the background while the file downloads (the resolver tries the YouTube description,
+            // MusicBrainz, Genius and any backups from credits-providers.json). Never blocks or fails a download.
+            function lookupCredits(videoId, info) {
+                return LudusCore.resolver.request('credits', { v: videoId, artist: info.author || '', title: info.title || '', duration: Number(info.duration) || 0 }, { timeout: 25000 })
+                    .then(r => r.json()).then(d => ({ writers: Array.isArray(d.writers) ? d.writers.map(n => String(n).slice(0, 80)).slice(0, 12) : [], source: d.source || '' }))
+                    .catch(() => ({ writers: [], source: '' }));
+            }
+            const tagValue = value => String(value || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 300);
+
+            // ── process one video ────────────────────────────────────────────
             async function processOne(jobEl, videoId, outputFormat, wantedQuality, wantedLanguage, languageName) {
-                setStatus(jobEl, 'Fetching info…');
+                const wantVideo = outputFormat === 'mp4';
+                let info, vid, aud, missed, credits = null, vidData, audData, lastError;
 
-                let info;
-                try { info = await getInfo(videoId); }
-                catch (e) {
-                    setStatus(jobEl, `<span class="yt-err">✗ ${e.message}</span>`);
-                    jobEl.classList.add('error'); return;
-                }
+                for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt++) {
+                    try {
+                        setStatus(jobEl, attempt === 1 ? 'Finding the stream…' : `Trying again (${attempt} of ${DOWNLOAD_ATTEMPTS})…`);
+                        setBar(jobEl, 0.02);
+                        info = await getInfo(videoId);
+                        jobEl.querySelector('.yt-job-title').textContent = info.title || videoId;
+                        if (!credits) credits = lookupCredits(videoId, info); // once, in parallel with the download
+                        ({ vid, aud, missed } = pickStreams(info.adaptiveFormats, wantedQuality, wantedLanguage));
+                        if (!aud || (wantVideo && !vid)) throw Object.assign(new Error('No compatible MP4 streams found'), { permanent: true });
 
-                const title = (info.title || videoId).replace(/[/\\?%*:|"<>]/g, '_');
-                jobEl.querySelector('.yt-job-title').textContent = info.title || videoId;
-
-                const { vid, aud, missed } = pickStreams(info.adaptiveFormats, wantedQuality, wantedLanguage);
-                if (!aud || (outputFormat === 'mp4' && !vid)) {
-                    setStatus(jobEl, '<span class="yt-err">✗ No compatible MP4 streams found</span>');
-                    jobEl.classList.add('error'); return;
-                }
-
-                // Download video stream only when making MP4.
-                let vidData;
-                if (outputFormat === 'mp4') try {
-                    vidData = await fetchBuf(vid.url, p => {
-                        setBar(jobEl, p * 0.44);
-                        setStatus(jobEl, `Downloading video (${vid.qualityLabel||'?'}) — ${(p*100).toFixed(0)}%`);
-                    });
-                } catch(e) {
-                    setStatus(jobEl, `<span class="yt-err">✗ Video fetch: ${e.message}</span>`);
-                    jobEl.classList.add('error'); return;
-                }
-
-                // Download audio stream
-                let audData;
-                try {
-                    audData = await fetchBuf(aud.url, p => {
-                        setBar(jobEl, outputFormat === 'mp4' ? 0.44 + p * 0.44 : p * 0.82);
-                        setStatus(jobEl, `Downloading audio — ${(p*100).toFixed(0)}%`);
-                    });
-                } catch(e) {
-                    setStatus(jobEl, `<span class="yt-err">✗ Audio fetch: ${e.message}</span>`);
-                    jobEl.classList.add('error'); return;
-                }
-
-                // Load ffmpeg (first call downloads ~30 MB, cached after)
-                setStatus(jobEl, 'Loading ffmpeg…'); setBar(jobEl, 0.89);
-                let ff;
-                try { ff = await loadFFmpeg(); }
-                catch(e) {
-                    setStatus(jobEl, `<span class="yt-err">✗ ffmpeg load failed: ${e.message}</span>`);
-                    jobEl.classList.add('error'); return;
-                }
-
-                // Mux
-                setStatus(jobEl, 'Muxing…'); setBar(jobEl, 0.93);
-                try {
-                    await ff.writeFile('a.mp4', audData);
-                    const outputFile = outputFormat === 'mp3' ? 'out.mp3' : 'out.mp4';
-                    if (outputFormat === 'mp3') {
-                        await ff.exec(['-i', 'a.mp4', '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', outputFile]);
-                    } else {
-                        await ff.writeFile('v.mp4', vidData);
-                        await ff.exec(['-i','v.mp4','-i','a.mp4','-c','copy','-movflags','+faststart',outputFile]);
+                        // video and audio download at the same time; one progress figure covers both
+                        const got = { v: 0, a: 0 }, size = { v: 0, a: 0 }, started = performance.now(); let lastPaint = 0;
+                        const paint = () => {
+                            const now = performance.now(); if (now - lastPaint < 200) return; lastPaint = now;
+                            const have = got.v + got.a, known = (wantVideo ? size.v : 1) && size.a, want = size.v + size.a;
+                            const speed = have / Math.max(.5, (now - started) / 1000);
+                            setBar(jobEl, 0.02 + 0.86 * (known && want ? Math.min(1, have / want) : 0));
+                            setStatus(jobEl, `Downloading${wantVideo ? ` (${vid.qualityLabel || 'video'} + audio)` : ' audio'}${known && want ? ` · ${fmtBytes(have)} of ${fmtBytes(want)}` : ''} · ${fmtBytes(speed)}/s`);
+                        };
+                        const part = key => (loaded, total) => { got[key] = loaded; if (total) size[key] = total; paint(); };
+                        [vidData, audData] = await Promise.all([
+                            wantVideo ? downloadChunked(vid.url, { onProgress: part('v') }) : null,
+                            downloadChunked(aud.url, { onProgress: part('a') }),
+                        ]);
+                        lastError = null; break;
+                    } catch (error) {
+                        lastError = error; vidData = audData = null;
+                        if (error?.permanent || PERMANENT.test(String(error?.message)) || attempt === DOWNLOAD_ATTEMPTS) break;
+                        setStatus(jobEl, `${escHtml(/failed to fetch|networkerror|load failed/i.test(String(error?.message)) ? 'Could not reach the server' : String(error?.message || 'Download problem').slice(0, 90))}. Retrying in ${attempt * 3}s…`);
+                        await dlSleep(attempt * 3000);
                     }
-                    const out = await ff.readFile(outputFile);
-                    await Promise.allSettled(['v.mp4', 'a.mp4', outputFile].map(name => ff.deleteFile(name)));
+                }
+                if (lastError || !audData) {
+                    setStatus(jobEl, `<span class="yt-err">✕ ${escHtml(String(lastError?.message || 'Download failed').slice(0, 140))}</span>`);
+                    jobEl.classList.add('error'); return;
+                }
 
-                    const blob = new Blob([out.buffer], { type: outputFormat === 'mp3' ? 'audio/mpeg' : 'video/mp4' });
-                    const a = Object.assign(document.createElement('a'), {
-                        href: URL.createObjectURL(blob),
-                        download: title + `.${outputFormat}`
+                // Mux: one file at a time (ffmpeg is single-threaded) — but the next files keep downloading meanwhile.
+                setStatus(jobEl, 'Waiting to convert…'); setBar(jobEl, 0.9);
+                try {
+                    await muxPool.run(async () => {
+                        setStatus(jobEl, 'Loading ffmpeg…');
+                        const ff = await loadFFmpeg(); // first use downloads ~30 MB, cached after
+                        setStatus(jobEl, outputFormat === 'mp3' ? 'Converting to MP3…' : 'Muxing…'); setBar(jobEl, 0.94);
+                        const found = await Promise.race([credits, _sleep(8000).then(() => ({ writers: [], source: '' }))]);
+                        const title = (info.title || videoId).replace(/[/\\?%*:|"<>]/g, '_');
+                        const tags = ['-metadata', `title=${tagValue(info.title)}`];
+                        if (info.author) tags.push('-metadata', `artist=${tagValue(info.author)}`);
+                        if (found.writers.length) tags.push('-metadata', `composer=${tagValue(found.writers.join(', '))}`, '-metadata', `comment=${tagValue('Written by ' + found.writers.join(', '))}`);
+                        try {
+                            await ff.writeFile('a.mp4', audData);
+                            const outputFile = outputFormat === 'mp3' ? 'out.mp3' : 'out.mp4';
+                            if (outputFormat === 'mp3') {
+                                await ff.exec(['-i', 'a.mp4', '-vn', '-c:a', 'libmp3lame', '-b:a', '192k', '-id3v2_version', '3', ...tags, outputFile]);
+                            } else {
+                                await ff.writeFile('v.mp4', vidData);
+                                await ff.exec(['-i', 'v.mp4', '-i', 'a.mp4', '-c', 'copy', ...tags, '-movflags', '+faststart', outputFile]);
+                            }
+                            const out = await ff.readFile(outputFile);
+                            const blob = new Blob([out.buffer], { type: outputFormat === 'mp3' ? 'audio/mpeg' : 'video/mp4' });
+                            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: title + `.${outputFormat}` });
+                            a.click();
+                            setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+                            setBar(jobEl, 1);
+                            setStatus(jobEl, '<span class="yt-done">✓ Done</span>'
+                                + (found.writers.length ? ` <span style="color:var(--text-tertiary)">· Written by ${escHtml(found.writers.join(', '))}${found.source ? ` (${escHtml(found.source)})` : ''}</span>` : '')
+                                + (missed ? ` <span style="color:var(--text-tertiary)">· ${escHtml(languageName)} audio isn’t available for this video, used the original audio</span>` : ''));
+                            jobEl.classList.add('done');
+                        } finally { await Promise.allSettled(['v.mp4', 'a.mp4', 'out.mp4', 'out.mp3'].map(name => ff.deleteFile(name))); }
                     });
-                    a.click();
-                    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-
-                    setBar(jobEl, 1); setStatus(jobEl, '<span class="yt-done">✓ Done</span>' + (missed ? ` <span style="color:var(--text-tertiary)">· ${languageName} audio isn’t available for this video, used the original audio</span>` : ''));
-                    jobEl.classList.add('done');
-                } catch(e) {
-                    setStatus(jobEl, `<span class="yt-err">✗ Mux failed: ${e.message}</span>`);
+                } catch (e) {
+                    setStatus(jobEl, `<span class="yt-err">✕ ${/ffmpeg|load/i.test(String(e?.message)) && !/Mux/.test(String(e?.message)) ? 'ffmpeg load failed' : 'Mux failed'}: ${escHtml(e.message)}</span>`);
                     jobEl.classList.add('error');
                 }
+                vidData = audData = null; // let the memory go
             }
+
+            // ── queue: up to two files download at once, the mux step is serial, retries share it ──
+            const ytQueue = [];
+            const ytRetryAllBtn = document.getElementById('yt-retry-all');
+            const ytJobActions  = document.getElementById('yt-job-actions');
+
+            // Settings are read when a conversion is queued, so a retry uses whatever is selected now
+            // (change the quality or language first if that was why it failed).
+            function ytReadSettings() {
+                const langSelect = document.getElementById('yt-language');
+                return {
+                    outputFormat: document.getElementById('yt-output-format').value,
+                    wantedQuality: document.getElementById('yt-quality').value,
+                    wantedLanguage: langSelect.value,
+                    languageName: langSelect.selectedOptions[0].textContent,
+                };
+            }
+            const ytFailedJobs = () => [...ytJobList.querySelectorAll('.yt-job.error[data-vid]')].filter(el => !el.dataset.queued);
+            function ytUpdateRetryAll() {
+                const failed = ytFailedJobs().length;
+                ytJobActions.hidden = failed === 0;
+                ytRetryAllBtn.textContent = `Retry all failed (${failed})`;
+            }
+            function ytAddRetryButton(jobEl) {
+                if (jobEl.querySelector('.yt-job-retry')) return;
+                const button = document.createElement('button');
+                button.type = 'button'; button.className = 'yt-job-retry'; button.textContent = '↻ Retry';
+                button.title = 'Try this download again';
+                button.onclick = () => ytEnqueue([jobEl]);
+                jobEl.querySelector('.yt-job-head').appendChild(button);
+            }
+            function ytEnqueue(jobEls) {
+                const settings = ytReadSettings();
+                for (const jobEl of jobEls) {
+                    if (jobEl.dataset.queued || !jobEl.dataset.vid) continue;
+                    jobEl.classList.remove('error', 'done');
+                    jobEl.querySelector('.yt-job-retry')?.remove();
+                    setBar(jobEl, 0);
+                    setStatus(jobEl, 'Queued');
+                    jobEl.querySelector('.yt-job-status').style.color = 'var(--text-tertiary)';
+                    jobEl.dataset.queued = '1';
+                    ytQueue.push({ jobEl, settings });
+                }
+                ytUpdateRetryAll();
+                ytPump();
+            }
+            let ytActive = 0, ytBusyTimer = 0;
+            // Tell the page around this app that downloads are running, so it never puts the app to sleep (and loses them).
+            const ytReportBusy = () => { try { if (parent !== window) parent.postMessage({ source: 'files', downloads: ytActive + ytQueue.length }, location.origin); } catch { /* standalone */ } };
+            function ytPump() {
+                ytConvertBtn.disabled = true;
+                if (!ytBusyTimer) { ytBusyTimer = setInterval(() => { ytReportBusy(); if (!ytActive && !ytQueue.length) { clearInterval(ytBusyTimer); ytBusyTimer = 0; } }, 1000); ytReportBusy(); }
+                while (ytActive < YT_DOWNLOADS_AT_ONCE && ytQueue.length) {
+                    ytActive++;
+                    (async () => {
+                        try {
+                            const { jobEl, settings } = ytQueue.shift();
+                            delete jobEl.dataset.queued;
+                            jobEl.querySelector('.yt-job-status').style.color = '';
+                            await processOne(jobEl, jobEl.dataset.vid, settings.outputFormat, settings.wantedQuality, settings.wantedLanguage, settings.languageName);
+                            if (jobEl.classList.contains('error')) ytAddRetryButton(jobEl);
+                        } catch (error) { console.error('[yt-mp4]', error); }
+                        finally {
+                            ytActive--; ytUpdateRetryAll();
+                            if (ytQueue.length) ytPump(); else if (!ytActive) ytConvertBtn.disabled = false;
+                        }
+                    })();
+                }
+            }
+            ytRetryAllBtn.onclick = () => ytEnqueue(ytFailedJobs());
 
             // ── main entry ───────────────────────────────────────────────
             window.ytStartConvert = async function () {
                 const raw   = document.getElementById('yt-url-input').value;
-                const outputFormat = document.getElementById('yt-output-format').value;
-                const wantedQuality = document.getElementById('yt-quality').value;
-                const langSelect = document.getElementById('yt-language');
-                const wantedLanguage = langSelect.value;
-                const languageName = langSelect.selectedOptions[0].textContent;
                 const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
                 if (!lines.length) return;
 
-                ytConvertBtn.disabled = true;
-                ytJobList.innerHTML   = '';
-
+                ytJobList.innerHTML = '';
+                ytQueue.length = 0;
                 const jobs = lines.map(url => ({ url, id: extractId(url) }));
 
                 // Render all job rows first
@@ -4557,27 +4734,29 @@
                     if (!id) {
                         el.classList.add('error');
                         el.innerHTML = `
-                            <div class="yt-job-title">${url}</div>
+                            <div class="yt-job-head"><div class="yt-job-title">${url}</div></div>
                             <div class="yt-job-status"><span class="yt-err">✗ Invalid YouTube URL</span></div>
                             <div class="yt-job-bar"><div class="yt-job-bar-fill"></div></div>`;
                     } else {
                         el.dataset.vid = id;
                         el.innerHTML = `
-                            <div class="yt-job-title">${id}</div>
+                            <div class="yt-job-head"><div class="yt-job-title">${id}</div></div>
                             <div class="yt-job-status" style="color:var(--text-tertiary)">Queued</div>
                             <div class="yt-job-bar"><div class="yt-job-bar-fill"></div></div>`;
                     }
                     ytJobList.appendChild(el);
                 }
 
-                // Process sequentially (ffmpeg is single-threaded)
+                // Process sequentially through the shared queue; failed items get a Retry button
+                // and "Retry all failed" appears above the list.
+                const seen = new Set();
+                const toRun = [];
                 for (const { id } of jobs) {
-                    if (!id) continue;
-                    const jobEl = ytJobList.querySelector(`[data-vid="${id}"]`);
-                    await processOne(jobEl, id, outputFormat, wantedQuality, wantedLanguage, languageName);
+                    if (!id || seen.has(id)) continue;
+                    seen.add(id);
+                    toRun.push(ytJobList.querySelector(`[data-vid="${id}"]`));
                 }
-
-                ytConvertBtn.disabled = false;
+                ytEnqueue(toRun);
             };
         })();
 
@@ -4774,7 +4953,7 @@
             setResolverStatus('pending', 'Connecting to server…');
 
             try {
-                const resp = await resolverFetch(`${RESOLVER_BASE}/quizlet?url=${encodeURIComponent(url)}`);
+                const resp = await LudusCore.resolver.request('quizlet', { url }, { timeout: 45000 });
                 const data = await resp.json();
                 if (!resp.ok) {
                     // Surface the FlareSolverr hint if Cloudflare blocked

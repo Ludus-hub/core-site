@@ -1,7 +1,7 @@
 // 1. Import Firebase from the web (CDN)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, onSnapshot, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getDatabase, ref as databaseRef, set, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
 // 2. Firebase configuration
@@ -20,6 +20,136 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const realtimeDb = getDatabase(app);
+
+// A browser profile keeps the same identifier across tabs, while a different
+// browser or browser profile gets a different one. Firestore stores the lock,
+// which keeps this feature on Firebase's no-cost plan.
+const PREMIUM_BROWSER_ID_KEY = "ludus_premium_browser_id";
+const PREMIUM_HEARTBEAT_MS = 30000;
+const PREMIUM_SESSION_LEASE_MS = 90 * 1000;
+let premiumHeartbeatTimer = null;
+let premiumSessionUid = null;
+let premiumHeartbeatFailures = 0;
+
+const getPremiumBrowserId = () => {
+    let browserId = localStorage.getItem(PREMIUM_BROWSER_ID_KEY);
+    if (!browserId) {
+        browserId = crypto.randomUUID();
+        localStorage.setItem(PREMIUM_BROWSER_ID_KEY, browserId);
+    }
+    return browserId;
+};
+
+const stopPremiumHeartbeat = () => {
+    if (premiumHeartbeatTimer) clearInterval(premiumHeartbeatTimer);
+    premiumHeartbeatTimer = null;
+};
+
+const clearPremiumAccess = () => {
+    sessionStorage.removeItem("mathmaster_session_unlocked");
+    localStorage.setItem("mathmaster_premium", "false");
+};
+
+const premiumSessionRef = (uid) => doc(db, "premiumSessions", uid);
+
+const releasePremiumSession = async () => {
+    stopPremiumHeartbeat();
+    const user = auth.currentUser;
+    if (!user || premiumSessionUid !== user.uid) {
+        premiumSessionUid = null;
+        return;
+    }
+
+    premiumSessionUid = null;
+    try {
+        const browserId = getPremiumBrowserId();
+        await runTransaction(db, async (transaction) => {
+            const sessionRef = premiumSessionRef(user.uid);
+            const current = (await transaction.get(sessionRef)).data();
+            if (current?.browserId === browserId) transaction.delete(sessionRef);
+        });
+    } catch (error) {
+        // The Firestore lease expires quickly even if the browser closes
+        // before this request can finish.
+        console.warn("Could not release the premium session immediately:", error.code || error.message);
+    }
+};
+
+const denyPremiumSignIn = async (message) => {
+    stopPremiumHeartbeat();
+    premiumSessionUid = null;
+    clearPremiumAccess();
+    await signOut(auth);
+    alert(message || "This Premium account is already active in another browser. Sign out there before using it here.");
+};
+
+const sendPremiumHeartbeat = async () => {
+    const user = auth.currentUser;
+    if (!user || premiumSessionUid !== user.uid) return;
+
+    try {
+        const browserId = getPremiumBrowserId();
+        const result = await runTransaction(db, async (transaction) => {
+            const sessionRef = premiumSessionRef(user.uid);
+            const current = (await transaction.get(sessionRef)).data();
+            if (!current || current.browserId !== browserId) {
+                return { allowed: false, message: "This Premium session is now active in another browser." };
+            }
+            const expiresAtMs = Date.now() + PREMIUM_SESSION_LEASE_MS;
+            transaction.update(sessionRef, { lastSeenAt: serverTimestamp(), expiresAtMs });
+            return { allowed: true, expiresAtMs };
+        });
+        premiumHeartbeatFailures = 0;
+        if (result.allowed !== true) await denyPremiumSignIn(result.message);
+    } catch (error) {
+        // A brief network drop or Firestore hiccup should not sign someone out. Only give up on a real
+        // rejection (rules/permissions) or after several failed checks in a row; the 90 second lease keeps going.
+        const transient = ["unavailable", "deadline-exceeded", "aborted", "resource-exhausted", "cancelled"].includes(error?.code)
+            || navigator.onLine === false;
+        premiumHeartbeatFailures += 1;
+        console.warn("Premium heartbeat failed:", error?.code || error?.message);
+        if (transient && premiumHeartbeatFailures < 3) return;
+        await denyPremiumSignIn("We could not verify your Premium session. Please sign in again.");
+    }
+};
+
+const startPremiumHeartbeat = (uid) => {
+    premiumSessionUid = uid;
+    stopPremiumHeartbeat();
+    premiumHeartbeatTimer = setInterval(sendPremiumHeartbeat, PREMIUM_HEARTBEAT_MS);
+};
+
+const claimPremiumSession = async (user) => {
+    const browserId = getPremiumBrowserId();
+    const result = await runTransaction(db, async (transaction) => {
+        const sessionRef = premiumSessionRef(user.uid);
+        const current = (await transaction.get(sessionRef)).data();
+        const now = Date.now();
+        const isHeldByAnotherBrowser = current
+            && current.browserId !== browserId
+            && Number(current.expiresAtMs) > now;
+
+        if (isHeldByAnotherBrowser) {
+            return {
+                allowed: false,
+                message: "This Premium account is already active in another browser. Sign out there before using it here."
+            };
+        }
+
+        const expiresAtMs = now + PREMIUM_SESSION_LEASE_MS;
+        transaction.set(sessionRef, {
+            browserId,
+            createdAt: current?.createdAt || serverTimestamp(),
+            lastSeenAt: serverTimestamp(),
+            expiresAtMs
+        }, { merge: true });
+        return { allowed: true, expiresAtMs };
+    });
+    if (result.allowed !== true) return result;
+
+    startPremiumHeartbeat(user.uid);
+    return result;
+};
 
 // 4. UI Elements
 let isLoginMode = true;
@@ -54,8 +184,8 @@ if (authActionBtn) {
 
         if (isLoginMode) {
             signInWithEmailAndPassword(auth, email, password)
-                .then(async (userCredential) => {
-                    await window.LudusDialog.alert("Successfully logged in!", { title: 'Signed in' });
+                .then((userCredential) => {
+                    alert("Successfully logged in!");
                     document.getElementById('authModal').style.display = 'none';
                 })
                 .catch((error) => {
@@ -65,8 +195,8 @@ if (authActionBtn) {
                 });
         } else {
             createUserWithEmailAndPassword(auth, email, password)
-                .then(async (userCredential) => {
-                    await window.LudusDialog.alert("Account created successfully!", { title: 'Account created' });
+                .then((userCredential) => {
+                    alert("Account created successfully!");
                     document.getElementById('authModal').style.display = 'none';
                 })
                 .catch((error) => {
@@ -97,12 +227,51 @@ window.signInWithGoogle = async () => {
 // their progress (and custom games in GlassExplorerDB) never reached the cloud.
 const CLOUD_OVERWRITE_KEY = "ludus_cloud_overwrite_enabled";
 const CLOUD_FORMAT_VERSION = 2;
-const CLOUD_DB_EXCLUSIONS = ["firebase", "firestore"];
+// Ludus Music downloads (audio/video blobs) and the linked backup-folder handle stay on this device only.
+// Base64-encoding them is what made cloud saves and backup exports huge.
+const CLOUD_DB_EXCLUSIONS = ["firebase", "firestore", "ludus-music-offline", "ludus-music-handles", "ludus-save-handles"];
+const isExcludedDb = (name) => !name || CLOUD_DB_EXCLUSIONS.some(prefix => name.toLowerCase().startsWith(prefix));
 // Realtime Database allows SDK writes below 16 MiB. The check leaves room for
 // the metadata and JSON envelope around the base64-encoded compressed backup.
 const RTDB_MAX_BACKUP_BASE64_BYTES = 15 * 1024 * 1024;
 const RTDB_BASE64_CHUNK_SIZE = 500000;
 const CLOUD_LOAD_MARKER_PREFIX = "ludus_cloud_loaded_";
+// These identify the current browser or hold short-lived account permissions.
+// They must never travel inside a cloud save to another browser.
+const CLOUD_LOCAL_EXCLUDED_KEYS = new Set([
+    PREMIUM_BROWSER_ID_KEY,
+    "mathmaster_premium",
+    "mathmaster_dev",
+    "mathmaster_device_id",
+    "mathmaster_registered_devices",
+    // Per-browser bookkeeping for the linked local save folder, not progress.
+    "ludus_local_save_synced_at",
+    // The music server address is kept in the app's code, not in saves.
+    "ludus_music_resolver_url",
+    // Which server a browser is using (and any personal servers added in Music) is a per-browser runtime choice.
+    // Restoring another browser's value could point this one at a dead tunnel, so it never travels in a save.
+    "ludus_active_resolver",
+    "ludus_music_custom_resolver"
+]);
+
+// Download bookkeeping (which songs are saved offline, their lyrics) must match the blobs on this
+// device, so it is never backed up or restored either.
+const CLOUD_LOCAL_EXCLUDED_PREFIXES = ["ludus_music_offline_"];
+const isDeviceOnlyKey = (key) => CLOUD_LOCAL_EXCLUDED_KEYS.has(key)
+    || CLOUD_LOCAL_EXCLUDED_PREFIXES.some(prefix => key.startsWith(prefix));
+const captureDeviceOnlyState = () => {
+    const state = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key !== null && isDeviceOnlyKey(key)) state[key] = localStorage.getItem(key);
+    }
+    return state;
+};
+
+const shouldSyncLocalKey = (key) => key
+    && !isDeviceOnlyKey(key)
+    && !key.startsWith(CLOUD_LOAD_MARKER_PREFIX)
+    && !key.startsWith("firebase:");
 
 // This is deliberately a new key: many game wrappers were changing the old
 // mathmaster_cloud_overwrite key inside their iframe. New accounts now start on.
@@ -111,11 +280,11 @@ if (localStorage.getItem(CLOUD_OVERWRITE_KEY) === null) {
 }
 window.isCloudOverwriteEnabled = () => localStorage.getItem(CLOUD_OVERWRITE_KEY) !== "false";
 
-const storageToObject = (storage) => {
+const storageToObject = (storage, includeKey = () => true) => {
     const output = {};
     for (let i = 0; i < storage.length; i++) {
         const key = storage.key(i);
-        if (key !== null) output[key] = storage.getItem(key);
+        if (key !== null && includeKey(key)) output[key] = storage.getItem(key);
     }
     return output;
 };
@@ -224,19 +393,36 @@ const transactionDone = (transaction) => new Promise((resolve, reject) => {
     transaction.onabort = transaction.onerror = () => reject(transaction.error || new Error("IndexedDB transaction failed"));
 });
 
+const INDEXED_DB_READ_TIMEOUT_MS = 30000;
+
 async function exportAllIndexedDB() {
     if (!indexedDB.databases) return { databases: {}, note: "IndexedDB enumeration is not supported by this browser." };
     const result = { databases: {} };
-    const databases = await indexedDB.databases();
+    let databases;
+    try {
+        databases = await indexedDB.databases();
+    } catch (error) {
+        console.warn("Could not enumerate IndexedDB databases:", error);
+        return { databases: {}, note: "IndexedDB databases could not be enumerated." };
+    }
 
     for (const info of databases) {
-        if (!info.name || CLOUD_DB_EXCLUSIONS.some(prefix => info.name.toLowerCase().startsWith(prefix))) continue;
+        if (isExcludedDb(info.name)) continue;
+        let db;
         try {
-            const db = await requestResult(indexedDB.open(info.name));
+            db = await requestResult(indexedDB.open(info.name));
             const backup = { version: db.version, stores: {} };
             for (const storeName of Array.from(db.objectStoreNames)) {
                 const tx = db.transaction(storeName, "readonly");
                 const store = tx.objectStore(storeName);
+                // Attach the completion listener before awaiting the reads.
+                // A small store can finish between getAll() resolving and a
+                // later transactionDone(tx) call, leaving an export stuck
+                // waiting for an event that has already happened.
+                const done = transactionDone(tx);
+                // If a timed-out read aborts this transaction, its rejection is
+                // already handled by the database-level recovery path below.
+                done.catch(() => {});
                 // Read schema details while the transaction is still active.
                 // Accessing store.index() after awaiting transaction completion
                 // caused every IndexedDB backup to fail with InvalidStateError.
@@ -249,8 +435,18 @@ async function exportAllIndexedDB() {
                     }),
                     entries: []
                 };
-                const [keys, values] = await Promise.all([requestResult(store.getAllKeys()), requestResult(store.getAll())]);
-                await transactionDone(tx);
+                const read = Promise.all([requestResult(store.getAllKeys()), requestResult(store.getAll())]);
+                let timeoutId;
+                // Do not leave the Export button waiting forever on a broken or
+                // permanently blocked database transaction. Abort only this
+                // store and continue backing up every other database.
+                const timeout = new Promise((_, reject) => { timeoutId = setTimeout(() => {
+                    try { tx.abort(); } catch (_) {}
+                    reject(new Error(`Timed out reading ${info.name}/${storeName}`));
+                }, INDEXED_DB_READ_TIMEOUT_MS); });
+                const [keys, values] = await Promise.race([read, timeout]);
+                clearTimeout(timeoutId);
+                await done;
                 const entries = [];
                 for (let i = 0; i < values.length; i++) {
                     try {
@@ -262,10 +458,11 @@ async function exportAllIndexedDB() {
                 storeBackup.entries = entries;
                 backup.stores[storeName] = storeBackup;
             }
-            db.close();
             result.databases[info.name] = backup;
         } catch (error) {
             console.warn(`Could not back up IndexedDB database ${info.name}:`, error);
+        } finally {
+            db?.close();
         }
     }
     return result;
@@ -292,20 +489,24 @@ async function openDatabaseForRestore(name, backup) {
     });
 }
 
-async function importAllIndexedDB(idbData) {
+async function importAllIndexedDB(idbData, { replaceExisting = true } = {}) {
     for (const [name, backup] of Object.entries(idbData?.databases || {})) {
+        if (isExcludedDb(name)) continue; // never let an old cloud save wipe local downloads
         try {
             const db = await openDatabaseForRestore(name, backup);
             for (const [storeName, storeInfo] of Object.entries(backup.stores || {})) {
                 if (!db.objectStoreNames.contains(storeName)) continue;
                 const tx = db.transaction(storeName, "readwrite");
                 const store = tx.objectStore(storeName);
-                store.clear();
+                const done = transactionDone(tx);
+                // A scoped import is a merge: records in the backup replace
+                // matching records, while records that only exist locally stay.
+                if (replaceExisting) store.clear();
                 for (const entry of storeInfo.entries || []) {
                     const value = decodeSaveValue(entry.value);
                     store.keyPath === null ? store.put(value, decodeSaveValue(entry.key)) : store.put(value);
                 }
-                await transactionDone(tx);
+                await done;
             }
             db.close();
         } catch (error) {
@@ -314,39 +515,162 @@ async function importAllIndexedDB(idbData) {
     }
 }
 
-window.createLudusBackup = async (includeSession = true) => ({
-    meta: {
-        format: "ludus-browser-backup",
-        date: new Date().toISOString(),
-        version: CLOUD_FORMAT_VERSION
-    },
-    storage: {
-        local: storageToObject(localStorage),
-        // A few older games keep progress in first-party cookies rather than
-        // Web Storage. Include them so they follow the user too.
-        cookies: document.cookie,
-        ...(includeSession ? { session: storageToObject(sessionStorage) } : {})
-    },
-    indexedDB: await exportAllIndexedDB()
-});
+window.createLudusBackup = async (includeSession = true, { includeIndexedDB = true } = {}) => {
+    const backup = {
+        meta: {
+            format: "ludus-browser-backup",
+            date: new Date().toISOString(),
+            version: CLOUD_FORMAT_VERSION
+        },
+        storage: {
+            local: storageToObject(localStorage, shouldSyncLocalKey),
+            // A few older games keep progress in first-party cookies rather
+            // than Web Storage. Include them so they follow the user too.
+            cookies: document.cookie,
+            ...(includeSession ? { session: storageToObject(sessionStorage) } : {})
+        }
+    };
+    // Scoped browser exports do not need to enumerate every IndexedDB database.
+    // This keeps Calculator and Movies exports immediate even if a game DB is busy.
+    if (includeIndexedDB) backup.indexedDB = await exportAllIndexedDB();
+    return backup;
+};
 
 window.restoreLudusBackup = async (backup, includeSession = true, replaceExisting = false) => {
     if (!backup?.storage?.local) throw new Error("Invalid backup format");
+    const currentBrowserState = captureDeviceOnlyState();
     if (replaceExisting) {
         localStorage.clear();
         if (includeSession) sessionStorage.clear();
     }
-    Object.entries(backup.storage.local).forEach(([key, value]) => localStorage.setItem(key, value));
+    Object.entries(backup.storage.local).forEach(([key, value]) => {
+        if (shouldSyncLocalKey(key)) localStorage.setItem(key, value);
+    });
+    Object.entries(currentBrowserState).forEach(([key, value]) => localStorage.setItem(key, value));
     restoreCookies(backup.storage.cookies, replaceExisting);
     if (includeSession && backup.storage.session) {
         Object.entries(backup.storage.session).forEach(([key, value]) => sessionStorage.setItem(key, value));
     }
-    await importAllIndexedDB(backup.indexedDB);
+    await importAllIndexedDB(backup.indexedDB, { replaceExisting });
 };
 
-// script.js may have a backup waiting in sessionStorage after a Google Sites
-// reload. Let it finish the IndexedDB portion now that these helpers exist.
-window.dispatchEvent(new Event('ludus:backup-tools-ready'));
+// --- LOCAL FOLDER SAVE SYNC ---
+// A linked folder is a private, account-free counterpart to cloud saving.  The
+// handle itself is intentionally kept in its own IndexedDB database: browsers
+// do not let file-system handles travel between origins or through JSON.
+const LOCAL_SAVE_HANDLE_DB = "ludus-save-handles";
+const LOCAL_SAVE_HANDLE_STORE = "handles";
+const LOCAL_SAVE_FILE = "ludus-browser-save.json";
+const LOCAL_SAVE_SYNC_MARKER = "ludus_local_save_synced_at";
+let localSaveHandle = null;
+
+function localSaveHandleDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(LOCAL_SAVE_HANDLE_DB, 1);
+        request.onupgradeneeded = () => {
+            if (!request.result.objectStoreNames.contains(LOCAL_SAVE_HANDLE_STORE)) {
+                request.result.createObjectStore(LOCAL_SAVE_HANDLE_STORE);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Could not open local save storage"));
+    });
+}
+
+async function rememberLocalSaveHandle(handle) {
+    const db = await localSaveHandleDb();
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction(LOCAL_SAVE_HANDLE_STORE, "readwrite");
+        tx.objectStore(LOCAL_SAVE_HANDLE_STORE).put(handle, "save-folder");
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = tx.onabort = () => { db.close(); reject(tx.error || new Error("Could not remember local save folder")); };
+    });
+}
+
+async function restoreLocalSaveHandle() {
+    try {
+        const db = await localSaveHandleDb();
+        return await new Promise(resolve => {
+            const request = db.transaction(LOCAL_SAVE_HANDLE_STORE).objectStore(LOCAL_SAVE_HANDLE_STORE).get("save-folder");
+            request.onsuccess = () => { db.close(); resolve(request.result || null); };
+            request.onerror = () => { db.close(); resolve(null); };
+        });
+    } catch { return null; }
+}
+
+async function localSaveFolderAccess(handle, mode = "readwrite") {
+    if (!handle) return false;
+    const options = { mode };
+    if ((await handle.queryPermission(options)) === "granted") return true;
+    return (await handle.requestPermission(options)) === "granted";
+}
+
+async function writeLocalSaveFile(handle, backup) {
+    const fileHandle = await handle.getFileHandle(LOCAL_SAVE_FILE, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(backup));
+    await writable.close();
+}
+
+async function readLocalSaveFile(handle) {
+    try {
+        const file = await (await handle.getFileHandle(LOCAL_SAVE_FILE)).getFile();
+        const backup = JSON.parse(await file.text());
+        return backup?.meta?.format === "ludus-browser-backup" ? backup : null;
+    } catch (error) {
+        if (error?.name === "NotFoundError") return null;
+        throw new Error("The local save file could not be read");
+    }
+}
+
+function updateLocalSaveButton(message) {
+    const note = document.getElementById("localSaveStatus");
+    if (note) note.textContent = message || (localSaveHandle ? `Local folder: ${localSaveHandle.name}` : "No local save folder linked");
+}
+
+window.syncDataLocally = async () => {
+    if (typeof window.showDirectoryPicker !== "function" || !window.isSecureContext) {
+        alert("Local folder sync needs a current Chromium-based browser on an HTTPS page. JSON export/import is still available everywhere.");
+        return;
+    }
+    try {
+        if (!localSaveHandle) localSaveHandle = await restoreLocalSaveHandle();
+        if (!localSaveHandle || !(await localSaveFolderAccess(localSaveHandle))) {
+            localSaveHandle = await window.showDirectoryPicker({ id: "ludus-saves", mode: "readwrite" });
+            if (!(await localSaveFolderAccess(localSaveHandle))) throw new Error("Folder permission was not granted");
+            await rememberLocalSaveHandle(localSaveHandle);
+        }
+
+        updateLocalSaveButton("Syncing local save…");
+        const folderBackup = await readLocalSaveFile(localSaveHandle);
+        const lastSynced = Date.parse(localStorage.getItem(LOCAL_SAVE_SYNC_MARKER) || "") || 0;
+        const folderDate = Date.parse(folderBackup?.meta?.date || "") || 0;
+
+        // On a newly opened address, a newer folder is restored. On an address
+        // that has already synced, changes made since its last sync are written
+        // back to the folder. This makes the same folder useful across domains
+        // without requiring a sign-in.
+        if (folderBackup && (!lastSynced || folderDate > lastSynced)) {
+            await window.restoreLudusBackup(folderBackup, false, true);
+            localStorage.setItem(LOCAL_SAVE_SYNC_MARKER, folderBackup.meta.date);
+            updateLocalSaveButton(`Loaded local save from ${localSaveHandle.name}`);
+            alert("Local save loaded. Reload the page to let every app use the restored progress.");
+        } else {
+            const backup = await window.createLudusBackup(false);
+            await writeLocalSaveFile(localSaveHandle, backup);
+            localStorage.setItem(LOCAL_SAVE_SYNC_MARKER, backup.meta.date);
+            updateLocalSaveButton(`Saved locally to ${localSaveHandle.name}`);
+        }
+    } catch (error) {
+        if (error?.name !== "AbortError") {
+            console.warn("Local save sync failed:", error);
+            updateLocalSaveButton("Local save sync failed");
+            alert(error?.message || "Could not sync local saves.");
+        }
+    }
+};
+
+restoreLocalSaveHandle().then(handle => { localSaveHandle = handle; updateLocalSaveButton(); });
 
 async function makeCloudBackupFile(backup) {
     const json = JSON.stringify(backup);
@@ -402,19 +726,58 @@ async function readRealtimeDatabaseBackup(record) {
     return readCloudBackupFile(new Blob([bytes], { type: "application/octet-stream" }), record.compression);
 }
 
+// --- AUTOSAVE POLICY ---
+// A cloud save reads every IndexedDB store, JSON-encodes, gzips and base64-encodes it, all on the page's main
+// thread. Doing that every minute and on every tab switch, whether or not anything changed, competes with the
+// music/video iframes for memory. Automatic saves therefore only run when something actually changed:
+//   - a synced localStorage key changed (ludus_music_playback ticks every few seconds, so it is ignored),
+//   - a game is open (games write to IndexedDB), or
+//   - 10 minutes passed since the last full save (safety net for other IndexedDB changes).
+// Manual saves and the save made when leaving a game always run. A backup that was too large is not retried
+// automatically for 30 minutes, and periodic saves wait while the heap is under pressure.
+const AUTOSAVE_VOLATILE_KEYS = new Set(["ludus_music_playback"]);
+const AUTOSAVE_SAFETY_MS = 10 * 60 * 1000;
+const AUTOSAVE_TOO_LARGE_PAUSE_MS = 30 * 60 * 1000;
+const autoSaveState = { fingerprint: "", fullAt: 0, pausedUntil: 0, running: false };
+const localSaveFingerprint = () => {
+    let hash = 5381, count = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!shouldSyncLocalKey(key) || AUTOSAVE_VOLATILE_KEYS.has(key)) continue;
+        const value = localStorage.getItem(key) || "";
+        count++;
+        for (let c = 0; c < key.length; c++) hash = ((hash << 5) + hash + key.charCodeAt(c)) | 0;
+        for (let c = 0; c < value.length; c++) hash = ((hash << 5) + hash + value.charCodeAt(c)) | 0;
+    }
+    return `${count}:${hash}`;
+};
+const gameIsOpen = () => {
+    const src = document.getElementById("gameFrame")?.getAttribute("src") || "";
+    return Boolean(src) && !src.includes("about:blank");
+};
+const autoSaveWorthRunning = (fingerprint, periodic) => {
+    const now = Date.now();
+    if (autoSaveState.running || now < autoSaveState.pausedUntil) return false;
+    if (periodic && window.LudusCore?.memory.high()) return false;
+    return fingerprint !== autoSaveState.fingerprint || gameIsOpen() || now - autoSaveState.fullAt > AUTOSAVE_SAFETY_MS;
+};
+
 // --- CLOUD SYNC FUNCTIONS ---
-window.saveDataToCloud = async (silent = false) => {
+window.saveDataToCloud = async (silent = false, { auto = false, periodic = false } = {}) => {
     const user = auth.currentUser;
     if (!user) return; 
 
     const allowOverwrite = window.isCloudOverwriteEnabled();
     
     if (!allowOverwrite) {
-        if (!silent) await window.LudusDialog.alert("Cloud saves are paused. Enable 'Allow Cloud Overwrite' in Settings.", { title: 'Cloud saves paused' });
+        if (!silent) alert("Cloud saves are paused. Enable 'Allow Cloud Overwrite' in Settings.");
         else console.log("Autosave skipped: Cloud Overwrite is disabled in settings.");
         return;
     }
 
+    const fingerprint = localSaveFingerprint();
+    if (auto && !autoSaveWorthRunning(fingerprint, periodic)) return;
+    autoSaveState.running = true;
     try {
         const backup = await window.createLudusBackup(false);
         const cloudBackup = await makeRealtimeDatabaseBackup(backup);
@@ -422,16 +785,21 @@ window.saveDataToCloud = async (silent = false) => {
         // Unlike Firestore, Realtime Database supports SDK write requests up
         // to 16 MiB, so this avoids Firestore's 1 MiB document limit.
         await set(databaseRef(realtimeDb, `users/${user.uid}/backup`), cloudBackup);
-        if (!silent) await window.LudusDialog.alert("Progress saved to cloud!", { title: 'Cloud save complete' });
+        autoSaveState.fingerprint = fingerprint;
+        autoSaveState.fullAt = Date.now();
+        if (!silent) alert("Progress forcibly saved to cloud!");
         console.log(`Cloud save successful (Realtime Database, ${cloudBackup.compression} backup).`);
     } catch (error) {
         console.error("Error saving to cloud:", error);
-        if (!silent) await window.LudusDialog.error(`Cloud save failed: ${error.message || "check Realtime Database rules and try again."}`, { title: 'Cloud save failed' });
+        if (/too large/i.test(error?.message || "")) autoSaveState.pausedUntil = Date.now() + AUTOSAVE_TOO_LARGE_PAUSE_MS;
+        if (!silent) alert(`Cloud save failed: ${error.message || "check Realtime Database rules and try again."}`);
+    } finally {
+        autoSaveState.running = false;
     }
 };
 
 const triggerAutoSave = () => {
-    if (auth.currentUser) window.saveDataToCloud(true);
+    if (auth.currentUser) window.saveDataToCloud(true, { auto: true });
 };
 
 window.addEventListener("beforeunload", triggerAutoSave);
@@ -441,10 +809,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 setInterval(() => {
-    if (auth.currentUser) {
-        console.log("Autosaving progress...");
-        window.saveDataToCloud(true); 
-    }
+    if (auth.currentUser) window.saveDataToCloud(true, { auto: true, periodic: true });
 }, 1 * 60 * 1000); 
 
 window.loadDataFromCloud = async (uid, fullLoad = false) => {
@@ -456,6 +821,14 @@ window.loadDataFromCloud = async (uid, fullLoad = false) => {
         const backupText = await readRealtimeDatabaseBackup(snapshot.val());
         await window.restoreLudusBackup(JSON.parse(backupText), false, true);
         if (typeof window.renderGamesGrid === "function") window.renderGamesGrid();
+        // Tell Ludus Music (which may already be open in an iframe, or open later this session) that account data
+        // just arrived, so it can offer to load downloads from the backup folder saved with the account.
+        sessionStorage.setItem("ludus_cloud_restored_at", String(Date.now()));
+        try {
+            const channel = new BroadcastChannel("ludus-cloud");
+            channel.postMessage({ type: "restored" });
+            channel.close();
+        } catch (_) { /* BroadcastChannel unavailable: Music checks the session flag when it opens */ }
         console.log("All localStorage and IndexedDB game saves restored from Realtime Database.");
         return true;
     } catch (error) {
@@ -467,8 +840,12 @@ window.loadDataFromCloud = async (uid, fullLoad = false) => {
         const docSnap = await getDoc(doc(db, "users", uid));
         const legacyLocal = docSnap.data()?.storage?.local;
         if (legacyLocal) {
+            const currentBrowserState = captureDeviceOnlyState();
             localStorage.clear();
-            Object.entries(legacyLocal).forEach(([key, value]) => localStorage.setItem(key, value));
+            Object.entries(legacyLocal).forEach(([key, value]) => {
+                if (shouldSyncLocalKey(key)) localStorage.setItem(key, value);
+            });
+            Object.entries(currentBrowserState).forEach(([key, value]) => localStorage.setItem(key, value));
             if (typeof window.renderGamesGrid === "function") window.renderGamesGrid();
             console.log("Legacy Firestore cloud data restored.");
             return true;
@@ -479,39 +856,35 @@ window.loadDataFromCloud = async (uid, fullLoad = false) => {
     return false;
 };
 
-window.manualCloudLoad = async () => {
+window.manualCloudLoad = () => {
     const user = auth.currentUser;
     if (!user) {
-        await window.LudusDialog.alert("You must be signed in to load cloud data.", { title: 'Sign-in required' });
+        alert("You must be signed in to load cloud data.");
         return;
     }
     
-    const approved = await window.LudusDialog.confirm("This will overwrite your current local saves with your cloud data. Continue?", {
-        title: 'Load cloud save', confirmLabel: 'Load'
-    });
-    if (approved) {
-        const loaded = await window.loadDataFromCloud(user.uid, true);
-        if (loaded && typeof window.refreshLoadedContentAfterSaveImport === 'function') {
-            await window.refreshLoadedContentAfterSaveImport();
-        }
-        await window.LudusDialog.alert(loaded ? "Save data successfully loaded from the cloud!" : "No cloud save was found.", { title: 'Cloud save' });
+    if (confirm("This will overwrite your current local saves with your cloud data. Continue?")) {
+        window.loadDataFromCloud(user.uid, true).then((loaded) => {
+            alert(loaded ? "Save data successfully loaded from the cloud!" : "No cloud save was found.");
+        });
     }
 };
 
 window.logoutUser = async () => {
+    await releasePremiumSession();
     try {
         await signOut(auth);
         sessionStorage.removeItem("mathmaster_session_unlocked");
         sessionStorage.removeItem("mathmaster_dev_unlocked");
+        sessionStorage.removeItem("ludus_cloud_restored_at");
+        sessionStorage.removeItem("ludus_music_folder_prompt_declined");
         localStorage.removeItem("mathmaster_premium");
         localStorage.removeItem("mathmaster_dev");
-        // Auth state listener updates the profile and gated UI. Reloading the
-        // outer document here would reload Google Sites rather than this app.
-        if (typeof window.renderGamesGrid === 'function') window.renderGamesGrid();
-        await window.LudusDialog.alert("Logged out successfully.", { title: 'Signed out' });
+        alert("Logged out successfully.");
+        window.location.reload();
     } catch (error) {
-        console.error('Could not sign out:', error);
-        await window.LudusDialog.error('Could not sign out. Please try again.', { title: 'Sign-out failed' });
+        console.error("Could not sign out:", error);
+        alert("Could not sign out. Please try again.");
     }
 };
 
@@ -527,19 +900,17 @@ onAuthStateChanged(auth, (user) => {
         console.log("User logged in:", user.email);
 
         // Developer access is granted only after the signed-in user's profile is
-        // checked below. Clear any previous tab's value while that check runs.
+        // checked below. Clear any prior account's access while that check runs.
         sessionStorage.removeItem("mathmaster_dev_unlocked");
         localStorage.setItem("mathmaster_dev", "false");
+        clearPremiumAccess();
         
         const isExplicitLogin = sessionStorage.getItem("explicit_login") === "true";
         const cloudLoadMarker = `${CLOUD_LOAD_MARKER_PREFIX}${user.uid}`;
         // Auth persistence can sign a user into a second approved domain
         // without a fresh, explicit login. Restore once per browser session
         // there as well, so account data follows the user between domains.
-        // A manually imported save must win over the remote backup. It will be
-        // restored after this module loads, then the page can resume normally.
-        const hasPendingLocalRestore = sessionStorage.getItem('ludus_pending_restore') !== null;
-        const shouldLoadCloud = !hasPendingLocalRestore && (isExplicitLogin || sessionStorage.getItem(cloudLoadMarker) !== "true");
+        const shouldLoadCloud = isExplicitLogin || sessionStorage.getItem(cloudLoadMarker) !== "true";
         if (shouldLoadCloud) {
             window.loadDataFromCloud(user.uid, true).then((loaded) => {
                 if (loaded) sessionStorage.setItem(cloudLoadMarker, "true");
@@ -552,22 +923,12 @@ onAuthStateChanged(auth, (user) => {
         
         if (liveSyncListener) liveSyncListener();
         
-        liveSyncListener = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+        liveSyncListener = onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 
-                // Set Premium Status for Secret Games & Apps
-                if (data.isPremium === true) {
-                    sessionStorage.setItem("mathmaster_session_unlocked", "true"); 
-                    localStorage.setItem("mathmaster_premium", "true");
-                } else {
-                    sessionStorage.removeItem("mathmaster_session_unlocked");
-                    localStorage.setItem("mathmaster_premium", "false");
-                }
-
-                // Keep every developer surface on the same, auth-derived flag.
-                // The code app reads the session flag; the dock uses the local
-                // flag for its existing UI state.
+                // Developers keep Premium access but are intentionally exempt
+                // from the one-browser Premium lease for testing across browsers.
                 const isDeveloper = data.isDev === true;
                 if (isDeveloper) {
                     localStorage.setItem("mathmaster_dev", "true");
@@ -576,14 +937,45 @@ onAuthStateChanged(auth, (user) => {
                     localStorage.setItem("mathmaster_dev", "false");
                     sessionStorage.removeItem("mathmaster_dev_unlocked");
                 }
-                
+
+                // Set Premium Status for Secret Games & Apps
+                if (data.isPremium === true && isDeveloper) {
+                    stopPremiumHeartbeat();
+                    premiumSessionUid = null;
+                    sessionStorage.setItem("mathmaster_session_unlocked", "true");
+                    localStorage.setItem("mathmaster_premium", "true");
+                } else if (data.isPremium === true) {
+                    try {
+                        const session = await claimPremiumSession(user);
+                        // A sign-out or account change could have happened while
+                        // the server checked the one-browser lock.
+                        if (auth.currentUser?.uid !== user.uid) return;
+
+                        if (session.allowed === true) {
+                            sessionStorage.setItem("mathmaster_session_unlocked", "true");
+                            localStorage.setItem("mathmaster_premium", "true");
+                        } else {
+                            await denyPremiumSignIn(session.message);
+                            return;
+                        }
+                    } catch (error) {
+                        console.warn("Premium session verification failed:", error.code || error.message);
+                        await denyPremiumSignIn("We could not start your Premium session. Please try again.");
+                        return;
+                    }
+                } else {
+                    await releasePremiumSession();
+                    clearPremiumAccess();
+                }
+
                 // Immediately refresh UI components to reflect changes
                 if (typeof window.checkDevAndPremiumUI === "function") window.checkDevAndPremiumUI();
                 if (typeof window.renderGamesGrid === "function") window.renderGamesGrid();
             } else {
-                // A signed-in account without a profile has no developer role.
+                // A signed-in account without a profile has no paid roles.
                 localStorage.setItem("mathmaster_dev", "false");
                 sessionStorage.removeItem("mathmaster_dev_unlocked");
+                clearPremiumAccess();
                 if (typeof window.checkDevAndPremiumUI === "function") window.checkDevAndPremiumUI();
             }
         }, (error) => console.warn("Firestore profile sync is unavailable:", error.code));
@@ -597,6 +989,8 @@ onAuthStateChanged(auth, (user) => {
 
     } else {
         console.log("No user is logged in.");
+        stopPremiumHeartbeat();
+        premiumSessionUid = null;
         
         if (liveSyncListener) {
             liveSyncListener();

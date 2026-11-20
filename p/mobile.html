@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"/>
+<meta name="theme-color" content="#08080A"/>
+<title>Ludus Proxy</title>
+<!--
+  LUDUS PROXY - MOBILE
+  A separate file from p/index.html (the desktop proxy). Same engine (Scramjet + the shared proxy servers), the same bookmarks,
+  history and settings (ludus_bm / ludus_hist / ludus_cfg / ludus_sc), and the same restriction (YouTube is sent to the
+  dedicated YouTube app), but built for phones: one-handed bottom bar, a tab switcher, large touch targets, bottom sheets and no
+  hover or right-click anywhere.
+-->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#08080A; --panel:#14161c; --panel2:#1c1f27; --line:rgba(255,255,255,.12);
+  --accent:rgb(0,174,255); --accent2:#92fe9d; --text:#fff; --text2:#d1d1d6; --muted:rgba(255,255,255,.5); --danger:#ff6b6b;
+  --bar:58px; --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font:16px -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+input,select{font:inherit;color:inherit}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+#app{position:fixed;inset:0;display:flex;flex-direction:column;height:100dvh;padding-top:var(--sat)}
+#progress{position:absolute;left:0;top:var(--sat);height:3px;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));z-index:20;transition:width .3s,opacity .3s;opacity:0}
+#progress.loading{width:70%;opacity:1;transition:width 8s cubic-bezier(.1,.8,.2,1)}
+#progress.done{width:100%;opacity:0}
+#stage{position:relative;flex:1;min-height:0;background:#fff}
+.tab-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
+.tab-frame.active{display:block}
+.ntp{position:absolute;inset:0;display:none;overflow:auto;background:radial-gradient(120% 80% at 50% 0%,#12202c 0%,var(--bg) 60%);padding:36px 18px 24px;-webkit-overflow-scrolling:touch}
+.ntp.active{display:block}
+.ntp h1{font-size:30px;font-weight:800;text-align:center;letter-spacing:-.5px;margin-top:6vh}
+.ntp h1 span{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ntp-search{display:flex;align-items:center;gap:10px;width:100%;max-width:520px;margin:22px auto 26px;padding:0 16px;height:50px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);text-align:left}
+.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px;max-width:520px;margin:0 auto}
+.sc{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
+.sc-ico{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font-size:22px;font-weight:800;background:var(--panel2);border:1px solid var(--line)}
+.sc-name{font-size:12px;color:var(--text2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-x{position:absolute;top:-6px;right:calc(50% - 38px);width:24px;height:24px;border-radius:50%;background:var(--danger);color:#fff;display:none;place-items:center;font-size:15px;font-weight:800;line-height:1}
+.editing .sc-x{display:grid}
+.ntp-edit{display:block;margin:22px auto 0;padding:10px 18px;color:var(--muted);font-size:14px}
+
+#bar{display:flex;align-items:center;gap:4px;height:calc(var(--bar) + var(--sab));padding:6px 8px var(--sab);background:rgba(20,22,28,.97);border-top:1px solid var(--line);position:relative;z-index:30}
+.ib{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--text2);position:relative}
+.ib:active{background:rgba(255,255,255,.1)}
+.ib:disabled{opacity:.28}
+#addr{flex:1;min-width:0;height:44px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 14px;text-align:left}
+#addr svg{width:16px;height:16px;color:var(--muted)}
+#addr.secure svg{color:var(--accent2)}
+#addr-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+#addr-text.ph{color:var(--muted)}
+#tabcount{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:800;pointer-events:none}
+.tabbox{width:22px;height:22px;border:2px solid currentColor;border-radius:7px}
+
+.sheet{position:fixed;inset:0;z-index:60;display:none}
+.sheet.open{display:block}
+.sheet .back{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.sheet .box{position:absolute;left:0;right:0;bottom:0;max-height:86dvh;display:flex;flex-direction:column;background:var(--panel);border-radius:22px 22px 0 0;border:1px solid var(--line);border-bottom:0;padding-bottom:var(--sab);animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.sheet .grab{width:42px;height:5px;border-radius:9px;background:rgba(255,255,255,.25);margin:9px auto 4px;flex:none}
+.sheet h2{font-size:18px;font-weight:800;padding:8px 18px 10px;flex:none;display:flex;align-items:center;justify-content:space-between}
+.sheet .body{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 8px 12px}
+.row{display:flex;align-items:center;gap:14px;width:100%;min-height:54px;padding:8px 12px;border-radius:14px;text-align:left}
+.row:active{background:rgba(255,255,255,.08)}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .t small{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.row.danger{color:var(--danger)}
+.empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:14px}
+.pill.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#06121a;font-weight:800;border:0}
+.actions{display:flex;gap:10px;padding:8px 14px 14px;flex-wrap:wrap}
+
+#s-search .box{top:0;bottom:0;max-height:none;border-radius:0;border:0;animation:none;padding-top:var(--sat)}
+.sbar{display:flex;align-items:center;gap:8px;padding:10px 10px 8px;flex:none}
+#q{flex:1;min-width:0;height:48px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);padding:0 18px;font-size:16px;outline:none;user-select:text;-webkit-user-select:text}
+#q:focus{border-color:var(--accent)}
+#s-search .cancel{padding:0 10px;color:var(--accent);font-weight:700}
+
+.tcard{display:flex;align-items:center;gap:12px;padding:12px;margin:6px 4px;border-radius:16px;background:var(--panel2);border:1px solid var(--line)}
+.tcard.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.tcard .t{flex:1;min-width:0}
+.tcard .x{width:42px;height:42px;display:grid;place-items:center;color:var(--muted)}
+.ava{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:var(--panel);border:1px solid var(--line);flex:none;text-transform:uppercase}
+
+.field{padding:6px 12px 10px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin:0 0 6px 2px}
+.field input[type=text],.field input[type=url],.field select{width:100%;height:46px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);padding:0 14px;outline:none;user-select:text;-webkit-user-select:text}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;min-height:54px}
+.switch input{width:48px;height:28px;appearance:none;-webkit-appearance:none;border-radius:99px;background:rgba(255,255,255,.18);position:relative;flex:none;outline:none}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(20px)}
+
+#toast{position:fixed;left:50%;bottom:calc(var(--bar) + var(--sab) + 16px);transform:translateX(-50%);z-index:80;background:#222631;border:1px solid var(--line);color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;max-width:calc(100vw - 32px);display:none;text-align:center}
+#toast.on{display:block}
+#popup{position:fixed;inset:0;z-index:90;display:none;place-items:center;padding:20px;background:rgba(0,0,0,.72)}
+#popup.open{display:grid}
+#popup .card{width:min(420px,100%);padding:24px;border-radius:20px;background:var(--panel);border:1px solid var(--line);text-align:center}
+#popup p{color:var(--text2);margin:10px 0 18px;font-size:15px;line-height:1.4;word-break:break-word}
+#popup .actions{justify-content:center;padding:0}
+#init-screen{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+#init-screen.gone{display:none}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="progress"></div>
+  <main id="stage"></main>
+  <nav id="bar" aria-label="Browser controls">
+    <button class="ib" id="btn-back" aria-label="Back" disabled><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="ib" id="btn-fwd" aria-label="Forward" disabled><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button id="addr" aria-label="Search or enter address"><svg id="addr-ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><span id="addr-text" class="ph">Search or type a URL</span></button>
+    <button class="ib" id="btn-tabs" aria-label="Tabs"><span class="tabbox"></span><span id="tabcount">1</span></button>
+    <button class="ib" id="btn-menu" aria-label="Menu"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+  </nav>
+</div>
+
+<!-- search / address sheet -->
+<div class="sheet" id="s-search"><div class="box">
+  <div class="sbar"><input id="q" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Search or type a URL"/><button class="cancel" id="q-cancel">Cancel</button></div>
+  <div class="body" id="q-list"></div>
+</div></div>
+
+<!-- tabs -->
+<div class="sheet" id="s-tabs"><div class="back" data-close></div><div class="box">
+  <div class="grab"></div><h2><span id="tabs-title">Tabs</span><button class="pill primary" id="tabs-new">+ New tab</button></h2>
+  <div class="body" id="tabs-list"></div>
+  <div class="actions"><button class="pill" id="tabs-closeall">Close all tabs</button></div>
+</div></div>
+
+<!-- menu -->
+<div class="sheet" id="s-menu"><div class="back" data-close></div><div class="box">
+  <div class="grab"></div>
+  <div class="body" id="menu-list"></div>
+</div></div>
+
+<!-- bookmarks / history -->
+<div class="sheet" id="s-bm"><div class="back" data-close></div><div class="box"><div class="grab"></div><h2>Bookmarks</h2><div class="body" id="bm-list"></div></div></div>
+<div class="sheet" id="s-hist"><div class="back" data-close></div><div class="box"><div class="grab"></div><h2><span>History</span><button class="pill" id="hist-clear">Clear</button></h2><div class="body" id="hist-list"></div></div></div>
+
+<!-- settings -->
+<div class="sheet" id="s-set"><div class="back" data-close></div><div class="box"><div class="grab"></div><h2>Settings</h2>
+  <div class="body">
+    <div class="field"><label for="set-engine">Search engine</label><select id="set-engine"><option value="ddg">DuckDuckGo</option><option value="google">Google</option><option value="bing">Bing</option><option value="brave">Brave</option><option value="startpage">Startpage</option></select></div>
+    <div class="field"><label for="set-home">Home page (empty = new tab page)</label><input id="set-home" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://"/></div>
+    <label class="switch"><span>Save history</span><input id="set-hist" type="checkbox"/></label>
+    <label class="switch"><span>Reopen my tabs next time</span><input id="set-restore" type="checkbox"/></label>
+    <div class="actions"><button class="pill danger" id="set-clear-hist">Clear history</button><button class="pill danger" id="set-clear-bm">Clear bookmarks</button></div>
+  </div>
+</div></div>
+
+<!-- add shortcut -->
+<div class="sheet" id="s-sc"><div class="back" data-close></div><div class="box"><div class="grab"></div><h2>Add shortcut</h2>
+  <div class="field"><label for="sc-name">Name</label><input id="sc-name" type="text" autocomplete="off" placeholder="e.g. Wikipedia"/></div>
+  <div class="field"><label for="sc-url">Address</label><input id="sc-url" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="e.g. wikipedia.org"/></div>
+  <div class="actions"><button class="pill primary" id="sc-save">Save</button></div>
+</div></div>
+
+<div id="toast" role="status"></div>
+<div id="popup"><div class="card"><div style="font-size:30px">&#8599;</div><h2 style="font-size:19px;margin-top:8px">Open in a new tab?</h2><p>A page wants to open <b id="popup-host"></b> in a new tab.</p><div class="actions"><button class="pill" id="popup-no">Cancel</button><button class="pill primary" id="popup-yes">Open</button></div></div></div>
+<div id="init-screen"><div class="spin"></div><div id="init-msg" style="font-size:15px;color:var(--text2)">Starting Ludus Proxy...</div><div id="init-actions" class="actions" style="display:none"></div></div>
+
+<script src="/ludus-servers.js"></script>
+<script src="/p/scram/scramjet.all.js"></script>
+<script>
+"use strict";
+/* ============ helpers ============ */
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const read = (key, fallback) => { try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; } catch (e) { return fallback; } };
+const write = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} };
+let toastTimer = 0;
+function toast(text, ms) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), ms || 2200); }
+
+/* ============ settings (same keys as the desktop proxy) ============ */
+const SEARCH_ENGINES = {
+  ddg:       q => "https://duckduckgo.com/?q=" + encodeURIComponent(q),
+  google:    q => "https://www.google.com/search?q=" + encodeURIComponent(q),
+  bing:      q => "https://www.bing.com/search?q=" + encodeURIComponent(q),
+  brave:     q => "https://search.brave.com/search?q=" + encodeURIComponent(q),
+  startpage: q => "https://www.startpage.com/search?q=" + encodeURIComponent(q),
+};
+const CFG = Object.assign({ engine: "ddg", homepage: "", histEnabled: true, histMax: 500, restoreTabs: true, prefix: "/scramjet/" }, read("ludus_cfg", {}));
+// Only the settings this page edits are written back, so the desktop proxy's other settings are never touched.
+function saveSettings() {
+  const stored = read("ludus_cfg", {});
+  ["engine", "homepage", "histEnabled", "restoreTabs"].forEach(k => { stored[k] = CFG[k]; });
+  write("ludus_cfg", stored);
+}
+const searchUrl = q => (SEARCH_ENGINES[CFG.engine] || SEARCH_ENGINES.ddg)(q);
+let bookmarks = read("ludus_bm", []);
+let history = read("ludus_hist", []);
+let shortcuts = read("ludus_sc", null);
+if (!Array.isArray(shortcuts)) {
+  shortcuts = [
+    { title: "DuckDuckGo", url: "https://duckduckgo.com" }, { title: "Reddit", url: "https://reddit.com" },
+    { title: "GitHub", url: "https://github.com" }, { title: "Wikipedia", url: "https://wikipedia.org" }, { title: "Discord", url: "https://discord.com" },
+  ];
+  write("ludus_sc", shortcuts);
+}
+const saveBm = () => write("ludus_bm", bookmarks);
+const saveHist = () => write("ludus_hist", history.slice(0, CFG.histMax));
+const saveSc = () => write("ludus_sc", shortcuts);
+
+function normaliseUrl(raw) {
+  raw = String(raw || "").trim();
+  if (!raw || raw === "about:blank") return null;
+  if (raw.startsWith("about:") || raw.startsWith("javascript:")) return null;
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw) && !/^https?:/i.test(raw)) return searchUrl(raw);
+  if (!/^https?:\/\//i.test(raw)) {
+    if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(raw)) raw = "https://" + raw; else return searchUrl(raw);
+  }
+  try { return new URL(raw).href; } catch (e) { return searchUrl(raw); }
+}
+const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return url || ""; } };
+const letterOf = (title, url) => (String(title || hostOf(url) || "?").trim()[0] || "?");
+
+/* ============ proxy engine ============ */
+let scramjet = null, scramjetReady = false;
+function decodeUrl(src) {
+  if (!src || src === "about:blank") return "";
+  try { return scramjet.decodeUrl(src) || ""; } catch (e) { return ""; }
+}
+
+/* ============ tabs ============ */
+let tabs = [], activeId = null, tabCounter = 0;
+const stage = $("stage");
+const getActive = () => tabs.find(t => t.id === activeId) || null;
+
+function buildNTP() {
+  const el = document.createElement("div"); el.className = "ntp";
+  el.innerHTML = '<h1><span>Ludus</span> Proxy</h1>' +
+    '<button class="ntp-search" type="button"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><span>Search or type a URL</span></button>' +
+    '<div class="sc-grid"></div><button class="ntp-edit" type="button"></button>';
+  el.querySelector(".ntp-search").onclick = openSearch;
+  el.querySelector(".ntp-edit").onclick = () => { el.classList.toggle("editing"); renderNtp(el); };
+  renderNtp(el);
+  return el;
+}
+function renderNtp(el) {
+  const grid = el.querySelector(".sc-grid"), editing = el.classList.contains("editing");
+  grid.textContent = "";
+  shortcuts.forEach((s, i) => {
+    const tile = document.createElement("div"); tile.className = "sc";
+    const open = document.createElement("button"); open.type = "button"; open.className = "sc"; open.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;min-width:0";
+    open.innerHTML = '<span class="sc-ico">' + esc(letterOf(s.title, s.url).toUpperCase()) + '</span><span class="sc-name">' + esc(s.title) + '</span>';
+    open.onclick = () => { if (!el.classList.contains("editing")) navigate(s.url); };
+    const x = document.createElement("button"); x.type = "button"; x.className = "sc-x"; x.textContent = "\u00d7"; x.setAttribute("aria-label", "Remove " + s.title);
+    x.onclick = () => { shortcuts.splice(i, 1); saveSc(); refreshNtps(); };
+    tile.append(open, x); grid.appendChild(tile);
+  });
+  if (editing) {
+    const add = document.createElement("button"); add.type = "button"; add.className = "sc"; add.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:7px";
+    add.innerHTML = '<span class="sc-ico">+</span><span class="sc-name">Add</span>'; add.onclick = () => openSheet("s-sc");
+    grid.appendChild(add);
+  }
+  el.querySelector(".ntp-edit").textContent = editing ? "Done" : "Edit shortcuts";
+}
+function refreshNtps() { tabs.forEach(t => t.ntpEl && renderNtp(t.ntpEl)); }
+
+function createTab(url) {
+  const tab = { id: ++tabCounter, title: "New tab", url: "", frame: null, ntpEl: buildNTP(), loading: false };
+  stage.appendChild(tab.ntpEl); tabs.push(tab); activateTab(tab.id);
+  if (url && scramjetReady) setTimeout(() => navigate(url, false, tab), 20);
+  persistTabs();
+  return tab;
+}
+function attachFrame(tab) {
+  if (tab.frame) return;
+  const sf = scramjet.createFrame();
+  sf.frame.className = "tab-frame"; sf.frame.dataset.tabId = tab.id;
+  sf.frame.addEventListener("load", () => onFrameLoad(tab, sf.frame));
+  tab.frame = sf; stage.appendChild(sf.frame);
+}
+function showTab(tab) {
+  stage.querySelectorAll(".tab-frame,.ntp").forEach(el => el.classList.remove("active"));
+  (tab.url && tab.frame ? tab.frame.frame : tab.ntpEl).classList.add("active");
+}
+function activateTab(id) {
+  activeId = id; const tab = getActive(); if (!tab) return;
+  showTab(tab); updateChrome(); persistTabs();
+}
+function closeTab(id) {
+  const idx = tabs.findIndex(t => t.id === id); if (idx < 0) return;
+  const tab = tabs[idx]; tab.ntpEl && tab.ntpEl.remove(); tab.frame && tab.frame.frame.remove();
+  tabs.splice(idx, 1);
+  if (!tabs.length) { createTab(CFG.homepage || ""); return; }
+  if (activeId === id) activateTab(tabs[Math.min(idx, tabs.length - 1)].id); else updateChrome();
+  persistTabs();
+}
+function persistTabs() {
+  if (!CFG.restoreTabs) { try { localStorage.removeItem("ludus_m_tabs"); } catch (e) {} return; }
+  write("ludus_m_tabs", { tabs: tabs.map(t => ({ url: t.url, title: t.title })), active: tabs.findIndex(t => t.id === activeId) });
+}
+
+/* ============ navigation (with the same YouTube restriction as the desktop proxy) ============ */
+function navigate(raw, bypass, targetTab) {
+  const url = normaliseUrl(raw); if (!url || !scramjetReady) return;
+  const tab = targetTab || getActive(); if (!tab) return;
+  if (!bypass && (url.includes("youtube.com") || url.includes("youtu.be"))) {
+    const safe = esc(JSON.stringify(url));
+    const page = '<!DOCTYPE html><html style="background:#08080A;color:#fff;font-family:-apple-system,sans-serif;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1"><div style="padding:24px"><h1 style="margin-bottom:10px;font-size:24px;">YouTube is Restricted</h1>' +
+      '<p style="color:#d1d1d6;margin-bottom:24px;line-height:1.4">This page does not work well here. Please use the dedicated YouTube app in the Games section.</p>' +
+      '<button onclick="parent.postMessage({type:\'ludus:ytBypass\', url:' + safe + '}, \'*\')" style="padding:14px 24px;border-radius:99px;border:none;background:#00aeff;color:#000;font-weight:bold;font-size:16px;">Proceed Anyways</button></div></html>';
+    tab.url = url; tab.title = "Action Required";
+    if (!tab.frame) attachFrame(tab);
+    tab.frame.frame.src = "data:text/html;charset=utf-8," + encodeURIComponent(page);
+    if (tab.id === activeId) showTab(tab);
+    updateChrome(); persistTabs(); return;
+  }
+  tab.url = url; tab.loading = true;
+  tab.title = hostOf(url);
+  if (!tab.frame) attachFrame(tab);
+  if (tab.id === activeId) { showTab(tab); progress("loading"); }
+  tab.frame.go(url);
+  updateChrome(); persistTabs();
+}
+window.addEventListener("message", e => {
+  const d = e.data; if (!d || typeof d !== "object") return;
+  if (d.type === "ludus:ytBypass" && d.url && tabs.some(t => t.frame && t.frame.frame.contentWindow === e.source)) navigate(d.url, true);
+});
+
+function onFrameLoad(tab, iframe) {
+  tab.loading = false;
+  const src = iframe.src; if (!src || src === location.href || src === "about:blank" || src.startsWith("data:")) { if (tab.id === activeId) progress("done"); return; }
+  const real = decodeUrl(src);
+  if (real) {
+    tab.url = real;
+    try { const t = iframe.contentDocument && iframe.contentDocument.title; if (t) tab.title = t; } catch (e) {}
+    if (!tab.title || tab.title === "New tab") tab.title = hostOf(real);
+    recordHistory(real, tab.title);
+  }
+  hookFrame(iframe.contentWindow, tab);
+  if (tab.id === activeId) progress("done");
+  updateChrome(); persistTabs();
+}
+
+function recordHistory(url, title) {
+  if (!CFG.histEnabled || !url) return;
+  if (history.length && history[0].url === url) return;
+  history.unshift({ url, title: title || url, ts: Date.now() });
+  if (history.length > CFG.histMax) history = history.slice(0, CFG.histMax);
+  saveHist();
+}
+
+/* pop-ups and target=_blank become tabs (after a confirmation), and single-page-app navigation updates the address bar */
+let pendingPopup = "";
+function requestPopup(raw) {
+  if (!raw || raw === "about:blank") return;
+  let real = raw; try { real = scramjet.decodeUrl(raw) || raw; } catch (e) {}
+  pendingPopup = real; $("popup-host").textContent = hostOf(real) || "this site"; $("popup").classList.add("open");
+}
+$("popup-no").onclick = () => { pendingPopup = ""; $("popup").classList.remove("open"); };
+$("popup-yes").onclick = () => { const u = pendingPopup; pendingPopup = ""; $("popup").classList.remove("open"); if (u) createTab(u); };
+function hookFrame(fw, tab) {
+  if (!fw) return;
+  try {
+    fw.open = function (url, target) {
+      if (!url || url === "about:blank") return null;
+      let real = url; try { real = scramjet.decodeUrl(url) || url; } catch (e) {}
+      if (target && target !== "_blank" && target !== "_new" && target !== "") { navigate(real); return null; }
+      requestPopup(real); return null;
+    };
+    fw.document.addEventListener("click", e => {
+      const a = e.target.closest && e.target.closest("a"); if (!a) return;
+      const t = (a.getAttribute("target") || "").toLowerCase(); if (t !== "_blank" && t !== "_new") return;
+      const href = a.getAttribute("href"); if (!href || href.startsWith("javascript:") || href === "#") return;
+      e.preventDefault(); let real = href; try { real = scramjet.decodeUrl(a.href) || a.href || href; } catch (x) {}
+      requestPopup(real || href);
+    }, true);
+    const sync = () => {
+      try {
+        const raw = fw.location && fw.location.href || ""; const real = raw && raw !== "about:blank" ? decodeUrl(raw) : "";
+        if (real && real !== tab.url) { tab.url = real; if (tab.id === activeId) updateChrome(); persistTabs(); }
+      } catch (e) {}
+    };
+    fw.addEventListener("popstate", sync); fw.addEventListener("hashchange", sync);
+    try {
+      const push = fw.history.pushState.bind(fw.history), rep = fw.history.replaceState.bind(fw.history);
+      fw.history.pushState = function () { push.apply(null, arguments); setTimeout(sync, 0); };
+      fw.history.replaceState = function () { rep.apply(null, arguments); setTimeout(sync, 0); };
+    } catch (e) {}
+  } catch (e) {}
+}
+
+/* ============ chrome (address pill, buttons, progress) ============ */
+function progress(state) { const p = $("progress"); p.className = state; if (state === "done") setTimeout(() => { p.className = ""; }, 400); }
+function updateChrome() {
+  const tab = getActive(); $("tabcount").textContent = String(tabs.length);
+  const text = $("addr-text"), ico = $("addr-ico"), addr = $("addr");
+  if (tab && tab.url) {
+    text.textContent = hostOf(tab.url) + (tab.title && tab.title !== hostOf(tab.url) && tab.title !== "Action Required" ? "" : ""); text.className = "";
+    const https = tab.url.startsWith("https://"); addr.classList.toggle("secure", https);
+    ico.innerHTML = https ? '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>' : '<circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.5" r=".5"/>';
+  } else {
+    text.textContent = "Search or type a URL"; text.className = "ph"; addr.classList.remove("secure");
+    ico.innerHTML = '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/>';
+  }
+  let canBack = false;
+  try { canBack = !!(tab && tab.frame && tab.url && tab.frame.frame.contentWindow.history.length > 1); } catch (e) {}
+  $("btn-back").disabled = !canBack; $("btn-fwd").disabled = !(tab && tab.frame && tab.url);
+  document.title = (tab && tab.url ? tab.title : "New tab") + " - Ludus";
+}
+$("btn-back").onclick = () => { const t = getActive(); try { t.frame.frame.contentWindow.history.back(); } catch (e) {} setTimeout(updateChrome, 400); };
+$("btn-fwd").onclick = () => { const t = getActive(); try { t.frame.frame.contentWindow.history.forward(); } catch (e) {} setTimeout(updateChrome, 400); };
+
+/* ============ sheets ============ */
+const openSheets = new Set();
+function openSheet(id) { closeSheets(); $(id).classList.add("open"); openSheets.add(id); }
+function closeSheets() { openSheets.forEach(id => $(id).classList.remove("open")); openSheets.clear(); }
+document.querySelectorAll(".sheet [data-close]").forEach(el => { el.onclick = closeSheets; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheets(); });
+
+/* search sheet */
+function openSearch() {
+  openSheet("s-search"); const tab = getActive(), q = $("q");
+  q.value = tab && tab.url ? tab.url : ""; renderSuggestions(""); setTimeout(() => { q.focus(); q.select(); }, 60);
+}
+function renderSuggestions(text) {
+  const list = $("q-list"), needle = text.trim().toLowerCase(); list.textContent = "";
+  const row = (title, sub, go, mark) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "row";
+    b.innerHTML = '<span class="ava">' + esc(mark) + '</span><span class="t"><b>' + esc(title) + '</b><small>' + esc(sub) + '</small></span>';
+    b.onclick = () => { closeSheets(); navigate(go); }; list.appendChild(b);
+  };
+  if (needle) row(/^[\w-]+(\.[\w-]+)+(\/|$)|^https?:/i.test(text.trim()) ? "Go to " + text.trim() : "Search for \"" + text.trim() + "\"", "", text, ">");
+  const seen = new Set(), pool = [].concat(bookmarks.map(b => ({ t: b.title, u: b.url, k: "\u2605" })), shortcuts.map(s => ({ t: s.title, u: s.url, k: "\u2192" })), history.slice(0, 200).map(h => ({ t: h.title, u: h.url, k: "\u21BB" })));
+  let n = 0;
+  for (const item of pool) {
+    if (n >= 8) break; if (!item.u || seen.has(item.u)) continue;
+    if (needle && !(String(item.t).toLowerCase().includes(needle) || item.u.toLowerCase().includes(needle))) continue;
+    seen.add(item.u); n++; row(item.t || hostOf(item.u), item.u, item.u, item.k);
+  }
+  if (!needle && !n) list.innerHTML = '<div class="empty">Type a search or an address.</div>';
+}
+$("q").addEventListener("input", e => renderSuggestions(e.target.value));
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); const v = $("q").value; closeSheets(); navigate(v); } });
+$("q-cancel").onclick = closeSheets; $("addr").onclick = openSearch;
+
+/* tabs sheet */
+function renderTabsSheet() {
+  const list = $("tabs-list"); list.textContent = ""; $("tabs-title").textContent = tabs.length + (tabs.length === 1 ? " tab" : " tabs");
+  tabs.forEach(tab => {
+    const card = document.createElement("div"); card.className = "tcard" + (tab.id === activeId ? " active" : "");
+    const open = document.createElement("button"); open.type = "button"; open.style.cssText = "display:flex;align-items:center;gap:12px;flex:1;min-width:0;text-align:left";
+    open.innerHTML = '<span class="ava">' + esc(letterOf(tab.title, tab.url)) + '</span><span class="t"><b style="display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(tab.url ? tab.title : "New tab") + '</b><small style="display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(tab.url ? hostOf(tab.url) : "Start page") + '</small></span>';
+    open.onclick = () => { activateTab(tab.id); closeSheets(); };
+    const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.setAttribute("aria-label", "Close tab"); x.innerHTML = '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    x.onclick = () => { closeTab(tab.id); if (openSheets.has("s-tabs")) renderTabsSheet(); };
+    card.append(open, x); list.appendChild(card);
+  });
+}
+$("btn-tabs").onclick = () => { renderTabsSheet(); openSheet("s-tabs"); };
+$("tabs-new").onclick = () => { closeSheets(); createTab(CFG.homepage || ""); if (!CFG.homepage) setTimeout(openSearch, 80); };
+$("tabs-closeall").onclick = () => { [...tabs].forEach(t => { t.ntpEl && t.ntpEl.remove(); t.frame && t.frame.frame.remove(); }); tabs = []; closeSheets(); createTab(CFG.homepage || ""); };
+
+/* menu */
+function isBookmarked(url) { return bookmarks.some(b => b.url === url); }
+function openMenu() {
+  const tab = getActive(), hasUrl = !!(tab && tab.url), marked = hasUrl && isBookmarked(tab.url);
+  const items = [
+    ["New tab", () => { createTab(CFG.homepage || ""); if (!CFG.homepage) setTimeout(openSearch, 80); }, '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'],
+    [tab && tab.loading ? "Stop loading" : "Reload", () => { if (!hasUrl) return; if (tab.loading) { try { tab.frame.frame.contentWindow.stop(); } catch (e) {} tab.loading = false; progress("done"); } else { tab.loading = true; tab.frame.go(tab.url); progress("loading"); } }, '<polyline points="23 4 23 10 17 10"/><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/>'],
+    [marked ? "Remove bookmark" : "Bookmark this page", () => { if (!hasUrl) return toast("Open a page first"); if (marked) bookmarks = bookmarks.filter(b => b.url !== tab.url); else bookmarks.unshift({ title: tab.title || hostOf(tab.url), url: tab.url }); saveBm(); toast(marked ? "Bookmark removed" : "Bookmarked"); }, '<polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9"/>'],
+    ["Bookmarks", () => { renderBm(); openSheet("s-bm"); }, '<path d="M6 3h12v18l-6-4-6 4z"/>'],
+    ["History", () => { renderHist(); openSheet("s-hist"); }, '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'],
+    ["Copy link", () => { if (!hasUrl) return toast("Open a page first"); (navigator.clipboard ? navigator.clipboard.writeText(tab.url) : Promise.reject()).then(() => toast("Link copied"), () => toast("Could not copy")); }, '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'],
+  ];
+  if (navigator.share) items.push(["Share", () => { if (!hasUrl) return toast("Open a page first"); navigator.share({ title: tab.title, url: tab.url }).catch(() => {}); }, '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>']);
+  items.push(["Settings", () => { $("set-engine").value = CFG.engine; $("set-home").value = CFG.homepage || ""; $("set-hist").checked = !!CFG.histEnabled; $("set-restore").checked = !!CFG.restoreTabs; openSheet("s-set"); }, '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']);
+  const list = $("menu-list"); list.textContent = "";
+  items.forEach(([label, fn, icon]) => { const b = document.createElement("button"); b.type = "button"; b.className = "row"; b.innerHTML = '<svg viewBox="0 0 24 24">' + icon + '</svg><span class="t"><b>' + esc(label) + '</b></span>'; b.onclick = () => { closeSheets(); fn(); }; list.appendChild(b); });
+  openSheet("s-menu");
+}
+$("btn-menu").onclick = openMenu;
+
+/* bookmarks / history lists */
+function listRows(host, rows, onOpen, onRemove, emptyText) {
+  host.textContent = ""; if (!rows.length) { host.innerHTML = '<div class="empty">' + esc(emptyText) + '</div>'; return; }
+  rows.forEach(r => {
+    const wrap = document.createElement("div"); wrap.className = "row"; wrap.style.padding = "0 4px 0 0";
+    const open = document.createElement("button"); open.type = "button"; open.className = "row"; open.style.flex = "1"; open.style.minWidth = "0";
+    open.innerHTML = '<span class="ava">' + esc(letterOf(r.title, r.url)) + '</span><span class="t"><b>' + esc(r.title || hostOf(r.url)) + '</b><small>' + esc(r.url) + '</small></span>';
+    open.onclick = () => { closeSheets(); onOpen(r); };
+    const x = document.createElement("button"); x.type = "button"; x.className = "ib"; x.setAttribute("aria-label", "Remove"); x.innerHTML = '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    x.onclick = () => onRemove(r); wrap.append(open, x); host.appendChild(wrap);
+  });
+}
+function renderBm() { listRows($("bm-list"), bookmarks, r => navigate(r.url), r => { bookmarks = bookmarks.filter(b => b !== r); saveBm(); renderBm(); }, "No bookmarks yet. Use the menu to bookmark a page."); }
+function renderHist() { listRows($("hist-list"), history.slice(0, 150), r => navigate(r.url), r => { history = history.filter(h => h !== r); saveHist(); renderHist(); }, "Your history is empty."); }
+$("hist-clear").onclick = () => { history = []; saveHist(); renderHist(); };
+
+/* settings */
+$("set-engine").onchange = e => { CFG.engine = e.target.value; saveSettings(); };
+$("set-home").onchange = e => { const v = e.target.value.trim(); CFG.homepage = v ? (normaliseUrl(v) || "") : ""; e.target.value = CFG.homepage; saveSettings(); };
+$("set-hist").onchange = e => { CFG.histEnabled = e.target.checked; saveSettings(); };
+$("set-restore").onchange = e => { CFG.restoreTabs = e.target.checked; saveSettings(); persistTabs(); };
+$("set-clear-hist").onclick = () => { history = []; saveHist(); toast("History cleared"); };
+$("set-clear-bm").onclick = () => { bookmarks = []; saveBm(); toast("Bookmarks cleared"); };
+$("sc-save").onclick = () => {
+  const name = $("sc-name").value.trim(), url = normaliseUrl($("sc-url").value);
+  if (!url) return toast("Enter a valid address");
+  shortcuts.push({ title: name || hostOf(url), url }); saveSc(); $("sc-name").value = ""; $("sc-url").value = ""; closeSheets(); refreshNtps();
+};
+
+/* ============ boot: pick the fastest proxy server, then start ============ */
+(async () => {
+  const msg = $("init-msg"), actions = $("init-actions");
+  const fail = (text, canRetry) => {
+    msg.textContent = text; document.querySelector("#init-screen .spin").style.display = "none"; actions.style.display = "flex"; actions.textContent = "";
+    const retry = document.createElement("button"); retry.className = "pill primary"; retry.textContent = canRetry ? "Try another server" : "Reload";
+    retry.onclick = () => { try { if (canRetry && window.LudusServers) { const bad = LudusServers.proxy.active(); bad && LudusServers.proxy.markFailed(bad.url); } } catch (e) {} location.reload(); };
+    actions.appendChild(retry);
+  };
+  if (!("serviceWorker" in navigator)) return fail("This browser does not support service workers, which the proxy needs.", false);
+  try {
+    msg.textContent = "Finding the fastest server...";
+    if (window.LudusServers) await Promise.race([LudusServers.proxy.refresh().catch(() => {}), sleep(3000)]);
+    const server = window.LudusServers && LudusServers.proxy.active();
+    if (!server) return fail("No proxy server is set up yet. Add one on the main Ludus site under Settings, then reload.", false);
+    const { ScramjetController } = $scramjetLoadController();
+    scramjet = new ScramjetController({
+      prefix: CFG.prefix, wisp: server.url,
+      files: { wasm: "/p/scram/scramjet.wasm.wasm", all: "/p/scram/scramjet.all.js", sync: "/p/scram/scramjet.sync.js" },
+      flags: { captureErrors: true, sourcemaps: false, allowInvalidJs: true, strictRewrites: false },
+    });
+    msg.textContent = "Registering service worker...";
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+    msg.textContent = "Starting the proxy...";
+    await scramjet.init();
+    scramjetReady = true;
+  } catch (err) {
+    console.error("[ludus-mobile] init error:", err);
+    return fail("The proxy could not start: " + (err && err.message || err), true);
+  }
+  $("init-screen").classList.add("gone");
+  const saved = CFG.restoreTabs ? read("ludus_m_tabs", null) : null;
+  if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
+    saved.tabs.slice(0, 12).forEach(t => createTab(t.url || ""));
+    const i = Math.max(0, Math.min(saved.tabs.length - 1, saved.active | 0)); if (tabs[i]) activateTab(tabs[i].id);
+  } else createTab(CFG.homepage || "");
+})();
+</script>
+</body>
+</html>
