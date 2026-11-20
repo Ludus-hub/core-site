@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Ludus</title>
+<link href="https://cdn.jsdelivr.net/gh/Ludus-hub/Pictures@Main/Pictures/Non-edited/Math-n.webp" id="favicon" rel="icon"/>
+<link href="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Style-2.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/loading-protocol-2.js"></script>
+<style>
+/* Local-save and mixer additions: kept here so embedded Google Sites builds get them too. */
+.local-sync-button { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; width:100%; background:rgba(146,254,157,.10); color:#92fe9d; border:1px solid rgba(146,254,157,.30); padding:9px 14px; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; transition:.2s; }
+.local-sync-button:hover { background:rgba(146,254,157,.18); border-color:rgba(146,254,157,.55); }
+.dock-drag-handle { display:flex; align-items:center; justify-content:center; width:26px; height:26px; color:rgba(255,255,255,.48); border-radius:8px; background:rgba(255,255,255,.05); touch-action:none; }
+#mixer-dock { background:linear-gradient(145deg,rgba(22,31,43,.98),rgba(11,14,21,.98)) !important; border:1px solid rgba(0,201,255,.24) !important; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+#mixer-header { background:linear-gradient(90deg,rgba(0,201,255,.12),rgba(255,255,255,.025)) !important; cursor:grab !important; touch-action:none; user-select:none; }
+#mixer-header:active { cursor:grabbing !important; }
+#mixer-dock .mixer-card { background:rgba(0,0,0,.23) !important; border:1px solid rgba(255,255,255,.09) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.035); }
+.mixer-progress-row { display:grid; grid-template-columns:38px 1fr 38px; gap:8px; align-items:center; color:rgba(255,255,255,.48); font-size:10px; font-variant-numeric:tabular-nums; }
+.mixer-progress-row input { accent-color:var(--accent-color,#00c9ff); min-width:0; }
+.mixer-snap-status { color:rgba(146,254,157,.85); font-size:9px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; padding:3px 7px; border-radius:999px; background:rgba(146,254,157,.08); border:1px solid rgba(146,254,157,.18); }
+</style>
+</head>
+<body>
+
+
+
+
+<!-- ═══════════════════ CONTENT WARNING MODAL ═══════════════════ -->
+<div id="contentWarnModal" style="
+    display: none; position: fixed; inset: 0; z-index: 1000010;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+  <div style="
+      background: rgba(18,18,18,0.97);
+      border-radius: 20px; padding: 36px 32px 28px;
+      width: 90%; max-width: 420px; text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+      position: relative;
+      animation: cwFadeIn 0.25s cubic-bezier(0.2,0.8,0.2,1);">
+
+    <!-- Warning icon -->
+    <div style="width:56px;height:56px;border-radius:50%;
+        background:rgba(255,80,50,0.12);border:1px solid rgba(255,80,50,0.35);
+        display:flex;align-items:center;justify-content:center;
+        margin:0 auto 18px;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+           stroke="#FF5032" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+
+    <div style="display:inline-block;background:rgba(255,80,50,0.12);
+        border:1px solid rgba(255,80,50,0.3);border-radius:99px;
+        padding:4px 14px;font-size:11px;font-weight:700;color:#FF5032;
+        letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;">
+      Content Warning
+    </div>
+
+    <h2 style="color:white;font-size:20px;font-weight:700;margin:0 0 14px;">
+      Proceed with Caution
+    </h2>
+
+    <!-- Violence body -->
+    <div id="cwBodyViolence">
+      <p style="color:rgba(255,255,255,0.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
+        This game contains <strong style="color:white;">violence, disturbing imagery,
+        and mature themes</strong> that some players may find upsetting.<br><br>
+        Player discretion is strongly advised.
+      </p>
+    </div>
+
+    <!-- Self-harm body -->
+    <div id="cwBodySelfharm" style="display:none;">
+      <p style="color:rgba(255,255,255,0.72);font-size:14px;line-height:1.6;margin:0 0 10px;">
+        This game contains <strong style="color:white;">depictions of suicide,
+        self-harm, and deeply distressing content</strong>.<br><br>
+        Please take care of yourself. If you or someone you know is struggling,
+        help is available.
+      </p>
+      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+          border-radius:12px;padding:12px 16px;margin-bottom:18px;text-align:left;">
+        <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.45);
+            text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">
+          Crisis Resources
+        </div>
+        <div style="color:white;font-size:14px;font-weight:600;margin-bottom:3px;">
+          📞 988 Suicide &amp; Crisis Lifeline
+        </div>
+        <div style="color:rgba(255,255,255,0.6);font-size:13px;margin-bottom:8px;">
+          Call or text <strong style="color:white;">988</strong> (US) — available 24/7
+        </div>
+        <div style="color:white;font-size:14px;font-weight:600;margin-bottom:3px;">
+          💬 Crisis Text Line
+        </div>
+        <div style="color:rgba(255,255,255,0.6);font-size:13px;">
+          Text <strong style="color:white;">HOME</strong> to <strong style="color:white;">741741</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button id="cwProceedBtn" style="
+          width:100%;padding:13px;border:none;border-radius:12px;
+          background:rgba(255,80,50,0.18);border:1px solid rgba(255,80,50,0.4);
+          color:#FF5032;font-size:14px;font-weight:700;cursor:pointer;
+          transition:background 0.2s;"
+        onmouseover="this.style.background='rgba(255,80,50,0.28)'"
+        onmouseout="this.style.background='rgba(255,80,50,0.18)'">
+        I understand — Continue
+      </button>
+      <button onclick="document.getElementById('contentWarnModal').style.display='none'" style="
+          width:100%;padding:12px;border:none;border-radius:12px;
+          background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+          color:rgba(255,255,255,0.8);font-size:14px;font-weight:600;cursor:pointer;
+          transition:background 0.2s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.12)'"
+        onmouseout="this.style.background='rgba(255,255,255,0.07)'">
+        Go Back
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<style>
+@keyframes cwFadeIn {
+  from { opacity: 0; transform: scale(0.93) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+</style>
+<!-- ════════════════ END CONTENT WARNING MODAL ════════════════ -->
+
+<div id="loginGate" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 999999;">
+<div style="position: relative; z-index: 10; text-align: center; background: rgba(0,0,0,0.4); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); width:90%; max-width:320px;">
+<h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 500; color:white;">Welcome</h2>
+<input class="settings-input" id="authPasswordInput" placeholder="Password" type="password"/>
+<label style="display: none; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; color: #ccc;">
+<span>Remember Me</span>
+<input checked="" id="rememberToggle" type="checkbox"/>
+</label>
+<button onclick="checkPassword()" style="width: 100%; background: white; color: black; font-weight: bold; padding: 12px;">Unlock</button>
+<p id="loginError" style="margin-top: 15px; color: #ff453a; display: none;">Incorrect password</p>
+<p id="loginLimit" style="margin-top: 15px; color: #ff453a; display: none;">Device limit reached</p>
+</div>
+</div>
+
+<div class="app-section active-section fullscreen-app" id="app-home" style="overflow-y: auto;">
+<div class="home-layout">
+<header class="header">
+<h1 style="margin-bottom: 0;">Math Master</h1>
+<div style="margin-bottom: 10px; margin-top: 5px; text-align: center;">
+<span class="gradient-title" style="font-size: 1.2rem;">by Ludus</span>
+</div>
+<div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 26px;">
+  <button onclick="showBuildInfo('local')" style="display:flex;align-items:center;gap:6px;background:rgba(0,201,255,0.07);border:1px solid rgba(0,201,255,0.22);color:rgba(0,201,255,0.75);font-size:11px;font-weight:700;padding:5px 12px 5px 10px;border-radius:99px;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;font-family:'Inter',system-ui,sans-serif;" onmouseover="this.style.background='rgba(0,201,255,0.14)';this.style.borderColor='rgba(0,201,255,0.42)';this.style.color='#00C9FF';this.style.boxShadow='0 0 12px rgba(0,201,255,0.15)'" onmouseout="this.style.background='rgba(0,201,255,0.07)';this.style.borderColor='rgba(0,201,255,0.22)';this.style.color='rgba(0,201,255,0.75)';this.style.boxShadow='none'">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+    local build
+    <span style="background:rgba(0,201,255,0.18);color:#00C9FF;font-size:8.5px;font-weight:800;padding:1px 6px;border-radius:99px;letter-spacing:0.7px;text-transform:uppercase;">beta</span>
+  </button>
+  <span style="color:rgba(255,255,255,0.12);font-size:10px;user-select:none;">|</span>
+  <button onclick="showBuildInfo('official')" style="display:flex;align-items:center;gap:6px;background:rgba(146,254,157,0.06);border:1px solid rgba(146,254,157,0.22);color:rgba(146,254,157,0.7);font-size:11px;font-weight:700;padding:5px 12px 5px 10px;border-radius:99px;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px;font-family:'Inter',system-ui,sans-serif;" onmouseover="this.style.background='rgba(146,254,157,0.12)';this.style.borderColor='rgba(146,254,157,0.38)';this.style.color='#92FE9D';this.style.boxShadow='0 0 12px rgba(146,254,157,0.12)'" onmouseout="this.style.background='rgba(146,254,157,0.06)';this.style.borderColor='rgba(146,254,157,0.22)';this.style.color='rgba(146,254,157,0.7)';this.style.boxShadow='none'">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+    official
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/></svg>
+  </button>
+</div>
+</header>
+
+<!-- Build Info Modal -->
+<div id="buildInfoModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(18,18,18,0.97); border: 1px solid rgba(255,255,255,0.12); color: white; padding: 28px 28px 22px; border-radius: 18px; z-index: 10002; box-shadow: 0 16px 50px rgba(0,0,0,0.85); width: 300px; font-family: 'Inter', system-ui, sans-serif; text-align: center; backdrop-filter: blur(16px);">
+  <div id="buildInfoIcon" style="width:48px;height:48px;border-radius:50%;background:rgba(0,201,255,0.1);border:1px solid rgba(0,201,255,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"></div>
+  <h3 id="buildInfoTitle" style="margin: 0 0 10px; font-size: 16px; font-weight: 700; color: white;"></h3>
+  <p id="buildInfoBody" style="font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.6; margin: 0 0 20px;"></p>
+  <button onclick="document.getElementById('buildInfoModal').style.display='none';document.getElementById('buildInfoBackdrop').style.display='none';" style="width: 100%; padding: 11px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.18)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Got it</button>
+</div>
+<div id="buildInfoBackdrop" onclick="document.getElementById('buildInfoModal').style.display='none';document.getElementById('buildInfoBackdrop').style.display='none';" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);z-index:10001;"></div>
+<div id="versionRunnerOverlay" style="display: none; position: fixed; inset: 0; z-index: 1000002; background: #000;">
+<div onclick="exitVersion()" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'" onmouseover="this.style.borderColor='var(--accent-color)'" style="position: absolute; top: 20px; left: 20px; background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 20px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; z-index: 1000003;">
+<svg fill="none" height="20" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="20"><line x1="19" x2="5" y1="12" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+<span style="color: white; font-weight: 600; font-size: 14px;">Return to v4.0</span>
+</div>
+<iframe id="versionFrame" style="width: 100%; height: 100%; border: none;"></iframe>
+</div>
+<div class="home-header-row">
+<div style="display: flex; flex-direction: column; gap: 20px; flex: 1;">
+<div class="home-widget" id="home-profile" style="margin-bottom: 0;">
+<h3 style="margin-top: 0; color: var(--accent-color, #00C9FF);">Welcome Back</h3>
+<div style="display: flex; align-items: center; gap: 15px; margin-top: 15px;">
+<div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
+<svg fill="none" height="24" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+<circle cx="12" cy="7" r="4"></circle>
+</svg>
+</div>
+<div>
+<div id="profileName" style="color: white; font-weight: bold; font-size: 16px;">Guest User</div>
+<div id="profileAction" onclick="document.getElementById('authModal').style.display='flex'" style="color: rgba(255,255,255,0.5); font-size: 13px; cursor: pointer;">Sign In →</div>
+</div>
+</div>
+<button id="cloudSaveBtn" onclick="window.saveDataToCloud()" onmouseout="this.style.background='rgba(0,201,255,0.15)'" onmouseover="this.style.background='rgba(0,201,255,0.25)'" style="display: none; margin-top: 14px; width: 100%; background: rgba(0,201,255,0.15); color: var(--accent-color, #00C9FF); border: 1px solid rgba(0,201,255,0.35); padding: 9px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s;">
+Save to Cloud
+</button>
+<button class="local-sync-button" id="localSaveSyncBtn" onclick="window.syncSaveLocally()" title="Choose a folder once, then keep a Ludus backup in it">
+<svg aria-hidden="true" fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="16"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path><path d="M4 3h16v18H4z" opacity=".45"></path></svg>
+Sync locally
+</button>
+<div id="localSaveSyncStatus" style="color:rgba(255,255,255,.42);font-size:11px;text-align:center;margin-top:7px;min-height:15px;">Choose a folder to keep a local save.</div>
+</div>
+
+</div>
+<div class="home-widget" style="flex: 1;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+<h3 style="margin: 0; color: var(--accent-color, #00C9FF);">Update Details</h3>
+<span style="background: rgba(0, 201, 255, 0.2); color: var(--accent-color, #00C9FF); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold;">v4.0</span>
+</div>
+<ul style="margin: 0; padding-left: 18px; color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.6;">
+<li><b>All games working:</b> Every game hosted using a website should load correctly. Google site builds are unreliable and should not be trusted.</li>
+<li><b>Official Local Build:</b> This build loads all from one file, making the proxy unavailable. This affects YouTube and Movies.</li>
+<li><b>Open Source:</b> The source for this build is on GitHub and can be deployed anywhere; including Google Sites ,with zero setup. <a href="https://github.com/MathMaster-global/Ludus-Local" style="color: var(--accent-color, #00C9FF); text-decoration: underline;">If you want to deploy your own, click here</a></li>
+
+</ul>
+</div>
+</div>
+<div>
+<h2 class="home-section-title">Ludus Ecosystem</h2>
+<div class="home-grid">
+<div class="home-card" onclick="switchSection('app-games', document.querySelector('.dock-btn[data-app=\'app-games\']'))">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect x="2" y="6" width="20" height="12" rx="2"></rect>
+<path d="M6 12h4m-2-2v4m4-2h.01M16 12h.01"></path>
+</svg>
+<span>Games/Apps</span>
+</div>
+<div class="home-card" onclick="switchSection('app-music', document.querySelector('.dock-btn[data-app=\'app-music\']'))">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+<span>Music</span>
+</div>
+<div class="home-card" onclick="switchSection('app-movies', document.querySelector('.dock-btn[data-app=\'app-movies\']'))">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><rect height="20" rx="2.18" ry="2.18" width="20" x="2" y="2"></rect><line x1="7" x2="7" y1="2" y2="22"></line><line x1="17" x2="17" y1="2" y2="22"></line><line x1="2" x2="22" y1="12" y2="12"></line><line x1="2" x2="7" y1="7" y2="7"></line><line x1="2" x2="7" y1="17" y2="17"></line><line x1="17" x2="22" y1="17" y2="17"></line><line x1="17" x2="22" y1="7" y2="7"></line></svg>
+<span>Movies</span>
+</div>
+<div class="home-card" onclick="switchSection('app-calculator', document.querySelector('.dock-btn[data-app=\'app-calculator\']'))">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><rect height="20" rx="2" ry="2" width="16" x="4" y="2"></rect><line x1="8" x2="16" y1="6" y2="6"></line><line x1="16" x2="16" y1="14" y2="18"></line><line x1="8" x2="8.01" y1="10" y2="10"></line><line x1="12" x2="12.01" y1="10" y2="10"></line><line x1="16" x2="16.01" y1="10" y2="10"></line><line x1="8" x2="8.01" y1="14" y2="14"></line><line x1="12" x2="12.01" y1="14" y2="14"></line><line x1="8" x2="8.01" y1="18" y2="18"></line><line x1="12" x2="12.01" y1="18" y2="18"></line></svg>
+<span>Calculator</span>
+</div>
+</div>
+</div>
+<div>
+<h2 class="home-section-title">Support &amp; Links</h2>
+<div class="home-grid">
+<a class="home-card" href="https://forms.gle/DvNCmd3w6uzrNdyD7" target="_blank">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+<span>Game Request</span>
+</a>
+<a class="home-card" href="https://forms.gle/dZ3UX8JZgWjURjfC6" target="_blank">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><rect height="11" rx="2" ry="2" width="18" x="3" y="11"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+<span>Unblock Form</span>
+</a>
+<a class="home-card" href="mailto:mathmasterofficialemail@gmail.com">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+<span>Contact Us</span>
+</a>
+<a class="home-card" href="https://github.com/MathMaster-global/MathMaster-Global-v2.0" target="_blank">
+<svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+<span>GitHub</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+<div class="app-section container" id="app-games" style="display: none;">
+<div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 100px; margin-bottom: 25px;">
+<svg fill="none" height="32" stroke="var(--accent-color, #00C9FF)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="32">
+<rect height="12" rx="2" ry="2" width="20" x="2" y="6"></rect>
+<line x1="6" x2="10" y1="12" y2="12"></line>
+<line x1="8" x2="8" y1="10" y2="14"></line>
+<line x1="15" x2="15.01" y1="13" y2="13"></line>
+<line x1="18" x2="18.01" y1="11" y2="11"></line>
+</svg>
+<h1 class="gradient-title" style="margin: 0; font-size: 32px;">Ludus Games &amp; Apps</h1>
+</div>
+<div id="gameSearchContainer" style="max-width: 650px; margin: 0 auto 30px auto; position: relative; z-index: 100;">
+<div style="display: flex; align-items: center; background: rgba(30,30,30,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 8px 20px; backdrop-filter: blur(15px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); gap: 10px;">
+<svg fill="none" height="18" stroke="rgba(255,255,255,0.4)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24" width="18"><circle cx="11" cy="11" r="8"></circle><line x1="21" x2="16.65" y1="21" y2="16.65"></line></svg>
+<input autocomplete="off" id="searchInput" placeholder="Search games & apps..." style="flex: 1; background: transparent; border: none; color: white; font-size: 15px; outline: none; padding: 5px 0;" type="text"/>
+<div style="width: 1px; height: 18px; background: rgba(255,255,255,0.2);"></div>
+<select class="glass-select" id="filterDropdown" title="Filter Games">
+<option value="all">All</option>
+<option value="dev">Dev Favs</option>
+<option value="favs">My Favs</option>
+</select>
+<div style="width: 1px; height: 18px; background: rgba(255,255,255,0.2);"></div>
+<select class="glass-select" id="sortDropdown" title="Sort Games">
+<option value="default">Default</option>
+<option value="az">A-Z</option>
+<option value="recent">Recent</option>
+</select>
+</div>
+<div id="suggestions" style="margin-top: 10px; color: var(--accent-color); font-size: 13px; text-align: center;"></div>
+</div>
+<div id="gameGrid"></div>
+<div class="viewer" id="viewer">
+<div id="game-floating-dock" style="position: absolute; top: 20px; left: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px;">
+<div id="game-dock-header" style="background: rgba(30, 30, 30, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; display: flex; gap: 8px; align-items: center; cursor: grab; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: max-content; min-width: 120px;">
+<div id="game-dock-drag" style="display:flex; align-items:center; justify-content: center; padding: 0 5px; color: rgba(255,255,255,0.4); flex-shrink: 0;">
+<svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="9" cy="8" fill="currentColor" r="1.5"></circle><circle cx="15" cy="8" fill="currentColor" r="1.5"></circle><circle cx="9" cy="16" fill="currentColor" r="1.5"></circle><circle cx="15" cy="16" fill="currentColor" r="1.5"></circle></svg>
+</div>
+<div id="quickControlsContainer" style="display: flex; gap: 8px; margin: 0 5px;"></div>
+<button class="m-btn" onclick="toggleGameDropdown()" style="padding: 6px; border-radius: 8px; background: rgba(255,255,255,0.05); flex-shrink: 0; margin: 0; min-width: 32px; min-height: 32px; display: flex; align-items: center; justify-content: center;" title="More Options">
+<svg fill="none" height="20" id="game-dock-chevron" stroke="white" stroke-linecap="round" stroke-width="2" style="transition: transform 0.2s;" viewbox="0 0 24 24" width="20"><polyline points="6 9 12 15 18 9"></polyline></svg>
+</button>
+</div>
+<div class="control-panel" id="game-dock-dropdown" style="display: none; background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; width: 320px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); padding: 15px; flex-direction: column; gap: 20px;">
+<div class="button-section" style="display: flex; flex-direction: column; gap: 10px;">
+<div style="font-size: 11px; font-weight: 800; color: var(--accent-color, #00C9FF); text-transform: uppercase; letter-spacing: 1px;">Viewing Controls</div>
+<div id="viewerControlsContainer" style="display: flex; gap: 8px; flex-wrap: wrap; min-height: 36px; align-items: center; width: 100%;"></div>
+</div>
+<hr style="border-color: rgba(255,255,255,0.05); width: 100%; margin: 0;"/>
+<div class="mixer-section" style="padding-top: 0; display: flex; flex-direction: column; gap: 15px;">
+<div style="font-size: 11px; font-weight: 800; color: var(--accent-color, #00C9FF); text-transform: uppercase; letter-spacing: 1px;">In-Game Mixer</div>
+<div style="display: flex; flex-direction: column; gap: 18px;">
+<div id="game-mixer-music-section" style="display: none; flex-direction: column; gap: 12px;">
+<div class="mixer-card" style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<img id="game-mix-music-thumb" src="" style="width: 40px; height: 40px; background: #1a1a1a; border-radius: 8px; object-fit: cover; display: none;"/>
+<div id="game-mix-music-placeholder" style="width: 40px; height: 40px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+<svg fill="none" height="20" stroke="#00C9FF" stroke-width="2" viewbox="0 0 24 24" width="20"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+</div>
+<div style="flex: 1; min-width: 0;">
+<div id="game-mix-music-title" style="font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Audio</div>
+<div id="game-mix-music-artist" style="font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Music App</div>
+</div>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">VOL</span>
+<input class="volume-slider" id="game-vol-music" max="1" min="0" step="0.01" type="range" value="0.8"/>
+</div>
+<div class="mixer-progress-row"><span id="game-music-time-current">0:00</span><input aria-label="Music progress" class="volume-slider" id="game-seek-music" max="100" min="0" step="0.1" type="range" value="0"/><span id="game-music-time-total">0:00</span></div>
+<div style="display: flex; justify-content: space-around; align-items: center;">
+<button class="m-btn" onclick="directControlMedia('music', 'playPrev')">
+<svg fill="white" height="16" viewbox="0 0 24 24" width="16"><polygon points="19 20 9 12 19 4 19 20"></polygon><line stroke="white" stroke-width="2" x1="5" x2="5" y1="19" y2="5"></line></svg>
+</button>
+<button class="m-btn play-main" id="game-mix-music-play" onclick="directControlMedia('music', 'togglePlay')" style="background: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+<svg fill="black" height="18" viewbox="0 0 24 24" width="18"><path d="M8 5v14l11-7z"></path></svg>
+</button>
+<button class="m-btn" onclick="directControlMedia('music', 'playNext')">
+<svg fill="white" height="16" viewbox="0 0 24 24" width="16"><polygon points="5 4 15 12 5 20 5 4"></polygon><line stroke="white" stroke-width="2" x1="19" x2="19" y1="5" y2="19"></line></svg>
+</button>
+</div>
+<hr style="border-color: rgba(255,255,255,0.05); width: 100%; margin: 0;"/>
+</div>
+<div id="game-mixer-movie-section" style="display: none; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+<div id="game-mix-movie-title" style="font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Movie</div>
+<div style="display: flex; justify-content: center; gap: 20px; align-items: center; padding-top: 5px;">
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekBack')" title="Back 10 seconds" aria-label="Back 10 seconds">&minus;10</button>
+<button class="m-btn play-main" id="game-mix-movie-play" onclick="directControlMedia('movie', 'togglePlay')" style="background: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+<svg fill="black" height="18" viewbox="0 0 24 24" width="18"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+</button>
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekForward')" title="Forward 10 seconds" aria-label="Forward 10 seconds">&plus;10</button>
+</div>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">SEEK</span>
+<input class="volume-slider" id="game-seek-movie" max="100" min="0" step="0.1" type="range" value="0"/>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">VOL</span>
+<input class="volume-slider" id="game-vol-movie" max="1" min="0" step="0.01" type="range" value="1.0"/>
+</div>
+<hr style="border-color: rgba(255,255,255,0.05); width: 100%; margin: 0;"/>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 10px; font-weight: bold; color: rgba(255,255,255,0.4); width: 40px;">GAME</span>
+<input class="volume-slider" id="game-vol-game" max="1" min="0" step="0.01" type="range" value="1.0"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<iframe class="app-frame" id="gameFrame" src=""></iframe>
+</div>
+</div>
+
+<div class="app-section fullscreen-app" id="app-proxy" style="display: none;">
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/p/index-3.html" id="proxyFrame" src="about:blank" allow="autoplay; encrypted-media; fullscreen; clipboard-write; clipboard-read; picture-in-picture; microphone; camera" allowfullscreen></iframe>
+</div>
+<div class="app-section fullscreen-app" id="app-chatbot" style="display: none;">
+<embed class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/chat-3.html" id="chatFrame" src="about:blank" type="text/html"/>
+</div>
+<div class="app-section fullscreen-app" id="app-calculator" style="display: none;">
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/calc-3.html" id="calcFrame" src="about:blank"></iframe>
+</div>
+<div class="app-section fullscreen-app" id="app-music" style="display: none;">
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/music-9.html" id="musicFrame" src="about:blank" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+</div>
+<div class="app-section fullscreen-app" id="app-movies" style="display: none;">
+<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/movie-9.html" id="moviesFrame" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+</div>
+<div class="app-section fullscreen-app" id="app-youtube" style="display: none;">
+<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/yt-13.html" id="youtubeFrame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
+</div>
+<div class="app-section fullscreen-app" id="app-files" style="display: none;">
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/file-7.html" id="filesFrame" src="about:blank"></iframe>
+</div>
+<div class="home-widget" id="mixer-dock" style="display: none; position: fixed; bottom: 80px; right: 20px; z-index: 10001; width: 340px; padding: 0; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+<div id="mixer-header" style="background: rgba(255,255,255,0.03); padding: 12px 18px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); touch-action:none; user-select:none;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<div class="dock-drag-handle" aria-label="Drag mixer" title="Drag to move; it snaps to screen corners"><svg fill="none" height="16" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="16"><circle cx="9" cy="8" fill="currentColor" r="1.5"></circle><circle cx="15" cy="8" fill="currentColor" r="1.5"></circle><circle cx="9" cy="16" fill="currentColor" r="1.5"></circle><circle cx="15" cy="16" fill="currentColor" r="1.5"></circle></svg></div>
+<div style="width: 8px; height: 8px; background: #00C9FF; border-radius: 50%; box-shadow: 0 0 10px #00C9FF;"></div>
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 1px; color: rgba(255,255,255,0.9); text-transform: uppercase;">System Mixer</span>
+</div>
+<div style="display: flex; gap: 7px;">
+<button id="mixer-snap-corner" type="button" title="Snap to closest corner" aria-label="Snap mixer to closest corner" style="display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.72);cursor:pointer;"><svg viewbox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path><path d="m9 9-5-5m11 5 5-5m-5 11 5 5M9 15l-5 5"></path></svg></button>
+<button id="mixer-reset-position" type="button" title="Return mixer to its home corner" aria-label="Return mixer to its home corner" style="display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.055);color:rgba(255,255,255,.72);cursor:pointer;"><svg viewbox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5v14h14"></path><path d="m13 11 6 6m0-5v5h-5"></path></svg></button>
+</div>
+</div>
+<div style="padding: 20px; display: flex; flex-direction: column; gap: 18px;">
+<div id="mixer-music-section" style="display: none; flex-direction: column; gap: 12px;">
+<div class="mixer-card" style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+<img id="mix-music-thumb" src="" style="width: 45px; height: 45px; background: #1a1a1a; border-radius: 8px; object-fit: cover; display: none;"/>
+<div id="mix-music-placeholder" style="width: 45px; height: 45px; background: #1a1a1a; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+<svg fill="none" height="24" stroke="#00C9FF" stroke-width="2" viewbox="0 0 24 24" width="24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+</div>
+<div style="flex: 1; min-width: 0;">
+<div id="mix-music-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Audio</div>
+<div id="mix-music-artist" style="font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Music App</div>
+</div>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">VOL</span>
+<input class="volume-slider" id="vol-music" max="1" min="0" step="0.01" type="range" value="0.8"/>
+</div>
+<div class="mixer-progress-row"><span id="music-time-current">0:00</span><input aria-label="Music progress" class="volume-slider" id="seek-music" max="100" min="0" step="0.1" type="range" value="0"/><span id="music-time-total">0:00</span></div>
+<div style="display: flex; justify-content: space-around; align-items: center; padding-top: 5px;">
+<button class="m-btn" onclick="directControlMedia('music', 'playPrev')">
+<svg fill="white" height="20" viewbox="0 0 24 24" width="20"><polygon points="19 20 9 12 19 4 19 20"></polygon><line stroke="white" stroke-width="2" x1="5" x2="5" y1="19" y2="5"></line></svg>
+</button>
+<button class="m-btn play-main" id="mix-music-play" onclick="directControlMedia('music', 'togglePlay')" style="background: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+<svg fill="black" height="24" id="music-icon-play" viewbox="0 0 24 24" width="24">
+<path d="M8 5v14l11-7z"></path>
+</svg>
+<svg fill="black" height="24" id="music-icon-pause" style="display: none;" viewbox="0 0 24 24" width="24">
+<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+</svg>
+</button>
+<button class="m-btn" onclick="directControlMedia('music', 'playNext')">
+<svg fill="white" height="20" viewbox="0 0 24 24" width="20"><polygon points="5 4 15 12 5 20 5 4"></polygon><line stroke="white" stroke-width="2" x1="19" x2="19" y1="5" y2="19"></line></svg>
+</button>
+</div>
+<hr style="border-color: rgba(255,255,255,0.1); width: 100%; margin: 5px 0;"/>
+</div>
+<div id="mixer-movie-section" style="display: none; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 5px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+<div id="mix-movie-title" style="font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white;">Unknown Movie</div>
+<div style="display: flex; justify-content: center; gap: 20px; align-items: center; padding-top: 10px;">
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekBack')" title="Back 10 seconds" aria-label="Back 10 seconds">&minus;10</button>
+<button class="m-btn play-main" id="mix-movie-play" onclick="directControlMedia('movie', 'togglePlay')" style="background: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: scale(1); transition: 0.2s;">
+<svg fill="black" height="24" viewbox="0 0 24 24" width="24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+</button>
+<button class="m-btn m-seek" onclick="directControlMedia('movie', 'seekForward')" title="Forward 10 seconds" aria-label="Forward 10 seconds">&plus;10</button>
+</div>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">SEEK</span>
+<input class="volume-slider" id="seek-movie" max="100" min="0" step="0.1" type="range" value="0"/>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">VOL</span>
+<input class="volume-slider" id="vol-movie" max="1" min="0" step="0.01" type="range" value="1.0"/>
+</div>
+<hr style="border-color: rgba(255,255,255,0.1); width: 100%; margin: 5px 0;"/>
+</div>
+<div class="v-row" style="display: flex; align-items: center; gap: 12px;">
+<span style="font-size: 11px; font-weight: bold; color: rgba(255,255,255,0.4); width: 45px;">GAME</span>
+<input class="volume-slider" id="vol-game" max="1" min="0" step="0.01" type="range" value="1.0"/>
+</div>
+</div>
+</div>
+
+<hr style="border-color: rgba(255,255,255,0.1); width: 100%; margin: 5px 0;"/>
+
+<div class="app-section fullscreen-app" id="app-settings" style="display: none; overflow-y: hidden;">
+<div class="settings-container-wrapper">
+<div class="settings-box">
+<div class="settings-sidebar">
+<div class="settings-sidebar-header">Settings</div>
+<button class="settings-tab-btn active" onclick="switchSettingsTab(event, 'tab-data')">Data &amp; Saves</button>
+<button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-disguise')">Disguise &amp; Security</button>
+<button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-app-settings')">Viewing Controls</button>
+<button class="settings-tab-btn" onclick="switchSettingsTab(event, 'tab-credits')">Credits</button>
+</div>
+<div class="settings-content-wrapper">
+<div class="settings-content-area">
+<div class="settings-tab-content active" id="tab-data">
+<div class="settings-group">
+<h3 class="settings-group-title">Data &amp; Saves</h3>
+<div class="settings-card">
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Backup &amp; Restore</span>
+<span class="settings-desc">Export or import your saved games, settings, and local data.</span>
+</div>
+<div class="settings-actions" style="display: flex; gap: 10px;">
+<input accept=".json" id="saveFileInput" onchange="importSave(event)" style="display: none;" type="file"/>
+<button class="settings-btn" onclick="exportSave()">Export</button>
+<button class="settings-btn" onclick="document.getElementById('saveFileInput').click()">Import</button>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+<div class="settings-tab-content" id="tab-disguise">
+<div class="settings-group">
+<h3 class="settings-group-title">Disguise &amp; Security</h3>
+<div class="settings-card">
+
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Global Panic Key</span>
+<span class="settings-desc">Instantly redirect to your panic URL.</span>
+</div>
+<input class="settings-input" id="settingsPanicKey" maxlength="1" style="width: 45px; text-align: center; font-weight: bold;" type="text"/>
+</div>
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Global Panic URL</span>
+<span class="settings-desc">Where the panic key takes you.</span>
+</div>
+<input class="settings-input" id="settingsPanicURL" placeholder="https://google.com" style="width: 180px;" type="text"/>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="settings-tab-content" id="tab-app-settings">
+<div class="settings-group">
+<h3 class="settings-group-title">Viewing Controls</h3>
+<div class="settings-card" style="margin-bottom: 20px;">
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Show System Mixer</span>
+<span class="settings-desc">Display the global audio mixer on the home screen.</span>
+</div>
+<label class="ios-switch">
+<input id="settingsMixerToggle" onchange="toggleSystemMixer()" type="checkbox"/>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+</div>
+<div class="settings-group" style="margin-top: 20px;">
+<h3 class="settings-group-title">Game Library Defaults</h3>
+<div class="settings-card">
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Default Filter</span>
+<span class="settings-desc">Choose which games show up first.</span>
+</div>
+<select class="settings-input" id="settingsDefaultFilter" onchange="saveDefaultFilters()">
+<option value="all">All</option>
+<option value="dev">Dev Favs</option>
+<option value="favs">My Favs</option>
+</select>
+</div>
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Default Sort</span>
+<span class="settings-desc">How games are ordered.</span>
+</div>
+<select class="settings-input" id="settingsDefaultSort" onchange="saveDefaultFilters()">
+<option value="default">Default</option>
+<option value="az">A-Z</option>
+<option value="recent">Recent</option>
+</select>
+</div>
+</div>
+</div>
+<div class="settings-group" style="margin-top: 30px;">
+<h3 class="settings-group-title">Movies App Defaults</h3>
+<div class="settings-card">
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Default Streaming Server</span>
+<span class="settings-desc">Choose which server loads first for movies &amp; TV.</span>
+</div>
+<select class="settings-input" id="settingsMovieServer" onchange="localStorage.setItem('ludus_server', this.value)">
+<option value="vidrock">Server 1 (Vidrock)</option>
+<option value="vidsrc_pm">Server 2 (Vidsrc.pm)</option>
+<option value="vidsrc_cc">Server 3 (Vidsrc.cc)</option>
+</select>
+</div>
+</div>
+</div>
+<div class="settings-group" style="margin-top: 20px;">
+<h3 class="settings-group-title">Movie Player</h3>
+<div class="settings-card">
+<div class="settings-row">
+<div class="settings-info">
+<span class="settings-label">Move the dock when a movie starts</span>
+<span class="settings-desc">On: the dock slides to the top and tucks away so the stream has the whole screen. Off: the dock stays where it is and the movie simply covers it while it plays.</span>
+</div>
+<label class="ios-switch">
+<input id="settingsCinemaDockToggle" onchange="saveCinemaDockSetting(this.checked)" type="checkbox" checked/>
+<span class="slider"></span>
+</label>
+</div>
+</div>
+</div>
+<div class="settings-group" style="margin-top: 30px;">
+<h3 class="settings-group-title">Your Servers</h3>
+<p style="color:rgba(255,255,255,0.45);font-size:13px;margin:-10px 0 14px 5px;line-height:1.45;">Add your own servers here. They are used by every Ludus app, and you can add as many as you like. Paste one or several addresses at once, separated by commas or new lines.</p>
+<div class="settings-card">
+<div class="settings-row" style="align-items:flex-start;">
+<div class="settings-info">
+<span class="settings-label">YouTube / Music servers</span>
+<span class="settings-desc">Addresses starting with https://</span>
+</div>
+<div style="display:grid;gap:8px;min-width:min(100%,330px);flex:1;">
+<div id="sharedYtList" style="display:grid;gap:6px;"></div>
+<textarea class="settings-input" id="sharedYtServers" rows="2" autocomplete="off" spellcheck="false" style="resize:vertical;"></textarea>
+<span id="sharedYtServersNote" style="font-size:11px;color:rgba(255,255,255,.45);"></span>
+<button class="settings-btn" type="button" onclick="addSharedServers('youtube')">Add</button>
+</div>
+</div>
+<div class="settings-row" style="align-items:flex-start;">
+<div class="settings-info">
+<span class="settings-label">Proxy servers</span>
+<span class="settings-desc">Addresses starting with wss://</span>
+</div>
+<div style="display:grid;gap:8px;min-width:min(100%,330px);flex:1;">
+<div id="sharedProxyList" style="display:grid;gap:6px;"></div>
+<textarea class="settings-input" id="sharedProxyServers" rows="2" autocomplete="off" spellcheck="false" style="resize:vertical;"></textarea>
+<span id="sharedProxyServersNote" style="font-size:11px;color:rgba(255,255,255,.45);"></span>
+<button class="settings-btn" type="button" onclick="addSharedServers('proxy')">Add</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="settings-tab-content" id="tab-credits">
+<div class="settings-group">
+<h3 class="settings-group-title">Credits</h3>
+<p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px 5px;">Everyone and everything behind Ludus: the apps, libraries, services, hosting, game hosts, and original game creators.</p>
+<input id="creditsSearch" oninput="filterCredits(this.value)" placeholder="Search games, apps, services or creators..." style="width:100%;box-sizing:border-box;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.15);color:white;padding:10px 14px;border-radius:10px;font-size:14px;margin-bottom:12px;outline:none;" type="text"/>
+<div class="settings-card" id="creditsListContainer" style="max-height:52vh;overflow-y:auto;padding:0 20px;">
+<div id="creditsList"></div>
+</div>
+<p id="creditsCount" style="font-size:12px;color:var(--text-secondary);margin:8px 0 0 5px;"></p>
+</div>
+</div>
+<script>
+// ── Proxy Settings helpers ──────────────────────────────────────────
+function _proxyCfgDefaults() {
+  return { engine:"ddg", homepage:"", showBmBar:true,
+           histEnabled:true, histMax:500, zoomDefault:1.0,
+           wispUrl:"wss://nebulaproxy.io/wisp/",
+           prefix:"/scramjet/", restoreTabs:true };
+}
+function _loadProxyCfg() {
+  try { return { ..._proxyCfgDefaults(), ...JSON.parse(localStorage.getItem("ludus_cfg")||"{}") }; }
+  catch { return _proxyCfgDefaults(); }
+}
+
+function syncProxySettingsUI() {
+  const C = _loadProxyCfg();
+  const knownWisps = ["wss://nebulaproxy.io/wisp/"];
+  const sel = document.getElementById("proxyWispPreset");
+  if (sel && !knownWisps.includes(C.wispUrl)) {
+    if (![...sel.options].some(o => o.value === C.wispUrl)) {
+      const opt = new Option(C.wispUrl, C.wispUrl);
+      sel.add(opt);
+    }
+    sel.value = C.wispUrl;
+  } else if (sel) {
+    sel.value = C.wispUrl;
+  }
+  proxyWispPresetChanged();
+  const ci = document.getElementById("proxyWispCustom");
+  if (ci && !knownWisps.includes(C.wispUrl)) ci.value = C.wispUrl;
+  const eng = document.getElementById("proxyEngine");
+  if (eng) eng.value = C.engine || "ddg";
+  const hp = document.getElementById("proxyHomepage");
+  if (hp) hp.value = C.homepage || "";
+  const res = document.getElementById("proxyRestore");
+  if (res) res.checked = !!C.restoreTabs;
+  const bm = document.getElementById("proxyShowBm");
+  if (bm) bm.checked = !!C.showBmBar;
+  const zs = document.getElementById("proxyZoomSlider");
+  const zv = document.getElementById("proxyZoomVal");
+  if (zs) { zs.value = Math.round((C.zoomDefault || 1.0) * 100); }
+  if (zv) { zv.textContent = Math.round((C.zoomDefault || 1.0) * 100) + "%"; }
+  const hE = document.getElementById("proxyHistEnabled");
+  if (hE) hE.checked = C.histEnabled !== false;
+  const hM = document.getElementById("proxyHistMax");
+  if (hM) hM.value = String(C.histMax || 500);
+  const px = document.getElementById("proxyPrefix");
+  if (px) px.value = C.prefix || "/scramjet/";
+}
+
+function proxyWispPresetChanged() {
+  const sel = document.getElementById("proxyWispPreset");
+  const row = document.getElementById("proxyWispCustomRow");
+  if (!sel || !row) return;
+  row.style.display = sel.value === "custom" ? "flex" : "none";
+}
+
+function saveProxySettings() {
+  const C = _loadProxyCfg();
+  const sel = document.getElementById("proxyWispPreset");
+  const ci  = document.getElementById("proxyWispCustom");
+  const wisp = (sel && sel.value === "custom")
+    ? (ci && ci.value.trim() ? ci.value.trim() : C.wispUrl)
+    : (sel ? sel.value : C.wispUrl);
+  C.wispUrl      = wisp;
+  C.engine       = document.getElementById("proxyEngine")?.value || "ddg";
+  C.homepage     = document.getElementById("proxyHomepage")?.value.trim() || "";
+  C.restoreTabs  = document.getElementById("proxyRestore")?.checked ?? true;
+  C.showBmBar    = document.getElementById("proxyShowBm")?.checked ?? true;
+  C.zoomDefault  = (parseInt(document.getElementById("proxyZoomSlider")?.value||"100")/100);
+  C.histEnabled  = document.getElementById("proxyHistEnabled")?.checked ?? true;
+  C.histMax      = parseInt(document.getElementById("proxyHistMax")?.value||"500");
+  C.prefix       = document.getElementById("proxyPrefix")?.value.trim() || "/scramjet/";
+  localStorage.setItem("ludus_cfg", JSON.stringify(C));
+  const pf = document.getElementById("proxyFrame");
+  if (pf && pf.contentWindow) {
+    try { pf.contentWindow.postMessage({ type: "ludus:reloadConfig" }, "*"); } catch(e){}
+  }
+  const btn = document.querySelector('#tab-app-settings .settings-btn.primary');
+  if (btn) { const t=btn.textContent; btn.textContent="Saved ✓"; setTimeout(()=>btn.textContent=t,1500); }
+}
+</script>
+</div>
+<div class="settings-footer">
+<button class="settings-btn" onclick="resetSettings()" style="background: rgba(255, 69, 58, 0.1); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.3);">Reset to Defaults</button>
+<button class="settings-btn primary" onclick="saveAndRenderControls(); switchSection('app-home', document.querySelector('.dock-btn[data-app=\'app-home\']'));" style="padding: 10px 24px;">Save &amp; Go Home</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="dock-container" id="dockContainer">
+<div class="bottom-dock" id="bottomDock">
+<div class="dock-drag-handle" id="dockDragHandle" title="Drag Dock">
+<svg fill="none" height="24" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24" width="24">
+<circle cx="9" cy="8" fill="currentColor" r="1.5"></circle>
+<circle cx="15" cy="8" fill="currentColor" r="1.5"></circle>
+<circle cx="9" cy="16" fill="currentColor" r="1.5"></circle>
+<circle cx="15" cy="16" fill="currentColor" r="1.5"></circle>
+</svg>
+</div>
+<button class="dock-btn active-mode" data-app="app-home" data-tooltip="Home" onclick="switchSection('app-home', this)">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+<polyline points="9 22 9 12 15 12 15 22"></polyline>
+</svg>
+</button>
+<button class="dock-btn" data-app="app-games" data-tooltip="Games/Apps" onclick="switchSection('app-games', this)">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect x="2" y="6" width="20" height="12" rx="2"></rect>
+<path d="M6 12h4m-2-2v4m4-2h.01M16 12h.01"></path>
+</svg>
+</button>
+<button class="dock-btn" data-app="app-music" data-tooltip="Music" onclick="switchSection('app-music', this)">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+</button>
+<button class="dock-btn" data-app="app-movies" data-tooltip="Movies" onclick="switchSection('app-movies', this)">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect height="20" rx="2.18" ry="2.18" width="20" x="2" y="2"></rect>
+<line x1="7" x2="7" y1="2" y2="22"></line>
+<line x1="17" x2="17" y1="2" y2="22"></line>
+<line x1="2" x2="22" y1="12" y2="12"></line>
+<line x1="2" x2="7" y1="7" y2="7"></line>
+<line x1="2" x2="7" y1="17" y2="17"></line>
+<line x1="17" x2="22" y1="17" y2="17"></line>
+<line x1="17" x2="22" y1="7" y2="7"></line>
+</svg>
+</button>
+<button class="dock-btn" data-app="app-youtube" data-tooltip="YouTube" onclick="switchSection('app-youtube', this)">
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"></rect><path d="M10 9.5l5 2.5-5 2.5z"></path></svg>
+</button>
+<button class="dock-btn" data-app="app-calculator" data-tooltip="Calculator" onclick="switchSection('app-calculator', this)">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect height="20" rx="2" ry="2" width="16" x="4" y="2"></rect>
+<line x1="8" x2="16" y1="6" y2="6"></line>
+<line x1="16" x2="16" y1="14" y2="18"></line>
+<line x1="8" x2="8.01" y1="10" y2="10"></line>
+<line x1="12" x2="12.01" y1="10" y2="10"></line>
+<line x1="16" x2="16.01" y1="10" y2="10"></line>
+<line x1="8" x2="8.01" y1="14" y2="14"></line>
+<line x1="12" x2="12.01" y1="14" y2="14"></line>
+<line x1="8" x2="8.01" y1="18" y2="18"></line>
+<line x1="12" x2="12.01" y1="18" y2="18"></line>
+</svg>
+</button>
+<button class="dock-btn" id="devControlsBtn" data-app="app-files" data-tooltip="Dev Controls" onclick="switchSection('app-files', this)" style="display: none;">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="16 18 22 12 16 6"></polyline>
+<polyline points="8 6 2 12 8 18"></polyline>
+</svg>
+</button>
+
+<div class="dock-sep"></div>
+<button class="dock-btn" data-app="app-settings" data-tooltip="Settings" id="settingsBtn" onclick="switchSection('app-settings', this)">
+<svg class="icon" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+</button>
+<div class="dock-sep collapse-sep"></div>
+<button class="dock-toggle-btn" onclick="toggleDock()">
+<svg fill="none" height="24" id="dockToggleIcon" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24" width="24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</button>
+</div>
+</div>
+<div class="auth-overlay" id="authModal" style="display: none; z-index: 10001;">
+    <div class="auth-box">
+        <h2 id="authTitle" style="color: white; margin-bottom: 10px;">Log In</h2>
+        <input class="settings-input" id="emailInput" placeholder="Email address" type="email"/>
+        <input class="settings-input" id="passwordInput" placeholder="Password" type="password"/>
+        <div id="authError" style="color: #ff4a4a; font-size: 12px; display: none;">Error message here</div>
+        <button class="settings-btn primary" id="authActionBtn" style="margin-top: 10px;">Log In</button>
+        <p class="auth-toggle-text">
+            <span id="authTogglePrompt">Don't have an account?</span>
+            <strong id="toggleAuthMode" style="cursor: pointer; color: var(--accent-color, #00C9FF);">Sign Up</strong>
+        </p>
+        <div style="display: flex; align-items: center; gap: 10px; margin: 4px 0;">
+            <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+            <span style="color: rgba(255,255,255,0.3); font-size: 12px;">or</span>
+            <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.1);"></div>
+        </div>
+        <button id="googleSignInBtn" onclick="signInWithGoogle()" onmouseout="this.style.opacity='1'" onmouseover="this.style.opacity='0.9'" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: white; color: #1a1a1a; border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;">
+            <svg height="18" viewBox="0 0 48 48" width="18"><path d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" fill="#EA4335"></path><path d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" fill="#4285F4"></path><path d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" fill="#FBBC05"></path><path d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" fill="#34A853"></path></svg>
+            Continue with Google
+        </button>
+        <button class="settings-btn" onclick="document.getElementById('authModal').style.display='none'" style="margin-top: 5px;">Cancel</button>
+    </div>
+</div>
+
+<div class="home-widget" id="global-dev-console" style="position: fixed; bottom: 20px; right: 20px; z-index: 999999; width: 450px; height: 300px; display: none; flex-direction: column; padding: 0; box-shadow: 0 15px 35px rgba(0,0,0,0.8); background: rgba(10, 10, 10, 0.95); border: 1px solid var(--accent-color, #00C9FF); border-radius: 12px; overflow: hidden; transition: width 0.3s, height 0.3s;">
+<div id="console-drag-handle" style="width: 100%; background: rgba(30,30,30,0.8); cursor: grab; padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--accent-color, #00C9FF); display: flex; justify-content: space-between; align-items: center;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<svg fill="none" height="16" stroke="currentColor" stroke-linecap="round" stroke-width="2" viewbox="0 0 24 24" width="16"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg>
+<span style="font-size: 13px; font-weight: bold; font-family: monospace; letter-spacing: 1px;">GLOBAL CONSOLE</span>
+</div>
+<svg fill="none" height="18" onclick="document.getElementById('global-dev-console').style.display='none'" onmouseout="this.style.opacity='0.7'" onmouseover="this.style.opacity='1'" stroke="white" stroke-linecap="round" stroke-width="2" style="cursor:pointer; opacity: 0.7;" viewbox="0 0 24 24" width="18"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
+</div>
+<div id="console-output" style="flex: 1; overflow-y: auto; padding: 12px; font-family: monospace; font-size: 13px; color: #0f0; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.5);"></div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/ludus-servers-2.js"></script>
+<script>
+const SHARED_SERVER_UI = {
+  youtube: { input: 'sharedYtServers', list: 'sharedYtList', note: 'sharedYtServersNote', kind: 'https://' },
+  proxy:   { input: 'sharedProxyServers', list: 'sharedProxyList', note: 'sharedProxyServersNote', kind: 'wss://' },
+};
+function renderSharedServers(kind) {
+  const ui = SHARED_SERVER_UI[kind], manager = window.LudusServers && window.LudusServers[kind], list = document.getElementById(ui.list);
+  if (!manager || !list) return;
+  list.textContent = '';
+  manager.custom().forEach(url => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);';
+    const label = document.createElement('span'); label.textContent = url; label.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;';
+    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label', 'Remove this server');
+    remove.style.cssText = 'border:0;background:transparent;color:rgba(255,255,255,.6);font-size:18px;line-height:1;cursor:pointer;padding:0 4px;';
+    remove.onclick = () => removeSharedServer(kind, url);
+    row.append(label, remove); list.appendChild(row);
+  });
+}
+function syncSharedServerSettings() { renderSharedServers('youtube'); renderSharedServers('proxy'); }
+function addSharedServers(kind) {
+  const ui = SHARED_SERVER_UI[kind], manager = window.LudusServers && window.LudusServers[kind];
+  const input = document.getElementById(ui.input), note = document.getElementById(ui.note);
+  if (!manager || !input) return;
+  const entered = input.value.split(/[\s,]+/).map(value => value.trim()).filter(Boolean);
+  if (!entered.length) { note.textContent = 'Paste at least one address first.'; return; }
+  const good = entered.filter(value => manager.normalize(value)), bad = entered.length - good.length;
+  if (good.length) {
+    const before = manager.custom().length;
+    manager.add(good.join(','));
+    const added = manager.custom().length - before;
+    if (kind === 'proxy') window.LudusServers.proxy.refresh(true).catch(() => {});
+    window.LudusCore?.servers?.monitor?.refresh?.();
+    note.textContent = (added ? added + ' added.' : 'Already in your list.') + (bad ? ' ' + bad + ' skipped: addresses must start with ' + ui.kind + '.' : '');
+    input.value = bad ? entered.filter(value => !manager.normalize(value)).join('\n') : '';
+  } else note.textContent = 'Addresses must start with ' + ui.kind + '.';
+  syncSharedServerSettings();
+}
+function removeSharedServer(kind, url) {
+  const manager = window.LudusServers && window.LudusServers[kind]; if (!manager) return;
+  manager.remove(url); window.LudusCore?.servers?.monitor?.refresh?.();
+  document.getElementById(SHARED_SERVER_UI[kind].note).textContent = 'Removed.';
+  syncSharedServerSettings();
+}
+syncSharedServerSettings();
+</script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/script-23.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/credits-data-2.js" id="credits-src" type="text/plain"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/auth-5.js" type="module"></script>
+
+<script>
+// ─── Premium content gate ─────────────────────────────────────────────────
+// Elements with class "premium-only" are hidden by default and only revealed
+// once the auth system confirms the current user has premium status.
+// Stub functions that the external banner/upgrade code may still call are
+// silently no-op'd so removing those UI pieces doesn't break script-4.js.
+
+(function () {
+    // No-op stubs for banner functions that may be called by external scripts
+    window.closePremiumBanner    = function () {};
+    window.handlePremiumUpgradeClick = function () {};
+    window.showPremiumBanner     = function () {};
+
+    var PREMIUM_KEYS = ['mathmaster_premium'];
+    var PREMIUM_CLASS = 'premium-only';
+
+    function isPremiumActive() {
+        for (var i = 0; i < PREMIUM_KEYS.length; i++) {
+            if (localStorage.getItem(PREMIUM_KEYS[i]) === 'true' ||
+                sessionStorage.getItem(PREMIUM_KEYS[i]) === 'true') {
+                return true;
+            }
+        }
+        // Authenticated developers use the same trusted session flag as the
+        // dev tools and are exempt from the premium/browser entitlement gate.
+        return window.userIsPremium === true || sessionStorage.getItem('mathmaster_dev_unlocked') === 'true';
+    }
+
+    function applyPremiumGate() {
+        var els = document.querySelectorAll('.' + PREMIUM_CLASS);
+        var premium = isPremiumActive();
+        for (var i = 0; i < els.length; i++) {
+            els[i].style.display = premium ? '' : 'none';
+        }
+    }
+
+    // Exposed so the auth module can call this after sign-in
+    window.updatePremiumGate = applyPremiumGate;
+
+    // Run on load and on any localStorage change (auth script updates storage)
+    window.addEventListener('load', applyPremiumGate);
+    window.addEventListener('storage', function (e) {
+        if (PREMIUM_KEYS.indexOf(e.key) !== -1) applyPremiumGate();
+    });
+
+    // Wrap checkDevAndPremiumUI (script-4.js) so our check piggy-backs on it.
+    // If script-4 hasn't defined it yet we watch for it to be set.
+    function wrapCheck(fn) {
+        return function () {
+            fn.apply(this, arguments);
+            applyPremiumGate();
+        };
+    }
+    if (typeof window.checkDevAndPremiumUI === 'function') {
+        window.checkDevAndPremiumUI = wrapCheck(window.checkDevAndPremiumUI);
+    } else {
+        var _desc = Object.getOwnPropertyDescriptor(window, 'checkDevAndPremiumUI');
+        if (!_desc || _desc.configurable !== false) {
+            Object.defineProperty(window, 'checkDevAndPremiumUI', {
+                configurable: true,
+                set: function (fn) {
+                    Object.defineProperty(window, 'checkDevAndPremiumUI', {
+                        configurable: true, writable: true, value: wrapCheck(fn)
+                    });
+                }
+            });
+        }
+    }
+})();
+</script>
+
+<script>
+// ─── Multi-repo CDN routing + srcdoc loader ──────────────────────────────
+// Each "bucket" of this site (core code, images, music, and games) lives
+// in its own GitHub repo, because jsDelivr refuses to serve anything from
+// a repo over 50MB. This resolver maps any relative path the original
+// site code uses to the right repo's CDN URL. ALL games -- single-file
+// and folder-based alike (Drive Mad, Monkey Mart, Among Us, etc.) -- now
+// resolve to the Html-games repo. The old games-1, games-2, and games-3
+// repos are retired and nothing on the site points at them anymore.
+//
+// jsDelivr also serves .html as text/plain (security measure on their end),
+// so a plain iframe.src against a CDN .html URL just shows raw source
+// instead of running it. The fix: patch HTMLIFrameElement's src setter
+// globally so any assignment of a jsDelivr .html URL is instead fetched as
+// text and injected via .srcdoc, with a <base> tag scoped to that file's
+// own folder so ITS relative asset references still resolve correctly.
+// This one patch covers every lazy-loaded iframe on the page (games,
+// music, movies, proxy, chat, calc, files) without touching the original
+// loadGame()/switchSection() functions at all.
+//
+// Known limitation this can't fix: some game files (and the Scramjet proxy
+// used by movie/youtube/tiktok/insta/chat) hardcode root-absolute paths
+// internally (src="/js/foo.js" etc). A <base> tag has no effect on
+// absolute paths, and jsDelivr is a single shared origin, so those
+// specific files will still 404 on their own assets here.
+
+// Bridge: the "Dev Controls" dock button (app-files) is unhidden based on
+// localStorage 'mathmaster_dev' (set in script.js's checkDevAndPremiumUI).
+// But file-all.html's OWN dev-controls panel + console gate on a separate
+// flag, sessionStorage 'mathmaster_dev_unlocked', that nothing was ever
+// setting -- so isDev users could open the Files app but never actually
+// saw the full dev tools inside it. Set it here so isDev implies full
+// access to the file app, not just visibility of its dock button.
+if (localStorage.getItem('mathmaster_dev') === 'true') {
+    sessionStorage.setItem('mathmaster_dev_unlocked', 'true');
+}
+
+const CDN = {
+    core:  "https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/",
+    pics:  "https://cdn.jsdelivr.net/gh/Ludus-hub/Pictures@Main/",
+    music: "https://cdn.jsdelivr.net/gh/Ludus-hub/music@Main/",
+    htmlG: "https://cdn.jsdelivr.net/gh/Ludus-hub/Html-games@Main/",
+};
+
+function resolveCdnUrl(path) {
+    if (!path || /^https?:\/\//i.test(path)) return path;
+    let p = path.replace(/^\.\//, '');
+    const GD = "Versions/Assets/Game Data/";
+    const MU = "Versions/Assets/Apps/music/";
+    const PI = "Versions/Assets/Pictures/";
+    const AS = "Assets/";
+    let out;
+    if (p.startsWith(GD)) {
+        // Every game -- flat single-file games AND folder-based games like
+        // drive-mad/index.html or monkeymart/index.html -- now lives in the
+        // single Html-games repo. games-1/2/3 are no longer referenced.
+        out = CDN.htmlG + p.slice(GD.length);
+    } else if (p.startsWith(MU)) {
+        out = CDN.music + "music/" + p.slice(MU.length);
+    } else if (p.startsWith(PI)) {
+        out = CDN.pics + p.slice("Versions/Assets/".length);
+    } else if (p.startsWith(AS)) {
+        out = CDN.pics + p.slice(AS.length);
+    } else {
+        out = CDN.core + p;
+    }
+    return encodeURI(out);
+}
+
+// Pre-resolve every game's path + thumbnail once, up front. games is a
+// top-level const in script.js but const only locks the binding, not the
+// array contents, so mutating entries here is safe -- and this runs
+// synchronously, before any DOMContentLoaded/onload handler ever calls
+// renderGamesGrid(), so nothing renders with an unresolved path.
+if (typeof games !== 'undefined') {
+    games.forEach(g => {
+        if (g.path) g.path = resolveCdnUrl(g.path);
+        if (g.logo) g.logo = resolveCdnUrl(g.logo);
+    });
+}
+
+// Generic iframe.src interceptor
+(function () {
+    const desc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')
+              || Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'src');
+    if (!desc) return;
+
+    // Every assignment to iframe.src bumps frame.__srcTok. A pending srcdoc load
+    // only applies if the token is still the one it started with, so setting
+    // src='about:blank' (goHome) or opening another game cancels it.
+    //
+    // The sandbox attribute is deliberately NOT touched here: loadGame() in
+    // script.js sets it (GAME_SANDBOX, or none for social embeds) before it
+    // assigns src, and the markup default matches it.
+    function loadViaSrcdoc(frame, url, token) {
+        fetch(url).then(r => {
+            if (!r.ok) throw new Error('fetch failed: ' + r.status);
+            return r.text();
+        }).then(text => {
+            if (frame.__srcTok !== token) return; // superseded or closed
+            const folder = new URL('.', url).href;
+            let out = text.replace(/(<head[^>]*>)/i, `$1<base href="${folder}">`);
+            if (typeof GAME_PATCH_SCRIPT !== 'undefined' &&
+                (out.includes('ytgame.js') || /pixi/i.test(out))) {
+                out = out.replace(/(<head[^>]*>)/i, '$1' + GAME_PATCH_SCRIPT);
+            }
+            frame.removeAttribute('src');
+            frame.srcdoc = out;
+        }).catch(() => {
+            if (frame.__srcTok !== token) return; // superseded or closed
+            desc.set.call(frame, url); // last-resort fallback
+        });
+    }
+
+    Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+        configurable: true,
+        enumerable: true,
+        get() { return desc.get.call(this); },
+        set(value) {
+            const token = this.__srcTok = (this.__srcTok || 0) + 1;
+            if (typeof value === 'string' &&
+                /^https?:\/\/cdn\.jsdelivr\.net\//i.test(value) &&
+                /\.html?(?:[?#]|$)/i.test(value)) {
+                loadViaSrcdoc(this, value, token);
+            } else {
+                desc.set.call(this, value);
+            }
+        }
+    });
+})();
+</script>
+</body>
+</html>

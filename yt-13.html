@@ -1,0 +1,3529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ludus YouTube</title>
+  <script src="ludus-servers-2.js"></script>
+  <script src="ludus-core-2.js"></script>
+  <style>
+/* ─── Ludus YouTube · style.css ──────────────────────────────────────────
+   Visual language ported from Ludus Stream (movie.html): near-black base,
+   cyan→green brand gradient, glow-on-hover cards, sandboxed embed player
+   with a tiered server picker.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* === Design Tokens === */
+:root {
+  --bg:          #040404;   /* bg-base */
+  --surface:     #0a0a0a;   /* bg-elevated */
+  --card:        #111111;   /* bg-card */
+  --hover:       #1a1a1a;
+  --border:      rgba(255,255,255,0.09);
+  --accent:      #00C9FF;
+  --accent-h:    #00b3e6;
+  --accent-l:    #92FE9D;
+  --accent-glow: rgba(0,201,255,0.35);
+  --gradient:    linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%);
+  --text:        #ffffff;
+  --text2:       #a0a0a0;
+  --text3:       #62626a;
+  --red:         #ff5d5d;
+  --green:       #92FE9D;
+  --amber:       #ffb84d;
+  --sidebar-w:   224px;
+  --topbar-h:    62px;
+  --r:           10px;
+  --r-sm:        7px;
+  --font:        -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --ease:        0.2s ease;
+}
+
+/* === Reset === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+a    { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+img  { max-width: 100%; display: block; }
+select { font-family: inherit; }
+input  { font-family: inherit; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* App Shell                                                                */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+#app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Sidebar                                                                  */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+#sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width var(--ease);
+}
+
+#sidebar.collapsed { width: 56px; }
+#sidebar.collapsed .brand-name,
+#sidebar.collapsed .nav-label,
+#sidebar.collapsed .sidebar-footer .nav-label {
+  display: none;
+}
+#sidebar.collapsed .brand  { justify-content: center; padding: 18px 0; }
+#sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; margin: 2px 6px; }
+#sidebar.collapsed .sidebar-footer .nav-item { justify-content: center; padding: 10px 0; margin: 2px 6px; }
+
+/* Brand — gradient wordmark, same titling treatment as Ludus Stream */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 14px 18px 16px;
+  flex-shrink: 0;
+  user-select: none;
+}
+.brand svg { color: var(--accent); flex-shrink: 0; }
+.brand-name {
+  font-size: 15.5px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+/* Nav */
+#sidebar-nav {
+  flex: 1;
+  padding: 6px 0;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: var(--r-sm);
+  margin: 1px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text2);
+  transition: background var(--ease), color var(--ease);
+  white-space: nowrap;
+}
+.nav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+.nav-item:hover  { background: var(--hover); color: var(--text); }
+.nav-item.active {
+  background: rgba(0,201,255,0.12);
+  color: var(--accent);
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+.nav-item.active svg { filter: drop-shadow(0 0 4px var(--accent-glow)); }
+
+.sidebar-footer {
+  padding: 6px 0 12px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Main Area                                                                */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+#main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Topbar                                                                   */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+#topbar {
+  height: var(--topbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.icon-btn {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm);
+  color: var(--text2);
+  flex-shrink: 0;
+  transition: background var(--ease), color var(--ease);
+}
+.icon-btn:hover { background: var(--hover); color: var(--accent); }
+.icon-btn svg   { width: 20px; height: 20px; }
+
+/* Search */
+#search-wrap {
+  flex: 1;
+  max-width: 540px;
+  position: relative;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: rgba(30,30,30,0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 22px;
+  padding: 0 14px;
+  gap: 8px;
+  transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
+}
+.search-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(0,201,255,0.2);
+  background: rgba(10,10,10,0.85);
+}
+.search-box svg { width: 15px; height: 15px; color: var(--text3); flex-shrink: 0; }
+
+#search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+  height: 40px;
+  padding: 0;
+}
+#search-input::placeholder { color: var(--text3); }
+
+.clear-btn {
+  color: var(--text3);
+  font-size: 16px;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: background var(--ease), color var(--ease);
+}
+.clear-btn:hover { background: var(--hover); color: var(--text); }
+
+/* Suggestions dropdown */
+#suggestions {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0; right: 0;
+  background: rgba(8,8,8,0.97);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0,201,255,0.25);
+  border-radius: 14px;
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.9), 0 0 36px rgba(0,201,255,0.06);
+}
+
+.sug-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  cursor: pointer;
+  color: var(--text2);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s, color 0.12s;
+}
+.sug-item:last-child { border-bottom: none; }
+.sug-item svg { width: 15px; height: 15px; color: var(--text3); flex-shrink: 0; }
+.sug-item:hover { background: rgba(0,201,255,0.07); color: var(--text); }
+
+/* Instance badge */
+.instance-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: default;
+}
+.status-control {
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.035);
+  transition: border-color var(--ease), color var(--ease), background var(--ease);
+}
+button.status-control { cursor: pointer; }
+button.status-control:hover { border-color: rgba(255,255,255,.18); color: var(--text); }
+.status-control.pending .status-dot { animation: conduitPulse 1s ease-in-out infinite; }
+.status-control.off .status-dot { background: var(--text3); box-shadow: none; }
+.status-control.fail .status-dot { background: var(--red); }
+@keyframes conduitPulse { 0%,100% { opacity:.35; transform:scale(.8); } 50% { opacity:1; transform:scale(1.15); } }
+
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+  transition: background 0.4s;
+}
+.status-dot.ok   { background: var(--green); box-shadow: 0 0 6px var(--accent-glow); }
+.status-dot.warn { background: var(--amber); }
+.status-dot.err  { background: var(--red); }
+
+.server-status-host { display: flex; align-items: center; flex: none; min-width: 0; }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Page Content                                                             */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+#content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Page Headers & Tabs                                                      */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-bottom: 18px;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 22px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  transition: color var(--ease), border-color var(--ease);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Video Grid                                                               */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 24px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Video Card — Netflix-style glow on hover                                 */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.v-card {
+  cursor: pointer;
+  border-radius: var(--r);
+  overflow: visible;
+  transition: transform 0.22s ease;
+}
+.v-card:hover { transform: translateY(-3px) scale(1.015); z-index: 2; }
+
+.v-thumb {
+  position: relative;
+  padding-top: 56.25%;
+  background: var(--card);
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.v-thumb img {
+  position: absolute;
+  inset: 0; width: 100%; height: 100%;
+  object-fit: cover;
+  transition: filter var(--ease);
+}
+.v-card:hover .v-thumb {
+  border-color: var(--accent);
+  box-shadow: 0 0 22px var(--accent-glow);
+}
+.v-card:hover .v-thumb img { filter: brightness(1.08); }
+
+.v-dur, .v-live {
+  position: absolute;
+  bottom: 6px; right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.v-dur  { background: rgba(0,0,0,0.82); color: #fff; }
+.v-live { background: var(--red); color: #fff; letter-spacing: 0.4px; }
+
+.v-info   { padding: 10px 2px 4px; }
+.v-title  {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.v-meta   { font-size: 12px; color: var(--text2); }
+.v-chan   { display: inline; transition: color var(--ease); }
+.v-chan:hover { color: var(--accent); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Home — personalized recommendation sections                             */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.home-section { margin-bottom: 36px; }
+.row-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Watch History                                                            */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.history-head .page-title { margin-bottom: 0; }
+
+.hist-remove-btn {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 3;
+}
+.v-card { position: relative; }
+.v-card:hover .hist-remove-btn { opacity: 1; }
+.hist-remove-btn:hover { background: var(--red); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Skeleton Loading                                                         */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skel {
+  background: linear-gradient(90deg, var(--card) 25%, var(--hover) 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+  border-radius: var(--r-sm);
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Error / Empty States                                                     */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.err-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  gap: 10px;
+}
+.err-state svg  { width: 44px; height: 44px; color: var(--text3); }
+.err-title      { font-size: 15px; font-weight: 600; color: var(--text2); }
+.err-msg        { font-size: 13px; color: var(--text3); max-width: 380px; line-height: 1.5; }
+.retry-btn {
+  margin-top: 4px;
+  padding: 8px 20px;
+  background: var(--accent);
+  color: #000;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background var(--ease), box-shadow var(--ease);
+}
+.retry-btn:hover { background: var(--accent-h); box-shadow: 0 0 14px var(--accent-glow); }
+
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 14px;
+}
+
+/* Lazy-load prompts — shown instead of auto-fetching an expensive call
+   (Watch page's video-info / recommendations buttons) until the person
+   asks for it. */
+.lazy-load-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 22px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.lazy-load-card p {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.home-recs-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.home-recs-prompt span {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Watch Page                                                               */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.watch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+.watch-main { min-width: 0; }
+.watch-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--text2);
+  font: 700 12px var(--font);
+}
+.watch-back:hover { color: var(--accent); border-color: var(--accent); background: var(--hover); }
+
+.player-wrap {
+  position: relative;
+  padding-top: 56.25%;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.55);
+}
+.player-wrap iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+}
+.player-wrap .player-placeholder {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text3); font-size: 13px;
+}
+.relay-player {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+.relay-player-title {
+  position: absolute;
+  z-index: 2;
+  top: 0; left: 0; right: 0;
+  padding: 18px 20px 46px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(0,0,0,.8), transparent);
+  pointer-events: none;
+}
+.relay-player-audio {
+  width: min(620px, 100%);
+  accent-color: var(--accent);
+}
+.relay-player-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.yt-player-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--text2);
+  font-size: 13px;
+}
+
+.video-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+  margin-bottom: 10px;
+}
+.video-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 14px;
+}
+
+.channel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: opacity var(--ease);
+}
+.channel-row:hover { opacity: 0.85; }
+.chan-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--card);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.chan-name { font-size: 14px; font-weight: 600; }
+.chan-subs { font-size: 12px; color: var(--text2); }
+
+.desc-wrap { margin-bottom: 20px; }
+.desc-text {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.desc-text.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+.expand-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  margin-top: 6px;
+  padding: 2px 0;
+  transition: color var(--ease);
+}
+.expand-btn:hover { color: var(--accent); }
+
+/* ─── Recommendations ─── */
+.rec-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.rec-list { display: flex; flex-direction: column; gap: 10px; }
+
+.rec-card {
+  display: flex;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  padding: 4px;
+  transition: background var(--ease);
+}
+.rec-card:hover { background: var(--hover); }
+
+.rec-thumb-wrap {
+  position: relative;
+  width: 126px;
+  min-width: 126px;
+  aspect-ratio: 16/9;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--card);
+  flex-shrink: 0;
+}
+.rec-thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.rec-dur {
+  position: absolute;
+  bottom: 4px; right: 4px;
+  background: rgba(0,0,0,0.82);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.rec-info   { flex: 1; min-width: 0; }
+.rec-title  {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+.rec-meta { font-size: 11px; color: var(--text2); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Server Bar — main server picker + "More Servers" toggle                  */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.server-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.server-controls {
+  position: relative;
+  display: flex;
+  min-width: 190px;
+}
+
+.server-dropdown-btn {
+  height: 38px;
+  padding: 0 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.server-dropdown-btn:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(0,201,255,0.15);
+}
+.server-dropdown-btn .chev { font-size: 10px; opacity: 0.5; flex-shrink: 0; }
+
+.server-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: #111111;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.9);
+  z-index: 300;
+}
+.server-dropdown-menu.open { display: block; }
+.server-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.server-dropdown-item:last-child { border-bottom: none; }
+.server-dropdown-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.server-dropdown-item.active { color: var(--accent); background: rgba(0,201,255,0.08); font-weight: 700; }
+.server-dropdown-item .server-health { display:block; margin-top:2px; font-size:10px; font-weight:500; opacity:.72; }
+.server-dropdown-item .server-health.healthy { color:#92fe9d; opacity:1; }
+.server-dropdown-item .server-health.unhealthy { color:#ff9292; opacity:1; }
+
+/* Conduit toggle — sits directly in the server bar */
+.cduit-toggle-wrap {
+  display: inline-flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none; padding: 4px 0;
+  background: transparent; border: 0;
+}
+.cduit-toggle-label {
+  font-size: 13px; font-weight: 700;
+  color: rgba(255,255,255,0.45); transition: color 0.25s;
+}
+#conduitToggle.active .cduit-toggle-label { color: var(--accent-l); }
+.cduit-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.cduit-switch-track {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  transition: background 0.25s, border-color 0.25s;
+}
+.cduit-switch-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), background 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+#conduitToggle.active .cduit-switch-track { background: rgba(146,254,157,0.22); border-color: var(--accent-l); }
+#conduitToggle.active .cduit-switch-thumb { transform: translateX(18px); background: var(--accent-l); }
+
+/* Relay player controls — same streamer design as the Ludus Music video player:
+   title fades in from the top, one floating pill bar of controls at the bottom. */
+.relay-controls {
+  position: absolute;
+  z-index: 2;
+  left: 0; right: 0; bottom: 0;
+  padding: 0 16px 16px;
+  display: flex;
+  justify-content: center;
+}
+.relay-controls-row {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  width: 100%; max-width: 920px; padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(10,10,10,.78);
+  border: 1px solid rgba(255,255,255,.09);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.relay-control, .relay-speed, .relay-quality, .relay-captions {
+  min-height: 30px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px;
+  background: rgba(255,255,255,.06); color: #fff; font: 700 12px var(--font);
+  cursor: pointer; transition: .15s;
+}
+.relay-control { min-width: 32px; padding: 0 8px; }
+.relay-skip { min-width: 42px; }
+.relay-control:hover, .relay-speed:hover, .relay-quality:hover, .relay-captions:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,201,255,.12); }
+.relay-time { font: 600 11px var(--font); color: rgba(255,255,255,.55); white-space: nowrap; }
+.relay-seek { min-width: 72px; flex: 1; accent-color: var(--accent); }
+.relay-volume { display:flex; align-items:center; gap:6px; color: rgba(255,255,255,.55); font:800 9px var(--font); }
+.relay-volume input { width: 72px; accent-color: var(--accent); }
+.relay-speed, .relay-quality, .relay-captions { padding: 0 8px; }
+.relay-player:fullscreen { width: 100vw; height: 100vh; background: #000; }
+.relay-player:fullscreen .relay-player-video { width: 100vw; height: 100vh; }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Search Results                                                           */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.search-header { margin-bottom: 20px; }
+.search-query  { font-size: 18px; font-weight: 700; }
+.result-count  { font-size: 13px; color: var(--text2); margin-top: 3px; }
+
+/* Load more */
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0 8px;
+}
+.load-more-btn {
+  padding: 9px 26px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2);
+  transition: background var(--ease), color var(--ease);
+}
+.load-more-btn:hover:not(:disabled) { background: var(--hover); color: var(--accent); }
+.load-more-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Channel Page                                                             */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.channel-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.ch-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--card);
+  flex-shrink: 0;
+}
+.ch-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.ch-subs { font-size: 14px; color: var(--text2); }
+.ch-desc {
+  font-size: 13px;
+  color: var(--text3);
+  margin-top: 6px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Settings Modal                                                           */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+#settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#settings-modal[hidden] { display: none; }
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { font-size: 16px; font-weight: 700; }
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.refresh-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--accent);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.refresh-link:hover { opacity: 0.75; }
+.refresh-link:disabled { opacity: 0.4; cursor: default; }
+.field select {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 9px 10px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--ease);
+}
+.field select:focus { border-color: var(--accent); }
+.field-hint {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Responsive                                                               */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .watch-layout { grid-template-columns: 1fr; }
+  .rec-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); }
+  .rec-header { margin-top: 8px; }
+}
+
+@media (max-width: 768px) {
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 150;
+    transform: translateX(-100%);
+    transition: transform var(--ease);
+    width: var(--sidebar-w) !important;
+  }
+  #sidebar.mobile-open { transform: translateX(0); }
+  #sidebar.collapsed .brand-name,
+  #sidebar.collapsed .nav-label { display: initial; }
+  #sidebar.collapsed .brand  { justify-content: initial; padding: 18px 14px; }
+  #sidebar.collapsed .nav-item { justify-content: initial; padding: 9px 14px; margin: 1px 8px; }
+  #content  { padding: 14px; }
+  .video-grid { grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 14px; }
+  .instance-badge { display: none; }
+  #search-wrap { max-width: none; }
+  .server-bar { flex-direction: column; align-items: stretch; }
+  .relay-controls-row { flex-wrap: wrap; border-radius: 20px; }
+  .relay-seek { order: 3; flex-basis: 100%; }
+}
+
+</style>
+  <style>
+    /* ── Player loader — shown inside #ludus-player-wrap while the 
+       iframe is connecting; removed on iframe load. ── */
+    .yt-player-loader {
+      position: absolute; inset: 0; z-index: 5;
+      display: grid; place-content: center; gap: 12px; text-align: center;
+      background: #050506;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .yt-player-loader.yt-fade-out { opacity: 0; }
+    .yt-player-loader-spinner {
+      width: 30px; height: 30px; margin: auto; border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, .15);
+      border-top-color: #00C9FF;
+      animation: yt-spin 0.8s linear infinite;
+    }
+    @keyframes yt-spin { to { transform: rotate(360deg); } }
+    .yt-player-loader-label {
+      font-size: 13px; font-weight: 600;
+      color: rgba(255, 255, 255, .55);
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside id="sidebar">
+
+    <div class="brand" onclick="navigate('/')">
+      <!-- Play triangle icon, Ludus gradient -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#ludusGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <defs>
+          <linearGradient id="ludusGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00C9FF" />
+            <stop offset="100%" stop-color="#92FE9D" />
+          </linearGradient>
+        </defs>
+        <polygon points="5,3 19,12 5,21" fill="url(#ludusGradient)" stroke="none"/>
+      </svg>
+      <span class="brand-name">Ludus YouTube</span>
+    </div>
+
+    <nav id="sidebar-nav">
+
+      <a class="nav-item" href="javascript:void(0)" data-path="/" onclick="navigate('/')" >
+        <!-- Home -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="nav-label">Home</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)" data-path="/trending" onclick="navigate('/trending')">
+        <!-- Trending / chart -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+          <polyline points="16 7 22 7 22 13"/>
+        </svg>
+        <span class="nav-label">Trending</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)" data-path="/popular" onclick="navigate('/popular')">
+        <!-- Star / popular -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span class="nav-label">Popular</span>
+      </a>
+
+      <a class="nav-item" href="javascript:void(0)" data-path="/history" onclick="navigate('/history')">
+        <!-- Clock / history -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span class="nav-label">History</span>
+      </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      <button id="settings-btn" class="nav-item" style="width:100%;text-align:left">
+        <!-- Gear / settings -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83
+                   2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33
+                   1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09
+                   A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06
+                   a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0
+                   4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1
+                   2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82
+                   l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06
+                   A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3
+                   a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51
+                   1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0
+                   2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9
+                   a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2
+                   h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="nav-label">Settings</span>
+      </button>
+    </div>
+
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────────────────────────────────── -->
+  <div id="main">
+
+    <!-- Topbar -->
+    <header id="topbar">
+
+      <!-- Hamburger -->
+      <button id="toggle-sidebar" class="icon-btn" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6"  x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      <!-- Search -->
+      <div id="search-wrap">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="search-input" placeholder="Search" autocomplete="off" spellcheck="false">
+          <button id="search-clear" class="clear-btn" hidden aria-label="Clear search">✕</button>
+        </div>
+        <div id="suggestions" hidden></div>
+      </div>
+
+      <!-- Server and Conduit status controls -->
+      <!-- Merged "connected to server" + server selector: the shared control from ludus-core.js is mounted here. -->
+      <div id="server-status" class="server-status-host"></div>
+      <button id="proxy-status" class="instance-badge status-control pending" type="button" aria-pressed="true" title="Conduit is starting">
+        <span class="status-dot"></span>
+        <span>Starting Conduit…</span>
+      </button>
+
+    </header>
+
+    <!-- Page content — views are rendered here by app.js -->
+    <main id="content"></main>
+
+  </div><!-- /main -->
+
+</div><!-- /app -->
+
+
+<!-- ── Settings Modal ────────────────────────────────────────────────────── -->
+<div id="settings-modal" hidden>
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="modal-box">
+
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button id="close-settings" class="icon-btn" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="field">
+        <span class="field-label">Data Source</span>
+        <span class="field-hint" style="margin-top:0">
+          Search, trending, video info, and channel pages are all loaded
+          from the Ludus server (through Conduit when it's on). If it's unavailable, the official
+          YouTube Data API (then public backup servers) takes over for search, trending and
+          channels; video info and recommendations only use the API when you click to load
+          them, to save quota. If a video won't play, try another
+          server from the player's server menu.
+        </span>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Trending Region</span>
+        <select id="region-select">
+          <option value="US">🇺🇸 United States</option>
+          <option value="GB">🇬🇧 United Kingdom</option>
+          <option value="CA">🇨🇦 Canada</option>
+          <option value="AU">🇦🇺 Australia</option>
+          <option value="DE">🇩🇪 Germany</option>
+          <option value="FR">🇫🇷 France</option>
+          <option value="JP">🇯🇵 Japan</option>
+          <option value="IN">🇮🇳 India</option>
+          <option value="BR">🇧🇷 Brazil</option>
+          <option value="MX">🇲🇽 Mexico</option>
+        </select>
+        <span class="field-hint">
+          Affects Trending results. Does not affect search.
+        </span>
+      </div>
+
+    </div><!-- /modal-body -->
+  </div><!-- /modal-box -->
+</div><!-- /settings-modal -->
+
+
+<!-- Conduit is ready-gated before the metadata app starts so Cloudflare resolver
+     traffic can never race ahead of Scramjet/service-worker initialisation. -->
+<script src="/p/scram/scramjet.all.js"></script>
+<script>
+'use strict';
+
+let _sc = null;
+let _scResolve, _scReject;
+const _newConduitPromise = () => { const p = new Promise((resolve, reject) => { _scResolve = resolve; _scReject = reject; }); p.catch(() => {}); return p; };
+let _conduitReady = _newConduitPromise();
+let _conduitState = 'pending';
+let _conduitStage = 'Starting Conduit…';
+let _conduitError = '';
+let _conduitStarting = false;
+// Conduit is ON by default: only an explicit click on the toggle ever stores a value. This is its own key
+// (not the one shared with Ludus Music), so an 'off' saved by another app can't silently disable it here.
+const _conduitPreferenceKey = 'ludusyt_conduit';
+const conduitEnabled = () => { try { return localStorage.getItem(_conduitPreferenceKey) !== 'off'; } catch { return true; } };
+const setConduitEnabled = enabled => { try { localStorage.setItem(_conduitPreferenceKey, enabled ? 'on' : 'off'); } catch {} };
+const setConduitStage = text => {
+  _conduitStage = text;
+  window.dispatchEvent(new CustomEvent('ludus:conduit-stage'));
+};
+const isLocalHost = host => /^(localhost|\[?::1\]?|127(\.\d+){3}|10(\.\d+){3}|192\.168(\.\d+){2}|172\.(1[6-9]|2\d|3[01])(\.\d+){2}|[^.]+\.local)$/i.test(host);
+const nativeFetch = window.fetch.bind(window);
+
+// Resolver tunnels proxy their own requests; routing them through Conduit
+// delayed first-load API calls until backup mode was selected.
+const isResolverTunnel = host => /(?:\.shares\.zrok\.io|\.trycloudflare\.com)$/i.test(host);
+window.fetch = async function conduitFetch(resource, options) {
+  let target;
+  try { target = new URL(resource instanceof Request ? resource.url : resource, location.href); } catch {}
+  if (!target || !conduitEnabled() || !/^https?:$/.test(target.protocol) || target.origin === location.origin || isLocalHost(target.hostname) || isResolverTunnel(target.hostname)) {
+    return nativeFetch(resource, options);
+  }
+  try {
+    const controller = await Promise.race([
+      _conduitReady,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Conduit start timed out')), 20000)),
+    ]);
+    const proxied = location.origin + controller.encodeUrl(target.href);
+    return resource instanceof Request ? nativeFetch(new Request(proxied, resource), options) : nativeFetch(proxied, options);
+  } catch {
+    // Keep the app usable if Conduit is unavailable, matching Ludus Music.
+    return nativeFetch(resource, options);
+  }
+};
+
+const _within = (promise, ms, message) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))]);
+const _pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Boots Scramjet + the service worker. Every step has a timeout (so the badge can never sit on "Starting…"
+// forever) and the worker/init steps get one automatic retry. Safe to call again after a failure.
+async function startConduit() {
+  if (_conduitStarting) return;
+  _conduitStarting = true;
+  if (_conduitState === 'fail') _conduitReady = _newConduitPromise();
+  _conduitState = 'pending';
+  _conduitError = '';
+  setConduitStage('Loading Conduit…');
+  try {
+    if (typeof $scramjetLoadController !== 'function') throw new Error('Core bundle not loaded — check /p/scram/ deployment.');
+    if (!('serviceWorker' in navigator)) throw new Error('Service workers are unavailable in this context.');
+    if (!_sc) {
+      const { ScramjetController } = $scramjetLoadController();
+      _sc = new ScramjetController({
+        prefix: '/scramjet/', wisp: window.LudusServers?.proxy?.active?.()?.url,
+        files: { wasm: '/p/scram/scramjet.wasm.wasm', all: '/p/scram/scramjet.all.js', sync: '/p/scram/scramjet.sync.js' },
+      });
+    }
+    let failure = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        if (!navigator.serviceWorker.controller) {
+          setConduitStage('Starting service worker…');
+          await _within(navigator.serviceWorker.register('/sw.js', { scope: '/' }), 10000, 'Service worker registration timed out.');
+          await _within(navigator.serviceWorker.ready, 10000, 'Service worker did not activate.');
+          if (!navigator.serviceWorker.controller) {
+            await Promise.race([new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })), _pause(2500)]);
+          }
+          if (!navigator.serviceWorker.controller) throw new Error('Service worker is active but not controlling this page yet — reload once.');
+        }
+        setConduitStage('Starting Conduit…');
+        await _within(_sc.init(), 15000, 'Conduit init timed out.');
+        failure = null;
+        break;
+      } catch (error) { failure = error; if (attempt < 2) await _pause(1500); }
+    }
+    if (failure) throw failure;
+    _conduitState = 'ok';
+    _scResolve(_sc);
+  } catch (error) {
+    console.warn('[Ludus YouTube] Conduit init error:', error);
+    _conduitState = 'fail';
+    _conduitError = error?.message || String(error);
+    _scReject(error);
+  } finally {
+    _conduitStarting = false;
+    window.dispatchEvent(new CustomEvent('ludus:conduit-stage'));
+  }
+}
+
+// Used by both toggles (header badge + player route switch). Turning it back on after a failure retries the boot.
+function toggleConduit() {
+  const on = !conduitEnabled();
+  setConduitEnabled(on);
+  if (on && _conduitState === 'fail') startConduit();
+  window.dispatchEvent(new CustomEvent('ludus:conduit-toggle'));
+}
+
+startConduit();
+</script>
+
+<script>
+'use strict';
+
+// ─── Ludus YouTube · api.js ─────────────────────────────────────────────────
+// Every title card, search, trending row, video page and channel page is loaded
+// from the Ludus resolver (yt.js, backed by yt-dlp) first. If the resolver fails, the
+// official YouTube Data API steps in as the first backup — same API keys, key rotation and
+// daily quota limits as yt-api.html — and public Invidious instances are the last resort. Video info and
+// recommendations only use the Data API when the person clicks to load them, to save quota.
+// Requests go through the
+// Conduit-gated fetch installed above, so each one waits for Scramjet and the
+// service worker to finish starting before it leaves the browser.
+// Server names and addresses are only shown to developer accounts (same rule as Ludus Music). Everyone else sees
+// neutral wording, and only developers can override the built-in server from this browser.
+const isDeveloper = () => LudusCore.isDeveloper();
+const devText = (developerText, publicText) => isDeveloper() ? developerText : publicText;
+// The server list lives ONLY in ludus-servers.js (read through ludus-core.js). No address is hard-coded here,
+// and the old developer URL overrides (which could never take effect) are gone.
+let RESOLVER_BASE = LudusCore.resolver.baseOf(LudusCore.resolver.active());
+const RESOLVER_TIMEOUT_MS = 30000;
+const SEARCH_PAGE = 15;   // the resolver returns the first N hits; page P is the Pth slice of 15
+const SEARCH_MAX_PAGES = 6;
+const RESOLVER_CANDIDATES = LudusCore.resolver.all();
+let _resolverReady;
+// Picks a server that is up (shared, cached health check) and remembers it. A failed start is no longer cached
+// forever: the next call tries again, so the page recovers when a server comes back or another one is available.
+async function ensureResolverServer() {
+  if (_resolverReady) return _resolverReady;
+  const attempt = LudusCore.resolver.ready().then(base => { RESOLVER_BASE = base; return base; });
+  _resolverReady = attempt;
+  attempt.catch(() => { if (_resolverReady === attempt) _resolverReady = null; });
+  return attempt;
+}
+
+// ── YouTube Data API backup — same keys, quota rules and request costs as yt-api.html / api.js ──
+// Second tier of the fallback chain (Ludus resolver → Data API → Invidious). Rotation, the 10,000-unit
+// per-key budget, search = 100 units / everything else = 1 unit, and the midnight-Pacific daily reset are
+// all identical to api.js, and the usage counter lives under the same localStorage key, so yt-api.html and
+// these pages see one shared per-browser tally. These are client-side keys (readable by anyone who views
+// source); see the notes in api.js about restricting them to the YouTube Data API v3 and to this site's origin.
+const API_KEYS = [
+  'AIzaSyDOwb7RzCaEmGCE-326vbGqzPzmHcvyBpM',
+  'AIzaSyC0dsrSGIoh-bwNDeLp_oWglY9ybYKzQk4',
+  'AIzaSyDZaaEbJPunml3y543D-2hyGR7asqOzGqw',
+  'AIzaSyA_whBQY6oCAdlrkFLHzCMsc5ut4HrhpQw',
+  'AIzaSyBHCLpYR7Jw_Em7kRGrrR-5vaf08iDIWFY',
+  'AIzaSyB0yKkuTOmOnIPxz2Q7xuEjVJmrI-Obli4',
+];
+const API_BASE = 'https://www.googleapis.com/youtube/v3';
+const DATA_API_TIMEOUT_MS = 8000;
+const ENDPOINT_COST     = { search: 100 };
+const DAILY_UNIT_BUDGET = 10000; // Google's real per-key daily ceiling
+const QUOTA_STORAGE_KEY = 'ludusyt_quota_v2';
+// Google resets Data API quota at midnight Pacific time, so the "new day" check is done in America/Los_Angeles.
+function _todayKey() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date()); // en-CA formats as YYYY-MM-DD directly
+}
+
+const LudusAPI = (() => {
+
+  // app.js calls cancelPending() at the start of every page render, which aborts
+  // whatever resolver requests the page you just left still has in flight.
+  let _genController = new AbortController();
+  function cancelPending() {
+    _genController.abort();
+    _genController = new AbortController();
+  }
+
+  function _combineSignals(a, b) {
+    if (typeof AbortSignal.any === 'function') return AbortSignal.any([a, b]);
+    if (a.aborted || b.aborted) { const c = new AbortController(); c.abort(); return c.signal; }
+    const merged = new AbortController();
+    const onAbort = () => merged.abort();
+    a.addEventListener('abort', onAbort, { once: true });
+    b.addEventListener('abort', onAbort, { once: true });
+    return merged.signal;
+  }
+
+  // The picker itself shows which server is connected (from the shared monitor). This only adds a note when this
+  // page is NOT using the relay: backup players show "Connected to backup server", a failed request "Server unavailable".
+  function _setStatus(state) {
+    const picker = window.LudusYtPicker; if (!picker) return;
+    if (state === 'ok') return picker.clearNote();
+    if (state === 'api') return picker.setNote('warn', devText('Backup · YouTube Data API', 'Connected to backup server'));
+    if (state === 'backup') return picker.setNote('warn', devText(`Backup · ${_invGood ? new URL(_invGood).hostname : 'Invidious'}`, 'Connected to backup server'));
+    picker.setNote('offline', devText('resolver unavailable', 'Server unavailable'));
+  }
+
+  async function _get(path, params = {}, { timeout = RESOLVER_TIMEOUT_MS } = {}) {
+    const navSignal = _genController.signal;
+    try {
+      // The core picks a healthy server and, if this one dies mid-session, fails over to another by itself.
+      const res = await LudusCore.resolver.request(path, params, { timeout, signal: navSignal });
+      RESOLVER_BASE = LudusCore.resolver.baseOf(LudusCore.resolver.active());
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || devText(`The Ludus resolver returned HTTP ${res.status}.`, `The server returned an error (HTTP ${res.status}).`));
+      _setStatus('ok');
+      return data;
+    } catch (e) {
+      if (navSignal.aborted) { const ne = new Error('cancelled'); ne.navCancelled = true; throw ne; }
+      _setStatus('err');
+      if (e.resolverListMissing) throw e;
+      if (e.name === 'AbortError' || e.name === 'TimeoutError') throw Object.assign(new Error(devText('The Ludus resolver took too long to answer.', 'The server took too long to answer.')), { timedOut: true });
+      if (e instanceof TypeError) throw Object.assign(new Error(devText('Could not reach the Ludus resolver — check that yt.js is running and the tunnel URL is current.', 'Could not reach the server. Try again in a moment.')), { unreachable: true });
+      throw e;
+    }
+  }
+
+  // ── format helpers ─────────────────────────────────────────────────────
+  function _fmtPublished(iso) {
+    if (!iso) return '';
+    const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+    const day  = 86400000;
+    if (diff < day) return 'today';
+    const days = Math.floor(diff / day);
+    if (days < 31)  return `${days} day${days === 1 ? '' : 's'} ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} month${months === 1 ? '' : 's'} ago`;
+    return `${Math.floor(days / 365)} year${Math.floor(days / 365) === 1 ? '' : 's'} ago`;
+  }
+
+  function _fmtCompact(n) {
+    n = Number(n);
+    if (!n) return '';
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+
+  // Resolver item → the video-card shape the rest of the app expects.
+  function _fromResolver(it) {
+    return {
+      videoId: it.videoId, title: it.title, description: it.description || '',
+      videoThumbnails: [{ url: it.thumbnail || `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg`, width: 480, height: 360 }],
+      author: it.artist || it.author || '', authorId: it.channelId || it.authorId || '', authorThumbnails: [],
+      lengthSeconds: it.duration || it.lengthSeconds || 0, liveNow: !!it.liveNow,
+      viewCount: it.viewCount, likeCount: it.likeCount, publishedText: it.publishedText || '',
+    };
+  }
+  const _list = data => Array.isArray(data?.results) ? data.results.map(_fromResolver) : [];
+
+  async function _search(q, { sort_by, page = 1 } = {}) {
+    if (!q || page > SEARCH_MAX_PAGES) return [];
+    const data = await _get('search', { q, n: SEARCH_PAGE * page, sort: sort_by === 'upload_date' ? 'date' : undefined });
+    return _list(data).slice(SEARCH_PAGE * (page - 1));
+  }
+
+  // The channel header and its first page of videos come from one resolver
+  // request; this keeps channel() + channelVideos() from asking twice.
+  const _channelReqs = new Map();
+  function _channelPage(id, page = 1) {
+    const key = `${id}:${page}`;
+    if (!_channelReqs.has(key)) {
+      _channelReqs.set(key, _get('channel', { id, page }).catch(e => { _channelReqs.delete(key); throw e; }));
+    }
+    return _channelReqs.get(key);
+  }
+
+  const _titles = new Map(); // videoId -> title, so recommendations() can label itself after video()
+  const _videoReqs = new Map(); // videoId -> info request, shared so video() and recommendations() never ask twice
+
+  const resolverAPI = {
+    cancelPending,
+
+    getInstance: () => devText('Ludus resolver', 'Server'),
+    setInstance: () => {},
+    refreshInstances: async () => [],
+    get instances() { return []; },
+
+    trending: (type = 'default') => _get('search', {
+      q: type === 'gaming' ? 'trending gaming' : type === 'music' ? 'trending music' : 'trending videos', n: 50,
+    }).then(_list),
+
+    popular: () => _get('search', { q: 'popular videos', n: 50 }).then(_list),
+
+    search: (q, params = {}) => _search(q, params),
+
+    // The resolver has no autocomplete endpoint; the dropdown just stays hidden.
+    suggestions: async () => ({ suggestions: [] }),
+
+    video: (id) => {
+      if (!_videoReqs.has(id)) {
+        _videoReqs.set(id, _get('info', { v: id }, { timeout: 45000 }).then(d => {
+          if (!d.videoId) throw new Error('Video not found');
+          _titles.set(id, d.title);
+          const u = String(d.uploadDate || '');
+          return {
+            ..._fromResolver(d),
+            publishedText: /^\d{8}$/.test(u) ? _fmtPublished(`${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6)}`) : '',
+            subCountText: d.subCount ? _fmtCompact(d.subCount) + ' subscribers' : undefined,
+          };
+        }).catch(e => { _videoReqs.delete(id); throw e; }));
+      }
+      return _videoReqs.get(id);
+    },
+
+    // "Up next": YouTube's own auto-mix for the video, via the resolver.
+    // Tier 1: YouTube's own auto-mix. Tier 2 (mix failed or came back empty): a resolver search on the video's
+    // title, which uses the same endpoint the Trending tabs rely on. If both fail the error bubbles up and the
+    // Invidious backup below gets its turn.
+    recommendations: async (id, opts = {}) => {
+      let title = opts.seedTitle || _titles.get(id) || '';
+      let videos = [];
+      try { videos = _list(await _get('mix', { v: id }, { timeout: 45000 })).filter(v => v.videoId !== id); }
+      catch (e) {
+        if (e.navCancelled || e.unreachable) throw e;
+        console.warn('[Ludus YouTube] mix failed, falling back to a title search:', e.message);
+      }
+      if (!videos.length) {
+        if (!title) title = (await resolverAPI.video(id).catch(() => null))?.title || '';
+        if (title) videos = (await _search(title)).filter(v => v.videoId !== id);
+      }
+      if (!videos.length) throw new Error('No related videos found');
+      return { title: title || _titles.get(id) || '', videos };
+    },
+
+    // Comments are not rendered anywhere in the app and the resolver has no
+    // endpoint for them, so this stays an empty list instead of a dead request.
+    comments: async () => ({ comments: [] }),
+
+    channel: async (id) => {
+      const d = await _channelPage(id);
+      return {
+        author: d.author || 'YouTube channel', authorId: d.authorId || id,
+        authorThumbnails: d.thumbnail ? [{ url: d.thumbnail, width: 176, height: 176 }] : [],
+        subCountText: d.subCount ? _fmtCompact(d.subCount) : '',
+        description: d.description || '',
+      };
+    },
+
+    channelVideos: async (id, page = 1) => ({ videos: _list(await _channelPage(id, page)) }),
+
+    playlist: async (id) => ({ videos: _list(await _get('playlist', { list: id })) }),
+  };
+
+  // ── YouTube Data API backup ────────────────────────────────────────────
+  // Tier 2, tried when the Ludus resolver fails. Quota handling is a direct port of api.js: each key is used
+  // until Google reports quotaExceeded (or its local 10,000-unit tally runs out), then the next key takes over;
+  // when every key is spent the tier throws immediately (no network) so the Invidious tier gets its turn.
+  function _freshQuotaState() {
+    return { day: _todayKey(), activeIndex: 0, keys: API_KEYS.map(() => ({ used: 0, exhausted: false })) };
+  }
+
+  function _loadQuotaState() {
+    try {
+      const raw = localStorage.getItem(QUOTA_STORAGE_KEY);
+      const parsed = raw && JSON.parse(raw);
+      if (parsed && parsed.day === _todayKey() && Array.isArray(parsed.keys) && parsed.keys.length === API_KEYS.length) {
+        return parsed;
+      }
+    } catch { /* corrupt/missing — fall through to a fresh state */ }
+    // New day, first run ever, or the API_KEYS list changed size — everyone starts back at key 0.
+    return _freshQuotaState();
+  }
+
+  function _saveQuotaState() {
+    try { localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify(_quota)); } catch {}
+  }
+
+  let _quota = _loadQuotaState();
+
+  // Calls can overlap (e.g. the home page fires several at once), so every write re-reads the stored state first
+  // instead of saving a stale copy over another call's spend, and only moves past a key that is still the active one.
+  function _updateKey(idx, fn) {
+    _quota = _loadQuotaState();
+    fn(_quota.keys[idx]);
+    _saveQuotaState();
+  }
+
+  function _advanceKey(fromIdx) {
+    _quota = _loadQuotaState();
+    if (_quota.activeIndex === fromIdx) _quota.activeIndex = (fromIdx + 1) % API_KEYS.length;
+    _saveQuotaState();
+  }
+
+  function _quotaExceededError() {
+    const e = new Error('This key is out of quota for today.');
+    e.quotaExceeded = true;
+    return e;
+  }
+
+  function _allKeysExhaustedError() {
+    const e = new Error(`All ${API_KEYS.length} API keys are out of quota for today.`);
+    e.allKeysExhausted = true;
+    return e;
+  }
+
+  // Google's real "you're out of quota" response shape → rotate to the next key instead of surfacing a generic error.
+  function _isQuotaError(status, data) {
+    if (status !== 403 && status !== 429) return false;
+    const reason = data?.error?.errors?.[0]?.reason || '';
+    const msg    = data?.error?.message || '';
+    return /quota/i.test(reason) || /quota/i.test(msg) || data?.error?.status === 'RESOURCE_EXHAUSTED';
+  }
+
+  // Goes through the page's own fetch (Conduit-gated where Conduit exists, like every other external request).
+  // If the proxied attempt fails at the network level, or comes back as a non-quota 403 (e.g. a key whose
+  // website restriction doesn't accept the proxy's referrer), it is retried once directly.
+  async function _dataFetch(url, signal) {
+    const proxied = typeof nativeFetch === 'function' && typeof conduitEnabled === 'function' && conduitEnabled();
+    if (!proxied) return fetch(url, { signal });
+    try {
+      const res = await fetch(url, { signal });
+      if (res.status !== 403) return res;
+      const body = await res.clone().json().catch(() => ({}));
+      return _isQuotaError(403, body) ? res : nativeFetch(url, { signal });
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      return nativeFetch(url, { signal });
+    }
+  }
+
+  async function _ytRaw(endpoint, params, apiKey, navSignal) {
+    const clean = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    const qs  = new URLSearchParams([...clean, ['key', apiKey]]).toString();
+    const timeoutCtrl = new AbortController();
+    const timer = setTimeout(() => timeoutCtrl.abort(), DATA_API_TIMEOUT_MS);
+    try {
+      const res  = await _dataFetch(`${API_BASE}/${endpoint}?${qs}`, _combineSignals(timeoutCtrl.signal, navSignal));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (_isQuotaError(res.status, data)) throw _quotaExceededError();
+        throw new Error(data?.error?.message || `HTTP ${res.status}`);
+      }
+      return data;
+    } catch (e) {
+      if (e.quotaExceeded) throw e;
+      if (e.name === 'AbortError') {
+        if (navSignal.aborted) { const ne = new Error('cancelled'); ne.navCancelled = true; throw ne; }
+        throw new Error(`timed out after ${DATA_API_TIMEOUT_MS}ms`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Tries the active key; on a real quota error it marks that key exhausted, advances, and retries the same
+  // call — up to once per key. A non-quota error (bad request, timeout, 5xx) is NOT a reason to rotate keys.
+  async function _ytGet(endpoint, params = {}) {
+    _quota = _loadQuotaState(); // pick up the day rolling over, or spend from another tab / page
+    const cost = ENDPOINT_COST[endpoint] || 1;
+    const navSignal = _genController.signal;
+
+    for (let tries = 0; tries < API_KEYS.length; tries++) {
+      const idx = _quota.activeIndex;
+      const keyState = _quota.keys[idx];
+
+      if (keyState.exhausted || keyState.used + cost > DAILY_UNIT_BUDGET) {
+        _updateKey(idx, k => { k.exhausted = true; });
+        _advanceKey(idx);
+        continue;
+      }
+
+      try {
+        const data = await _ytRaw(endpoint, params, API_KEYS[idx], navSignal);
+        _updateKey(idx, k => { k.used += cost; });
+        return data;
+      } catch (e) {
+        if (e.navCancelled) throw e;
+        if (e.quotaExceeded) {
+          _updateKey(idx, k => { k.exhausted = true; });
+          _advanceKey(idx);
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw _allKeysExhaustedError();
+  }
+
+  function _isoDurationToSeconds(iso) {
+    if (!iso) return 0;
+    const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso);
+    if (!m) return 0;
+    const [, h, mi, s] = m;
+    return (Number(h) || 0) * 3600 + (Number(mi) || 0) * 60 + (Number(s) || 0);
+  }
+
+  function _ytThumbs(thumbnails) {
+    if (!thumbnails) return [];
+    return Object.values(thumbnails).filter(Boolean).map(t => ({ url: t.url, width: t.width, height: t.height }));
+  }
+
+  // videos.list / search.list item → the same video-card shape _fromResolver() produces.
+  function _ytVideo(item) {
+    const id = typeof item.id === 'string' ? item.id : item.id?.videoId;
+    const sn = item.snippet || {}, cd = item.contentDetails || {}, st = item.statistics || {};
+    return {
+      videoId: id, title: sn.title, description: sn.description || '',
+      videoThumbnails: _ytThumbs(sn.thumbnails),
+      author: sn.channelTitle, authorId: sn.channelId, authorThumbnails: [],
+      lengthSeconds: _isoDurationToSeconds(cd.duration),
+      liveNow: sn.liveBroadcastContent === 'live',
+      viewCount: st.viewCount !== undefined ? Number(st.viewCount) : undefined,
+      likeCount: st.likeCount !== undefined ? Number(st.likeCount) : undefined,
+      publishedText: _fmtPublished(sn.publishedAt),
+    };
+  }
+
+  // search.list / playlistItems.list carry no duration or view counts — one batched videos.list call
+  // (1 unit, up to 50 ids) fills those in so cards keep their duration badge and view count.
+  async function _ytHydrate(items) {
+    const ids = items.map(i => (typeof i.id === 'string' ? i.id : i.id?.videoId)).filter(Boolean);
+    if (!ids.length) return [];
+    const byId = {};
+    try {
+      const data = await _ytGet('videos', { part: 'contentDetails,statistics', id: ids.join(',') });
+      (data.items || []).forEach(v => { byId[v.id] = v; });
+    } catch (e) { if (e.navCancelled) throw e; /* best-effort — cards just render without duration/views */ }
+    return items.map(item => {
+      const vid = typeof item.id === 'string' ? item.id : item.id?.videoId;
+      return _ytVideo({ ...item, contentDetails: byId[vid]?.contentDetails, statistics: byId[vid]?.statistics });
+    });
+  }
+
+  const YT_CATEGORY_IDS = { gaming: '20', music: '10' };
+
+  // Data API v3 pages by token, but "Load more" only ever asks for page N+1 of the same query, in order — so a
+  // nextPageToken cache stands in for page numbers. If a later page is asked for without a cached token (the
+  // earlier pages came from another source) this tier steps aside instead of re-serving page 1 and wasting 100 units.
+  const _ytSearchPages = new Map(); // `${channelId}::${q}::${sort}` -> { page, nextPageToken }
+
+  async function _ytSearch(q, { sort_by, page = 1, channelId } = {}) {
+    if (!q && !channelId) return [];
+    const params = { part: 'snippet', type: 'video', maxResults: 25, order: sort_by === 'upload_date' ? 'date' : 'relevance' };
+    if (q) params.q = q;
+    if (channelId) { params.channelId = channelId; params.order = 'date'; }
+    const key = `${channelId || ''}::${q || ''}::${sort_by || ''}`;
+    if (page > 1) {
+      const prev = _ytSearchPages.get(key);
+      if (!prev?.nextPageToken) throw new Error('No Data API page token for this results page');
+      params.pageToken = prev.nextPageToken;
+    }
+    const data = await _ytGet('search', params);
+    _ytSearchPages.set(key, { page, nextPageToken: data.nextPageToken });
+    return _ytHydrate(data.items || []);
+  }
+
+  // Channel handles (@name) → channel IDs, cached so channel() + channelVideos() resolve a handle once (1 unit).
+  const _handleIds = new Map();
+  function _ytChannelId(id) {
+    if (!String(id).startsWith('@')) return Promise.resolve(id);
+    if (!_handleIds.has(id)) {
+      _handleIds.set(id, _ytGet('channels', { part: 'id', forHandle: id }).then(d => {
+        const cid = d.items?.[0]?.id;
+        if (!cid) throw new Error('Channel not found');
+        return cid;
+      }).catch(e => { _handleIds.delete(id); throw e; }));
+    }
+    return _handleIds.get(id);
+  }
+
+  const _ytSeedCache = new Map(); // videoId -> { title, tags } from a video() lookup this session
+
+  const _ytData = {
+    trending: async (type = 'default', region = 'US') => {
+      const params = { part: 'snippet,contentDetails,statistics', chart: 'mostPopular', regionCode: region, maxResults: 50 };
+      if (YT_CATEGORY_IDS[type]) params.videoCategoryId = YT_CATEGORY_IDS[type];
+      return ((await _ytGet('videos', params)).items || []).map(_ytVideo);
+    },
+
+    popular: async () => {
+      const data = await _ytGet('videos', { part: 'snippet,contentDetails,statistics', chart: 'mostPopular', regionCode: 'US', maxResults: 50 });
+      return (data.items || []).map(_ytVideo);
+    },
+
+    search: (q, params = {}) => _ytSearch(q, params),
+
+    video: async id => {
+      const data = await _ytGet('videos', { part: 'snippet,contentDetails,statistics', id });
+      const v = data.items?.[0];
+      if (!v) throw new Error('Video not found');
+      const norm = _ytVideo(v);
+      _titles.set(id, norm.title);
+      _ytSeedCache.set(id, { title: norm.title, tags: v.snippet?.tags || [] });
+      let authorThumbnails = [], subCountText;
+      try {
+        const ch = await _ytGet('channels', { part: 'snippet,statistics', id: v.snippet.channelId });
+        const c = ch.items?.[0];
+        authorThumbnails = _ytThumbs(c?.snippet?.thumbnails);
+        if (c?.statistics && !c.statistics.hiddenSubscriberCount) subCountText = _fmtCompact(c.statistics.subscriberCount) + ' subscribers';
+      } catch (e) { if (e.navCancelled) throw e; /* best-effort */ }
+      return { ...norm, authorThumbnails, subCountText };
+    },
+
+    // Data API v3 dropped the official related-videos param in 2023, so "related" is a relevance search seeded
+    // by the video's tags/title — a full search.list call (100 units) plus the 1-unit hydrate, exactly as in api.js.
+    recommendations: async (id, opts = {}) => {
+      const cached = _ytSeedCache.get(id);
+      let title = opts.seedTitle || cached?.title || _titles.get(id);
+      let tags  = opts.seedTags  || cached?.tags;
+      if (!title && !tags) {
+        const data = await _ytGet('videos', { part: 'snippet', id });
+        const v = data.items?.[0];
+        if (!v) throw new Error('Video not found');
+        title = v.snippet?.title; tags = v.snippet?.tags;
+        _ytSeedCache.set(id, { title, tags });
+      }
+      const seed = (tags?.slice(0, 3).join(' ') || title || '').slice(0, 100);
+      if (!seed) throw new Error('No related videos found');
+      const rel = await _ytGet('search', { part: 'snippet', type: 'video', q: seed, maxResults: 20 });
+      const videos = await _ytHydrate((rel.items || []).filter(i => i.id?.videoId !== id));
+      if (!videos.length) throw new Error('No related videos found');
+      return { title: title || '', videos };
+    },
+
+    channel: async id => {
+      const cid = await _ytChannelId(id);
+      const data = await _ytGet('channels', { part: 'snippet,statistics', id: cid });
+      const c = data.items?.[0];
+      if (!c) throw new Error('Channel not found');
+      return {
+        author: c.snippet?.title || 'YouTube channel', authorId: c.id,
+        authorThumbnails: _ytThumbs(c.snippet?.thumbnails),
+        subCountText: c.statistics && !c.statistics.hiddenSubscriberCount ? _fmtCompact(c.statistics.subscriberCount) : '',
+        description: c.snippet?.description || '',
+      };
+    },
+
+    channelVideos: async (id, page = 1) => ({ videos: await _ytSearch(null, { page, channelId: await _ytChannelId(id) }) }),
+
+    playlist: async id => {
+      const data = await _ytGet('playlistItems', { part: 'snippet,contentDetails', playlistId: id, maxResults: 50 });
+      const items = (data.items || [])
+        .filter(it => it.contentDetails?.videoId)
+        .map(it => ({ id: { videoId: it.contentDetails.videoId }, snippet: it.snippet }));
+      return { videos: await _ytHydrate(items) };
+    },
+  };
+
+  // ── Invidious backup ───────────────────────────────────────────────────
+  // Last resort, after the resolver and the YouTube Data API above. Public Invidious instances are reached through the same Conduit-gated fetch.
+  const INV_SEED = ['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.nerdvpn.de', 'https://invidious.privacyredirect.com'];
+  const INV_CACHE_KEY = 'ludusyt_invidious_hosts';
+  let _invHosts = null, _invGood = null, _resolverDownUntil = 0;
+
+  async function _invList() {
+    if (_invHosts) return _invHosts;
+    let hosts = [];
+    try { const c = JSON.parse(localStorage.getItem(INV_CACHE_KEY) || 'null'); if (c && Date.now() - c.t < 6 * 3600e3) hosts = c.h || []; } catch {}
+    if (!hosts.length) {
+      try {
+        const res = await fetch('https://api.invidious.io/instances.json?sort_by=health', { signal: AbortSignal.timeout(8000) });
+        hosts = (await res.json()).filter(([, m]) => m && m.api && m.type === 'https').map(([, m]) => String(m.uri).replace(/\/+$/, '')).slice(0, 8);
+        if (hosts.length) localStorage.setItem(INV_CACHE_KEY, JSON.stringify({ t: Date.now(), h: hosts }));
+      } catch {}
+    }
+    return (_invHosts = [...new Set([...hosts, ...INV_SEED])]);
+  }
+
+  async function _invGet(path, params = {}) {
+    const navSignal = _genController.signal;
+    const clean = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+    const custom = (() => { try { return (localStorage.getItem('ludusyt_invidious_instance') || '').replace(/\/+$/, ''); } catch { return ''; } })();
+    const order = [...new Set([custom, _invGood, ...(await _invList())].filter(Boolean))].slice(0, 5);
+    let lastErr;
+    for (const host of order) {
+      try {
+        const res = await fetch(`${host}/api/v1/${path}?${new URLSearchParams(clean)}`, { signal: _combineSignals(AbortSignal.timeout(8000), navSignal) });
+        if (!res.ok) throw new Error(devText(`Backup server returned HTTP ${res.status}`, `The backup server returned an error (HTTP ${res.status}).`));
+        const data = await res.json();
+        _invGood = host;
+        return data;
+      } catch (e) {
+        if (navSignal.aborted) { const ne = new Error('cancelled'); ne.navCancelled = true; throw ne; }
+        if (_invGood === host) _invGood = null;
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('No backup server reachable');
+  }
+
+  const _invVideos = d => (Array.isArray(d) ? d : d?.videos || []).filter(v => v && v.videoId && (!v.type || v.type === 'video'));
+  const _enc = encodeURIComponent;
+  const _noHandle = id => { if (String(id).startsWith('@')) throw new Error('Channel handles need the resolver'); };
+
+  const _inv = {
+    trending: async (type = 'default', region = 'US') => {
+      const p = { region, type: type === 'music' ? 'Music' : type === 'gaming' ? 'Gaming' : undefined };
+      try { const v = _invVideos(await _invGet('trending', p)); if (v.length) return v; } catch (e) { if (e.navCancelled) throw e; }
+      return _invVideos(await _invGet('search', { q: type === 'gaming' ? 'trending gaming' : type === 'music' ? 'trending music' : 'trending videos', type: 'video' }));
+    },
+    popular: async () => {
+      try { const v = _invVideos(await _invGet('popular')); if (v.length) return v; } catch (e) { if (e.navCancelled) throw e; }
+      return _invVideos(await _invGet('search', { q: 'popular videos', type: 'video' }));
+    },
+    search: async (q, { sort_by, page = 1 } = {}) => q ? _invVideos(await _invGet('search', { q, page, sort_by, type: 'video' })) : [],
+    video: async id => {
+      const d = await _invGet(`videos/${_enc(id)}`);
+      if (!d.videoId) throw new Error('Video not found');
+      _titles.set(id, d.title);
+      return d;
+    },
+    recommendations: async (id, opts = {}) => {
+      const d = await _invGet(`videos/${_enc(id)}`, { fields: 'title,recommendedVideos' });
+      return { title: opts.seedTitle || d.title || _titles.get(id) || '', videos: _invVideos(d.recommendedVideos) };
+    },
+    channel: async id => {
+      _noHandle(id);
+      const d = await _invGet(`channels/${_enc(id)}`);
+      return { author: d.author || 'YouTube channel', authorId: d.authorId || id, authorThumbnails: d.authorThumbnails || [],
+        subCountText: d.subCount ? _fmtCompact(d.subCount) : '', description: d.description || '' };
+    },
+    channelVideos: async (id, page = 1) => { _noHandle(id); return { videos: _invVideos(await _invGet(`channels/${_enc(id)}/videos`, { page })) }; },
+    playlist: async id => ({ videos: _invVideos(await _invGet(`playlists/${_enc(id)}`)) }),
+  };
+
+  // ── Fallback chain ─────────────────────────────────────────────────────
+  // Ludus resolver → YouTube Data API → public Invidious. After a network-level resolver failure the order flips
+  // to Data API → Invidious → resolver for 60s so pages don't wait on a dead tunnel every time. A source that
+  // throws (or, for the trending/popular feeds, comes back empty) hands over to the next one; a navigation-cancel
+  // stops the whole chain. If every source fails, the resolver's own error is reported.
+  //
+  // Quota saving (same approach as yt-api.html): video info and recommendations are the calls the Data API would
+  // pay for most, so they only use it when the caller passes { dataApi: true } — which app.js does only after the
+  // person clicks "Load video info" / "Load recommendations". Without that flag those two calls run on the resolver
+  // and Invidious exactly as before, and if both fail the error carries canUseDataApi so the page can offer the
+  // button. Search, trending, popular, channel and playlist use the Data API automatically as the first backup.
+  const DATA_API_ON_REQUEST = new Set(['video', 'recommendations']);
+
+  // True while at least one key still has quota left today (reads the same shared tally; no network call).
+  function _dataApiAvailable() {
+    const q = _loadQuotaState();
+    return q.keys.some(k => !k.exhausted && k.used < DAILY_UNIT_BUDGET);
+  }
+
+  const _isEmpty = out => Array.isArray(out) && !out.length;
+  async function _tryChain(name, args) {
+    const softEmpty = name === 'trending' || name === 'popular';
+    const gated = DATA_API_ON_REQUEST.has(name);
+    const last = args[args.length - 1];
+    const requested = !gated || (!!last && typeof last === 'object' && last.dataApi === true);
+    let order = Date.now() < _resolverDownUntil
+      ? [_ytData, _inv, resolverAPI]
+      : [resolverAPI, _ytData, _inv];
+    if (!requested) order = order.filter(src => src !== _ytData);
+    else if (gated) order = [_ytData, ...order.filter(src => src !== _ytData)]; // the person asked for the API: use it first
+    let primaryErr = null, firstErr = null, firstEmpty = null;
+    for (const src of order) {
+      try {
+        const out = await src[name](...args);
+        if (softEmpty && _isEmpty(out)) { firstEmpty = firstEmpty || out; continue; }
+        if (src === resolverAPI) _resolverDownUntil = 0;
+        else _setStatus(src === _ytData ? 'api' : 'backup');
+        return out;
+      } catch (e) {
+        if (e.navCancelled) throw e;
+        firstErr = firstErr || e;
+        if (src === resolverAPI) { primaryErr = e; if (e.unreachable) _resolverDownUntil = Date.now() + 60000; }
+      }
+    }
+    if (firstEmpty) return firstEmpty;
+    _setStatus('err');
+    const err = new Error(`${(primaryErr || firstErr).message} (backup servers failed too)`);
+    if (!requested && _dataApiAvailable()) err.canUseDataApi = true;
+    throw err;
+  }
+
+  const _both = {};
+  for (const name of Object.keys(_inv)) _both[name] = (...args) => _tryChain(name, args);
+  return { ...resolverAPI, ..._both };
+})();
+</script>
+
+<script>
+'use strict';
+
+// ─── Ludus YouTube · app.js ─────────────────────────────────────────────────────────
+// Hash-based router + all views: Home, Search, Watch, Channel
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function fmtDuration(secs) {
+  if (!secs && secs !== 0) return '';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function fmtViews(n) {
+  if (!n) return '';
+  if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B views';
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M views';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K views';
+  return n.toLocaleString() + ' views';
+}
+
+function fmtLikes(n) {
+  if (!n) return '';
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return n.toLocaleString();
+}
+
+function escHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function thumb(arr, minW = 300) {
+  if (!arr?.length) return '';
+  const sorted = [...arr].sort((a, b) => (b.width || 0) - (a.width || 0));
+  const hit = sorted.find(t => (t.width || 0) >= minW) || sorted[0];
+  return hit?.url || '';
+}
+
+function smallThumb(arr) {
+  if (!arr?.length) return '';
+  const m = arr.find(t => t.quality === 'medium' || (t.width >= 180 && t.width <= 380));
+  return m ? m.url : arr[arr.length - 1]?.url || '';
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ROUTER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const _routes = {};
+let _currentRoute = '/';
+let _watchReturnRoute = '/';
+
+function route(path, handler) { _routes[path] = handler; }
+
+function navigate(dest) {
+  // dest can be '#/foo' or '/foo' — normalize, then dispatch directly (no URL change)
+  const normalized = dest.startsWith('#') ? dest.slice(1) : dest;
+  const sep    = normalized.indexOf('?');
+  const path   = sep === -1 ? normalized : normalized.slice(0, sep);
+  const qs     = sep === -1 ? '' : normalized.slice(sep + 1);
+  if (path === '/watch' && _currentRoute !== '/watch') _watchReturnRoute = _currentRoute || '/';
+  if (path !== '/watch' && _currentRoute === '/watch') stopWatchPlayback();
+  _currentRoute = normalized || '/';
+  dispatch(path, Object.fromEntries(new URLSearchParams(qs)));
+}
+
+function stopWatchPlayback() {
+  document.querySelectorAll('#ludus-player-wrap video, #ludus-player-wrap audio').forEach(media => {
+    try { media.pause(); media.removeAttribute('src'); media.load(); } catch {}
+  });
+  _activeRelay = null;
+  _currentVideoId = null;
+}
+
+function exitWatch() {
+  const destination = _watchReturnRoute && _watchReturnRoute !== '/watch' ? _watchReturnRoute : '/';
+  navigate(destination);
+}
+
+function dispatch(path, params) {
+  if (!path) path = '/';
+  params = params || {};
+
+  // Highlight active sidebar item — reads data-path attribute set in yt.html
+  document.querySelectorAll('#sidebar-nav .nav-item').forEach(a => {
+    const aPath = a.dataset.path || '';
+    a.classList.toggle('active', aPath === path || (path === '/' && aPath === '/'));
+  });
+
+  // Close mobile sidebar on every navigation
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar')?.classList.remove('mobile-open');
+  }
+
+  const handler = _routes[path] || _routes['*'];
+  if (handler) handler(params);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDER GENERATIONS — "close the other page" when a new one opens
+
+   Every render function that makes an API call starts with
+   `const myGen = beginRender();`, which bumps a shared counter AND tells
+   api.js to abort whatever it was still fetching for the previous page.
+   After each await, `if (isStale(myGen)) return;` skips touching the DOM
+   if some other render call (a real navigation, a tab switch, a settings
+   change) has started in the meantime — otherwise a slow response for a
+   page the user already left could still paint over whatever they
+   navigated to. Doesn't need any changes at call sites elsewhere (retry
+   buttons, tab clicks, hashchange) — they just call the render function
+   like normal, and it stamps its own generation.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let _navGen = 0;
+function beginRender() {
+  LudusAPI.cancelPending();
+  return ++_navGen;
+}
+function isStale(gen) { return gen !== _navGen; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOM HELPERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const $content = () => document.getElementById('content');
+function setHTML(html) { $content().innerHTML = html; }
+
+function skeletonGrid(n = 12) {
+  return `<div class="video-grid">${Array(n).fill(0).map(() => `
+    <div>
+      <div class="skel" style="padding-top:56.25%;border-radius:10px;margin-bottom:10px"></div>
+      <div class="skel" style="height:14px;margin-bottom:7px;width:88%"></div>
+      <div class="skel" style="height:12px;width:58%"></div>
+    </div>`).join('')}</div>`;
+}
+
+function skeletonRecs(n = 7) {
+  return Array(n).fill(0).map(() => `
+    <div style="display:flex;gap:10px;margin-bottom:12px">
+      <div class="skel" style="width:126px;aspect-ratio:16/9;border-radius:6px;flex-shrink:0"></div>
+      <div style="flex:1">
+        <div class="skel" style="height:13px;margin-bottom:7px;width:90%"></div>
+        <div class="skel" style="height:11px;width:60%"></div>
+      </div>
+    </div>`).join('');
+}
+
+let _retryFns = {};
+// Stands in for a load that would be paid for with YouTube Data API quota: it only runs if the person clicks.
+// Same card style as the home recommendations prompt.
+function apiPromptHTML(text, label, onClick) {
+  const id = 'p' + Date.now() + Math.random().toString(36).slice(2, 6);
+  _retryFns[id] = onClick;
+  return `<div class="home-recs-prompt"><span>${escHTML(text)}</span><button class="load-more-btn" onclick="_retryFns['${id}']&&_retryFns['${id}']()">${escHTML(label)}</button></div>`;
+}
+
+function errState(msg, retryFn) {
+  const id = 'r' + Date.now();
+  if (retryFn) _retryFns[id] = retryFn;
+  return `
+    <div class="err-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <div class="err-title">Something went wrong</div>
+      <div class="err-msg">${escHTML(msg)}</div>
+      ${retryFn ? `<button class="retry-btn" onclick="_retryFns['${id}']&&_retryFns['${id}']()">Try again</button>` : ''}
+    </div>`;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VIDEO CARD COMPONENT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function videoCard(v) {
+  const th   = smallThumb(v.videoThumbnails);
+  const dur  = v.liveNow
+    ? `<span class="v-live">LIVE</span>`
+    : v.lengthSeconds
+      ? `<span class="v-dur">${fmtDuration(v.lengthSeconds)}</span>`
+      : '';
+  const views = v.viewCount ? fmtViews(v.viewCount) : (v.viewCountText || '');
+
+  return `
+    <div class="v-card" onclick="navigate('#/watch?v=${escHTML(v.videoId)}')">
+      <div class="v-thumb">
+        ${th ? `<img src="${escHTML(th)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''}
+        ${dur}
+      </div>
+      <div class="v-info">
+        <div class="v-title">${escHTML(v.title) || 'Untitled'}</div>
+        <div class="v-meta">
+          ${v.authorId
+            ? `<a class="v-chan"
+                 href="javascript:void(0)"
+                 onclick="event.stopPropagation(); navigate('/channel?id=${escHTML(v.authorId)}')"
+               >${escHTML(v.author)}</a>`
+            : escHTML(v.author) || ''
+          }
+          ${views             ? ` · ${escHTML(views)}`           : ''}
+          ${v.publishedText ? ` · ${escHTML(v.publishedText)}` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function recCard(v) {
+  const th = smallThumb(v.videoThumbnails);
+  return `
+    <div class="rec-card" onclick="navigate('#/watch?v=${escHTML(v.videoId)}')">
+      <div class="rec-thumb-wrap">
+        ${th ? `<img src="${escHTML(th)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''}
+        ${v.lengthSeconds ? `<span class="rec-dur">${fmtDuration(v.lengthSeconds)}</span>` : ''}
+      </div>
+      <div class="rec-info">
+        <div class="rec-title">${escHTML(v.title) || 'Untitled'}</div>
+        <div class="rec-meta">
+          ${escHTML(v.author) || ''}
+          ${v.publishedText ? ` · ${escHTML(v.publishedText)}` : ''}
+          ${v.viewCount     ? ` · ${fmtViews(v.viewCount)}`   : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderGrid(id, videos) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!videos?.length) {
+    el.innerHTML = '<div class="empty-state">No videos found</div>';
+    return;
+  }
+  el.innerHTML = videos.map(videoCard).join('');
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HOME VIEW  (personalized — recommendations + trending fallback)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('/', renderHome);
+
+async function renderHome() {
+  const myGen = beginRender();
+  setHTML(`<div id="home-sections">${skeletonGrid(8)}</div>`);
+
+  try {
+    // Trending and the history-based "Because you watched" rows both load by default. The recommendation
+    // lookups start immediately alongside trending; each row fills in as its own request returns.
+    const region = localStorage.getItem('ludusyt_region') || 'US';
+    const seeds = getHistory().slice(0, 2);
+    const recs = seeds.map(h => LudusAPI.recommendations(h.videoId, { seedTitle: h.title }).then(r => ({ r }), e => ({ e })));
+    const trending = await LudusAPI.trending('default', region);
+    if (isStale(myGen)) return;
+
+    if (!trending.length) {
+      setHTML(errState('Nothing to show right now', renderHome));
+      return;
+    }
+
+    setHTML(`
+      <div id="home-recs-slot">${seeds.map((_, i) => `
+        <section class="home-section" id="home-rec-${i}">
+          <h2 class="row-title">Recommended for you</h2>${skeletonGrid(4)}
+        </section>`).join('')}</div>
+      <section class="home-section">
+        <h2 class="row-title">Trending</h2>
+        <div class="video-grid">${trending.slice(0, 12).map(videoCard).join('')}</div>
+      </section>
+    `);
+
+    let shown = 0, lastError = null, needsApi = false;
+    Promise.all(recs.map((p, i) => p.then(({ r, e }) => {
+      if (isStale(myGen)) return;
+      const el = document.getElementById(`home-rec-${i}`);
+      if (!el) return;
+      if (r?.videos?.length) {
+        shown++;
+        el.innerHTML = `
+          <h2 class="row-title">${r.title ? `Because you watched "${escHTML(r.title)}"` : 'Recommended for you'}</h2>
+          <div class="video-grid">${r.videos.slice(0, 12).map(videoCard).join('')}</div>`;
+      } else { if (e && !e.navCancelled) lastError = e; if (e?.canUseDataApi) needsApi = true; el.remove(); }
+    }))).then(() => {
+      if (isStale(myGen) || shown || !seeds.length) return;
+      const slot = document.getElementById('home-recs-slot');
+      if (!slot) return;
+      if (needsApi) {
+        // The server and the backup servers both failed, so the only source left is the YouTube Data API, which
+        // costs quota: ask first, and fill just the most recent "Because you watched" row when asked.
+        slot.innerHTML = `
+          <div class="home-recs-prompt">
+            <span>Recommendations curated for you couldn't be loaded from the server. Load them from the YouTube API instead? This uses API quota.</span>
+            <button class="load-more-btn" id="load-home-recs">Load recommendations</button>
+          </div>`;
+        const btn = document.getElementById('load-home-recs');
+        btn?.addEventListener('click', async () => {
+          btn.disabled = true; btn.textContent = 'Loading…';
+          try {
+            const r = await LudusAPI.recommendations(seeds[0].videoId, { seedTitle: seeds[0].title, dataApi: true });
+            if (isStale(myGen)) return;
+            slot.innerHTML = `
+              <section class="home-section">
+                <h2 class="row-title">${r.title ? `Because you watched "${escHTML(r.title)}"` : 'Recommended for you'}</h2>
+                <div class="video-grid">${r.videos.slice(0, 12).map(videoCard).join('')}</div>
+              </section>`;
+          } catch (e) {
+            if (isStale(myGen) || e.navCancelled) return;
+            btn.disabled = false; btn.textContent = 'Failed — try again';
+          }
+        });
+        return;
+      }
+      slot.innerHTML = `
+        <div class="home-recs-prompt">
+          <span>Couldn't load recommendations${lastError ? `: ${escHTML(lastError.message)}` : ''}</span>
+          <button class="load-more-btn" id="retry-home-recs">Retry</button>
+        </div>`;
+      document.getElementById('retry-home-recs')?.addEventListener('click', renderHome);
+    });
+  } catch (e) {
+    if (isStale(myGen)) return;
+    setHTML(errState(e.message, renderHome));
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TRENDING VIEW — its own page, separate from Home. "All" and "Gaming" are
+   resolver searches for trending videos / trending gaming. There's no real
+   "Music"/"Movies" trending chart to read from, so those tabs were dropped
+   rather than faked.
+
+   The other tabs (Sports, Cooking & Baking, Technology, Movies & TV) were
+   never real trending categories — they're powered by a relevance-sorted
+   search query instead, same as before. Same sandboxed-iframe playback
+   either way; only the data source differs.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('/trending', renderTrending);
+
+const TRENDING_TABS = [
+  { id: 'default', label: 'All',              mode: 'trending', type: 'default' },
+  { id: 'gaming',  label: 'Gaming',           mode: 'trending', type: 'gaming' },
+  { id: 'sports',  label: 'Sports',           mode: 'search',   query: 'sports highlights' },
+  { id: 'cooking', label: 'Cooking & Baking', mode: 'search',   query: 'cooking baking recipe' },
+  { id: 'tech',    label: 'Technology',       mode: 'search',   query: 'tech review' },
+  { id: 'movies',  label: 'Movies & TV',      mode: 'search',   query: 'movie trailer' },
+];
+
+function trendingTabsHTML(activeId) {
+  return `
+    <div class="tabs">
+      ${TRENDING_TABS.map(t => `
+        <button class="tab${t.id === activeId ? ' active' : ''}"
+                onclick="navigate('#/trending?type=${t.id}')">
+          ${t.label}
+        </button>`).join('')}
+    </div>`;
+}
+
+async function renderTrending(params = {}) {
+  const myGen = beginRender();
+  const tab = TRENDING_TABS.find(t => t.id === params.type) || TRENDING_TABS[0];
+
+  setHTML(`
+    <h1 class="page-title">Trending</h1>
+    ${trendingTabsHTML(tab.id)}
+    ${skeletonGrid()}
+  `);
+
+  try {
+    let videos;
+    if (tab.mode === 'trending') {
+      const region = localStorage.getItem('ludusyt_region') || 'US';
+      videos = await LudusAPI.trending(tab.type, region);
+    } else {
+      const results = await LudusAPI.search(tab.query, { sort_by: 'relevance' });
+      videos = results.filter(r => !r.type || r.type === 'video');
+    }
+    if (isStale(myGen)) return;
+
+    setHTML(`
+      <h1 class="page-title">Trending</h1>
+      ${trendingTabsHTML(tab.id)}
+      <div id="vgrid" class="video-grid"></div>
+    `);
+    renderGrid('vgrid', videos);
+  } catch (e) {
+    if (isStale(myGen)) return;
+    setHTML(errState(e.message, () => renderTrending(params)));
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WATCH HISTORY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const HISTORY_KEY = 'ludusyt_history';
+const HISTORY_MAX = 60;
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveHistory(list) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_MAX))); }
+  catch { /* storage full or unavailable — fail silently */ }
+}
+
+// Logs a watch immediately on play (videoId only) and is called again once
+// metadata arrives to fill in title/thumbnail/author — merges rather than
+// overwrites so a video is never lost from history just because the
+// metadata API was down.
+function addToHistory(entry) {
+  if (!entry?.videoId) return;
+  const list = getHistory();
+  const idx = list.findIndex(h => h.videoId === entry.videoId);
+  const merged = { ...(idx !== -1 ? list[idx] : {}), ...entry, watchedAt: Date.now() };
+  if (idx !== -1) list.splice(idx, 1);
+  list.unshift(merged);
+  saveHistory(list);
+}
+
+function removeHistoryItem(videoId) {
+  saveHistory(getHistory().filter(h => h.videoId !== videoId));
+  renderHistory();
+}
+
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+
+function fmtAgo(ts) {
+  if (!ts) return '';
+  const diff = Math.max(0, Date.now() - ts);
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)   return 'just now';
+  if (mins < 60)  return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)   return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30)  return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function historyCard(h) {
+  const dur = h.lengthSeconds ? `<span class="v-dur">${fmtDuration(h.lengthSeconds)}</span>` : '';
+  return `
+    <div class="v-card">
+      <div onclick="navigate('#/watch?v=${escHTML(h.videoId)}')">
+        <div class="v-thumb">
+          ${h.thumbnail ? `<img src="${escHTML(h.thumbnail)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : ''}
+          ${dur}
+        </div>
+        <div class="v-info">
+          <div class="v-title">${escHTML(h.title) || 'Untitled'}</div>
+          <div class="v-meta">
+            ${escHTML(h.author) || ''}${h.author ? ' · ' : ''}Watched ${fmtAgo(h.watchedAt)}
+          </div>
+        </div>
+      </div>
+      <button class="hist-remove-btn" title="Remove from history"
+              onclick="event.stopPropagation(); removeHistoryItem('${escHTML(h.videoId)}')">✕</button>
+    </div>`;
+}
+
+route('/history', renderHistory);
+
+function renderHistory() {
+  const list = getHistory();
+
+  if (!list.length) {
+    setHTML(`
+      <div class="history-head">
+        <h1 class="page-title">Watch History</h1>
+      </div>
+      <div class="empty-state">Videos you watch will show up here.</div>
+    `);
+    return;
+  }
+
+  setHTML(`
+    <div class="history-head">
+      <h1 class="page-title">Watch History</h1>
+      <button class="load-more-btn" onclick="clearHistory()">Clear history</button>
+    </div>
+    <div class="video-grid">${list.map(historyCard).join('')}</div>
+  `);
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POPULAR VIEW
+
+   Popular is a resolver search for popular videos — it will look a lot like
+   Trending → All. Kept as its own page since the sidebar links here
+   separately; a failure at this point means the resolver can't be reached.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('/popular', renderPopular);
+
+async function renderPopular(params = {}) {
+  const myGen = beginRender();
+  setHTML(`<h1 class="page-title">Popular</h1>${skeletonGrid()}`);
+  try {
+    const videos = await LudusAPI.popular();
+    if (isStale(myGen)) return;
+    if (!videos?.length) throw new Error('The API returned an empty popular feed.');
+    setHTML(`<h1 class="page-title">Popular</h1><div id="vgrid" class="video-grid"></div>`);
+    renderGrid('vgrid', videos);
+  } catch (e) {
+    if (isStale(myGen)) return;
+    setHTML(popularErrState(e.message, () => renderPopular(params)));
+  }
+}
+
+function popularErrState(msg, retryFn) {
+  const id = 'r' + Date.now();
+  _retryFns[id] = retryFn;
+  return `
+    <div class="err-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <div class="err-title">Popular feed unavailable</div>
+      <div class="err-msg">
+        ${escHTML(msg)}<br><br>
+        ${devText('This usually means the Ludus resolver (yt.js) is offline or its tunnel URL changed.', 'The server may be offline right now. Try again in a moment.')}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="retry-btn" onclick="_retryFns['${id}']&&_retryFns['${id}']()">Try again</button>
+        <button class="retry-btn" style="background:var(--card);color:var(--text2);border:1px solid var(--border)"
+                onclick="navigate('/trending')">Browse Trending instead</button>
+      </div>
+    </div>`;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH VIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('/search', renderSearch);
+
+async function renderSearch(params = {}) {
+  const myGen = beginRender();
+  const q = (params.q || '').trim();
+  if (!q) { navigate('/'); return; }
+
+  let page = parseInt(params.page) || 1;
+
+  setHTML(`
+    <div class="search-header">
+      <div class="search-query">Results for &ldquo;${escHTML(q)}&rdquo;</div>
+    </div>
+    ${skeletonGrid(9)}
+  `);
+
+  try {
+    const results = await LudusAPI.search(q, { page, sort_by: params.sort || 'relevance' });
+    if (isStale(myGen)) return;
+    const videos  = results.filter(r => !r.type || r.type === 'video');
+
+    setHTML(`
+      <div class="search-header">
+        <div class="search-query">Results for &ldquo;${escHTML(q)}&rdquo;</div>
+        <div class="result-count">${videos.length} results (page ${page})</div>
+      </div>
+      <div id="vgrid" class="video-grid"></div>
+      <div class="load-more-wrap">
+        <button class="load-more-btn" id="load-more">Load more</button>
+      </div>
+    `);
+    renderGrid('vgrid', videos);
+
+    document.getElementById('load-more').addEventListener('click', async function () {
+      this.disabled = true;
+      this.textContent = 'Loading…';
+      try {
+        page++;
+        const more = await LudusAPI.search(q, { page, sort_by: params.sort || 'relevance' });
+        if (isStale(myGen)) return;
+        const moreVids = more.filter(r => !r.type || r.type === 'video');
+        document.getElementById('vgrid')
+          ?.insertAdjacentHTML('beforeend', moreVids.map(videoCard).join(''));
+        this.textContent = 'Load more';
+        this.disabled = false;
+      } catch {
+        if (isStale(myGen)) return;
+        this.textContent = 'Failed — try again';
+        this.disabled = false;
+      }
+    });
+
+  } catch (e) {
+    if (isStale(myGen)) return;
+    setHTML(errState(e.message, () => renderSearch(params)));
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WATCH VIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('/watch', renderWatch);
+
+// The title/description/channel row and the Up Next rail both load automatically
+// (resolver first, then Invidious; the YouTube Data API only when the person asks for it). The player mounts first and never
+// waits on either.
+async function renderWatch(params = {}) {
+  const myGen = beginRender();
+  const id = params.v;
+  if (!id) { navigate('/'); return; }
+
+  setHTML(`
+    <div class="watch-layout">
+      <div class="watch-main">
+        <button class="watch-back" type="button" onclick="exitWatch()" aria-label="Back to videos">← Back</button>
+        <div class="player-wrap" id="ludus-player-wrap"></div>
+        ${playerControlsHTML()}
+        <div id="watch-meta"></div>
+      </div>
+      <div>
+        <div class="rec-header">Up Next</div>
+        <div class="rec-list" id="rec-list">${skeletonRecs(8)}</div>
+      </div>
+    </div>
+  `);
+
+  // Mount the streaming player right away — playback doesn't wait on the
+  // metadata requests below.
+  mountPlayer(id);
+
+  // Log to history immediately (videoId only); upgraded with title/thumbnail
+  // once "Load video info" is used, so a watch is never lost even if the
+  // resolver fails or the person never clicks either button.
+  addToHistory({ videoId: id });
+
+  // Shared with loadRecommendations() below so clicking it after "Load
+  // video info" doesn't re-spend the 1-unit videos.list lookup
+  // recommendations() would otherwise need just to find this video's title/tags.
+  let _seedTitle = null;
+
+  async function loadVideoInfo(opts = {}) {
+    const metaEl = document.getElementById('watch-meta');
+    if (metaEl) metaEl.innerHTML = `
+      <div class="skel" style="height:22px;width:78%;margin-bottom:10px"></div>
+      <div class="skel" style="height:13px;width:40%;margin-bottom:14px"></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+        <div class="skel" style="width:40px;height:40px;border-radius:50%;flex-shrink:0"></div>
+        <div style="flex:1"><div class="skel" style="height:13px;width:160px"></div></div>
+      </div>`;
+
+    try {
+      const data = await LudusAPI.video(id, opts);
+      if (isStale(myGen)) return;
+      _seedTitle = data.title;
+
+      const avatarUrl = thumb(data.authorThumbnails, 48) || smallThumb(data.authorThumbnails);
+      const stats = [
+        data.viewCount     ? fmtViews(data.viewCount)         : '',
+        data.likeCount     ? `👍 ${fmtLikes(data.likeCount)}` : '',
+        data.publishedText ? data.publishedText               : '',
+      ].filter(Boolean).map(s => `<span>${escHTML(s)}</span>`).join('');
+
+      const el = document.getElementById('watch-meta');
+      if (el) el.innerHTML = `
+        <h1 class="video-title">${escHTML(data.title) || 'Untitled'}</h1>
+        <div class="video-stats">${stats}</div>
+
+        ${data.authorId ? `
+          <div class="channel-row" onclick="navigate('#/channel?id=${escHTML(data.authorId)}')">
+            ${avatarUrl
+              ? `<img class="chan-avatar" src="${escHTML(avatarUrl)}" alt="" onerror="this.style.visibility='hidden'">`
+              : `<div class="chan-avatar"></div>`}
+            <div>
+              <div class="chan-name">${escHTML(data.author) || ''}</div>
+              ${data.subCountText ? `<div class="chan-subs">${escHTML(data.subCountText)}</div>` : ''}
+            </div>
+          </div>` : ''}
+
+        ${data.description ? `
+          <div class="desc-wrap">
+            <div class="desc-text clamp" id="desc-text">${escHTML(data.description)}</div>
+            <button class="expand-btn" id="expand-btn">Show more</button>
+          </div>` : ''}
+      `;
+
+      // Upgrade the history stub now that we have title/thumbnail/author.
+      addToHistory({
+        videoId: id,
+        title: data.title,
+        author: data.author,
+        authorId: data.authorId,
+        thumbnail: thumb(data.videoThumbnails, 360) || smallThumb(data.videoThumbnails),
+        lengthSeconds: data.lengthSeconds,
+      });
+
+      const expandBtn = document.getElementById('expand-btn');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', function () {
+          const txt = document.getElementById('desc-text');
+          if (!txt) return;
+          const open = txt.classList.toggle('clamp');
+          this.textContent = open ? 'Show more' : 'Show less';
+        });
+        // Start collapsed; toggle to 'clamp' is already applied
+        expandBtn.textContent = 'Show more';
+      }
+    } catch (e) {
+      if (isStale(myGen)) return;
+      // Metadata failed — the player above keeps playing regardless.
+      const el = document.getElementById('watch-meta');
+      if (el) el.innerHTML = e.canUseDataApi
+        ? apiPromptHTML('Video info (channel, description) couldn\'t be loaded from the server. Load it from the YouTube API instead? This uses API quota.', 'Load video info', () => loadVideoInfo({ dataApi: true }))
+        : errState(`Title & info unavailable: ${e.message}`, () => loadVideoInfo(opts));
+    }
+  }
+
+  async function loadRecommendations(opts = {}) {
+    const recEl = document.getElementById('rec-list');
+    if (recEl) recEl.innerHTML = skeletonRecs(8);
+
+    try {
+      const data = await LudusAPI.recommendations(id, { seedTitle: _seedTitle, ...opts });
+      if (isStale(myGen)) return;
+      const el = document.getElementById('rec-list');
+      if (el) el.innerHTML = (data.videos || []).slice(0, 18).map(recCard).join('') || '<div class="empty-state">No recommendations</div>';
+    } catch (e) {
+      if (isStale(myGen)) return;
+      const el = document.getElementById('rec-list');
+      if (el) el.innerHTML = e.canUseDataApi
+        ? apiPromptHTML('The Up Next queue couldn\'t be loaded from the server. Load it from the YouTube API instead? This uses API quota.', 'Load queue', () => loadRecommendations({ dataApi: true }))
+        : errState(e.message, () => loadRecommendations(opts));
+    }
+  }
+
+  // Video info and the Up Next queue load by default; playback above never waits on them. If the server and the
+  // backup servers both fail, each one offers a button to load from the YouTube Data API instead (uses quota).
+  loadVideoInfo();
+  loadRecommendations();
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHANNEL VIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('/channel', renderChannel);
+
+async function renderChannel(params = {}) {
+  const myGen = beginRender();
+  const id = params.id;
+  if (!id) { navigate('/'); return; }
+
+  setHTML(`
+    <div class="channel-header">
+      <div class="skel" style="width:72px;height:72px;border-radius:50%;flex-shrink:0"></div>
+      <div style="flex:1">
+        <div class="skel" style="height:20px;width:200px;margin-bottom:8px"></div>
+        <div class="skel" style="height:13px;width:110px"></div>
+      </div>
+    </div>
+    ${skeletonGrid(8)}
+  `);
+
+  try {
+    const [ch, vdata] = await Promise.all([
+      LudusAPI.channel(id),
+      LudusAPI.channelVideos(id),
+    ]);
+    if (isStale(myGen)) return;
+
+    const avatarUrl = thumb(ch.authorThumbnails, 72) || smallThumb(ch.authorThumbnails);
+    const videos    = vdata.videos || vdata || [];
+
+    setHTML(`
+      <div class="channel-header">
+        ${avatarUrl
+          ? `<img class="ch-avatar" src="${escHTML(avatarUrl)}" alt="" onerror="this.style.visibility='hidden'">`
+          : `<div class="ch-avatar"></div>`}
+        <div>
+          <div class="ch-name">${escHTML(ch.author) || ''}</div>
+          ${ch.subCountText  ? `<div class="ch-subs">${escHTML(ch.subCountText)} subscribers</div>` : ''}
+          ${ch.description   ? `<div class="ch-desc">${escHTML(ch.description)}</div>` : ''}
+        </div>
+      </div>
+      <h2 class="page-title" style="font-size:16px;margin-bottom:16px">Videos</h2>
+      <div id="vgrid" class="video-grid"></div>
+    `);
+    renderGrid('vgrid', videos);
+
+  } catch (e) {
+    if (isStale(myGen)) return;
+    setHTML(errState(e.message, () => renderChannel(params)));
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   404 FALLBACK
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+route('*', () => navigate('/'));
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH BAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function initSearch() {
+  const input   = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+  const sugEl   = document.getElementById('suggestions');
+  let   timer;
+
+  function doSearch() {
+    const q = input.value.trim();
+    if (!q) return;
+    hideSuggestions();
+    navigate(`/search?q=${encodeURIComponent(q)}`);
+  }
+
+  function hideSuggestions() { sugEl.hidden = true; }
+
+  input.addEventListener('input', function () {
+    const q = this.value.trim();
+    clearBtn.hidden = !q;
+
+    clearTimeout(timer);
+    if (!q) { hideSuggestions(); return; }
+
+    timer = setTimeout(async () => {
+      try {
+        const data = await LudusAPI.suggestions(q);
+        const list = data?.suggestions || [];
+        if (!list.length) { hideSuggestions(); return; }
+
+        sugEl.innerHTML = list.slice(0, 8).map(s => `
+          <div class="sug-item" data-q="${escHTML(s)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            ${escHTML(s)}
+          </div>`).join('');
+        sugEl.hidden = false;
+
+        sugEl.querySelectorAll('.sug-item').forEach(item => {
+          item.addEventListener('click', () => {
+            input.value = item.dataset.q;
+            clearBtn.hidden = false;
+            hideSuggestions();
+            navigate(`/search?q=${encodeURIComponent(item.dataset.q)}`);
+          });
+        });
+      } catch { /* suggestions are best-effort */ }
+    }, 320);
+  });
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter')  { doSearch(); }
+    if (e.key === 'Escape') { hideSuggestions(); }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.hidden = true;
+    hideSuggestions();
+    input.focus();
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#search-wrap')) hideSuggestions();
+  });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR TOGGLE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function initSidebarToggle() {
+  const toggle  = document.getElementById('toggle-sidebar');
+  const sidebar = document.getElementById('sidebar');
+  const isMobile = () => window.innerWidth <= 768;
+
+  toggle.addEventListener('click', () => {
+    if (isMobile()) {
+      sidebar.classList.toggle('mobile-open');
+    } else {
+      sidebar.classList.toggle('collapsed');
+    }
+  });
+
+  // Mobile sidebar closes via dispatch() on every navigate call
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SETTINGS MODAL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+(function initSettings() {
+  const modal     = document.getElementById('settings-modal');
+  const overlay   = document.getElementById('modal-overlay');
+  const regionSel = document.getElementById('region-select');
+
+  function open()  { modal.hidden = false; }
+  function close() { modal.hidden = true;  }
+
+  // Load saved region
+  regionSel.value = localStorage.getItem('ludusyt_region') || 'US';
+
+  regionSel.addEventListener('change', () => {
+    localStorage.setItem('ludusyt_region', regionSel.value);
+  });
+
+  document.getElementById('settings-btn').addEventListener('click', open);
+  document.getElementById('close-settings').addEventListener('click', close);
+  overlay.addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   API STATUS BADGE  (init on load)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+(function initConduitStatus() {
+  const control = document.getElementById('proxy-status');
+  if (!control) return;
+  const render = () => {
+    const enabled = conduitEnabled();
+    const state = !enabled ? 'off' : _conduitState;
+    const label = !enabled ? 'Conduit off' : state === 'ok' ? 'Conduit on' : state === 'fail' ? 'Conduit unavailable' : _conduitStage;
+    control.className = `instance-badge status-control ${state}`;
+    control.innerHTML = `<span class="status-dot"></span><span>${escHTML(label)}</span>`;
+    control.setAttribute('aria-pressed', String(enabled));
+    control.title = !enabled ? 'Conduit is off — click to turn it on'
+      : state === 'ok' ? 'Conduit is on — click to use the server directly'
+      : state === 'fail' ? `Conduit failed: ${_conduitError || 'unknown error'} — click to retry` : label;
+  };
+  control.addEventListener('click', () => {
+    if (conduitEnabled() && _conduitState === 'fail') startConduit(); else toggleConduit();
+    render();
+  });
+  window.addEventListener('ludus:conduit-stage', render);
+  window.addEventListener('ludus:conduit-toggle', render);
+  render();
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STREAMING — routing 3rd-party embed servers for actual playback
+
+   Four servers, no extra/fallback tier. Every server (and every switch
+   between them) is routed through the conduit — the conduit toggle sits right
+   next to the server dropdown and is on by default.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// 'melmac' (iv.melmac.space) was dropped — it's TLS-handshaking with a
+// straight EOF through Scramjet (hyper "tls handshake eof"), which means
+// the instance itself is rejecting/dropping Scramjet's connection at the
+// TLS layer. That's not something fixable from this app's code — it's
+// either the instance's TLS config or something about how it's blocking
+// proxied connections — so it's out rather than "fixed". 'pixora' and
+// 'chocomoo' are out per request. Same for any instance here in the
+// future: if Scramjet can't complete a TLS handshake with it, no
+// client-side change here will help; swap it for a different instance
+// instead.
+// The first option is your own Cloudflare-tunnelled resolver. It returns a
+// CORS-safe, proxied M4A URL from the local yt-dlp resolver. The remaining
+// Invidious embeds remain available as automatic and manual fallbacks.
+const RELAY_SERVERS = LudusCore.resolver.servers();
+// Developers see each server's real identity; everyone else still sees the
+// same numbered, health-checked server choices as Music.
+const serverLabel = server => server.type === 'relay' ? `Server ${server.relayIndex + 1}` : `Backup ${Math.max(1, MAIN_SERVERS.indexOf(server) - RELAY_SERVERS.length + 1)}`;
+const MAIN_SERVERS = [
+  ...RELAY_SERVERS.map((resolver, index) => ({ id: resolver.id, name: isDeveloper() ? `${resolver.label} · ${new URL(resolver.url).hostname}` : resolver.label, type: 'relay', resolver: resolver.url, relayIndex: index })),
+  { id: 'f5',         name: 'F5',         build: id => `https://invidious.f5.si/embed/${id}?autoplay=1` },
+  { id: 'nadeko',     name: 'Nadeko',     build: id => `https://inv.nadeko.net/embed/${id}?autoplay=1` },
+  { id: 'tiekoetter', name: 'Tiekoetter', build: id => `https://invidious.tiekoetter.com/embed/${id}?autoplay=1` },
+  { id: 'zoomer',     name: 'Zoomerville',build: id => `https://inv.zoomerville.com/embed/${id}?autoplay=1` },
+];
+const relayHealth = new Map();
+function setServerHealth(server, state, text) {
+  relayHealth.set(server.id, { state, text });
+  const node = document.querySelector(`.server-dropdown-item[data-server="${server.id}"] .server-health`);
+  if (node) { node.className = `server-health ${state}`; node.textContent = text; }
+}
+function activateServer(server) {
+  document.querySelectorAll('.server-dropdown-item').forEach(node => node.classList.toggle('active', node.dataset.server === server.id));
+  const name = document.getElementById('currentServerName'); if (name) name.textContent = server.type === 'relay' ? 'Ludus server' : serverLabel(server);
+}
+// "Music app setup" for YouTube: the shared monitor checks every server, measures their speed, connects to the fastest
+// and keeps re-checking; this page only mounts the shared control and follows the active server.
+function initTopServerPicker() {
+  const host = document.getElementById('server-status'); if (!host || window.LudusYtPicker) return;
+  window.LudusYtPicker = LudusCore.servers.mountPicker(host, { skin: 'music', onChange: (url, { manual }) => {
+    RESOLVER_BASE = LudusCore.resolver.baseOf(url);
+    // A person picked a server while a video is open: replay it through that server.
+    if (manual && _currentVideoId) { const server = MAIN_SERVERS.find(item => item.type === 'relay' && item.resolver === url); if (server) mountResolvedPlayer(server, _currentVideoId, true); }
+  } });
+  LudusCore.servers.monitor.subscribe(snap => { RESOLVER_BASE = LudusCore.resolver.baseOf(snap.active); });
+}
+
+// Same locked-down sandbox Ludus Stream uses: the embedded page can run its
+// own scripts and play video, but it cannot navigate this tab or pop new
+// windows/tabs.
+const LOCKED_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-pointer-lock allow-fullscreen allow-forms';
+
+let _currentVideoId = null;
+
+function playerControlsHTML() {
+  const backups = MAIN_SERVERS.filter(server => server.type !== 'relay');
+  return `<div class="server-bar" id="serverControls"><div class="server-controls"><button class="server-dropdown-btn" id="serverDropdownBtn" type="button" aria-expanded="false" aria-controls="serverDropdownMenu"><span id="currentServerName">Ludus server</span><span class="chev">▼</span></button><div class="server-dropdown-menu" id="serverDropdownMenu" role="menu"><button class="server-dropdown-item active" type="button" role="menuitem" data-server="ludus"><span>Ludus server</span><small class="server-health">Uses the connected server above</small></button>${backups.map((server, index) => `<button class="server-dropdown-item" type="button" role="menuitem" data-server="${server.id}"><span>Invidious backup ${index + 1}</span><small class="server-health">Fallback player</small></button>`).join('')}</div></div></div>`;
+}
+
+function buildPlayerIframe(url) {
+  const iframeId = 'yt-iframe-' + Date.now();
+  return {
+    html: `
+      <div class="yt-player-loader" id="yt-player-loader">
+        <div class="yt-player-loader-spinner"></div>
+        <span class="yt-player-loader-label">Connecting via conduit…</span>
+      </div>
+      <iframe id="${iframeId}" src="${escHTML(url)}" width="100%" height="100%" style="border:none;"
+              sandbox="${LOCKED_SANDBOX}" allowfullscreen
+              allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *"></iframe>`,
+    iframeId,
+  };
+}
+
+function buildRelayPlayer(videoUrl, audioUrl, title, videoFormats = [], captions = []) {
+  const qualityOptions = videoFormats.map((format, index) =>
+    `<option value="${index}"${format.url === videoUrl ? ' selected' : ''}>${escHTML(format.qualityLabel || 'Auto')} MP4</option>`
+  ).join('');
+  const captionOptions = captions.map((caption, index) =>
+    `<option value="${index}">${escHTML(caption.label || caption.language)}</option>`
+  ).join('');
+  return {
+    html: `
+      <div class="yt-player-loader" id="yt-player-loader">
+        <div class="yt-player-loader-spinner"></div>
+        <span class="yt-player-loader-label">${devText('Buffering video through Ludus Relay…', 'Buffering video…')}</span>
+      </div>
+      <div class="relay-player" id="yt-relay-player">
+        <div class="relay-player-title">${escHTML(title || 'YouTube video')}</div>
+        <video id="yt-relay-video" class="relay-player-video" crossorigin="anonymous" muted playsinline data-ludus-eager
+               preload="auto" src="${escHTML(videoUrl)}"></video>
+        <audio id="yt-relay-audio" crossorigin="anonymous" data-ludus-eager preload="auto" src="${escHTML(audioUrl)}"></audio>
+        <div class="relay-controls" aria-label="Video controls">
+          <div class="relay-controls-row">
+            <button type="button" class="relay-control relay-play" data-relay-action="toggle" aria-label="Play">▶</button>
+            <button type="button" class="relay-control relay-skip" data-relay-action="back" aria-label="Back 10 seconds">−10</button>
+            <button type="button" class="relay-control relay-skip" data-relay-action="forward" aria-label="Forward 10 seconds">+10</button>
+            <span class="relay-time" id="yt-relay-time">0:00 / 0:00</span>
+            <input class="relay-seek" id="yt-relay-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+            <label class="relay-volume" title="Volume"><span>VOL</span><input id="yt-relay-volume" type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume"></label>
+            <select class="relay-quality" id="yt-relay-quality" aria-label="Video quality" title="Video quality">${qualityOptions}</select>
+            <select class="relay-captions" id="yt-relay-captions" aria-label="Subtitles" title="Subtitles"><option value="">CC off</option>${captionOptions}</select>
+            <select class="relay-speed" id="yt-relay-speed" aria-label="Playback speed">
+              <option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+            </select>
+            <button type="button" class="relay-control" data-relay-action="pip" aria-label="Picture in picture">▣</button>
+            <button type="button" class="relay-control" data-relay-action="fullscreen" aria-label="Fullscreen">⛶</button>
+          </div>
+        </div>
+      </div>`,
+    videoId: 'yt-relay-video',
+  };
+}
+
+function wirePlayerLoader(wrap) {
+  const loader = wrap.querySelector('#yt-player-loader');
+  const media = wrap.querySelector('iframe, video');
+  if (!loader || !media) return;
+  const loadedEvent = media.tagName === 'VIDEO' ? 'canplay' : 'load';
+  media.addEventListener(loadedEvent, () => {
+    loader.classList.add('yt-fade-out');
+    setTimeout(() => loader.remove(), 320);
+  }, { once: true });
+}
+
+function relayEndpoint(resolver, videoId) {
+  const base = String(resolver || RELAY_SERVERS[0]?.url || '').replace(/\/+$/, '');
+  return `${base}?v=${encodeURIComponent(videoId)}&type=video`;
+}
+
+async function checkRelay(server) {
+  const base = String(server.resolver || '').replace(/\/resolve\/?$/, '');
+  setServerHealth(server, 'checking', 'Checking…');
+  try {
+    // A server the person picks is re-checked for real (not answered from the shared cache).
+    const result = await LudusCore.resolver.probe(server.resolver, { timeout: 8000, force: true });
+    RESOLVER_BASE = base; _resolverReady = null;
+    LudusCore.servers.monitor.adopt(server.resolver); // becomes the active server everywhere, and the picker follows
+    setServerHealth(server, 'healthy', `Available · ${result.ms} ms`);
+  } catch (error) {
+    setServerHealth(server, 'unhealthy', 'Unavailable');
+    throw new Error(`${serverLabel(server)} is unavailable.`);
+  }
+}
+
+function qualityRank(format) {
+  const match = String(format.qualityLabel || '').match(/(\d+)p/);
+  return Number(match?.[1] || 0) * 10000000 + Number(format.bitrate || 0);
+}
+
+// The relay is always first. It produces a direct, proxied audio stream;
+// every remaining source preserves the existing Invidious + Conduit route.
+async function resolveStreamUrl(server, videoId) {
+  if (server.type === 'relay') {
+    await checkRelay(server);
+    const response = await fetch(relayEndpoint(server.resolver, videoId), { signal: AbortSignal.timeout(30000), headers: /\.shares\.zrok\.io/i.test(server.resolver) ? { skip_zrok_interstitial: 'true' } : {} });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || devText(`Ludus Relay returned HTTP ${response.status}`, `The server returned an error (HTTP ${response.status}).`));
+    const formats = data.adaptiveFormats || [];
+    const videoFormats = formats
+      .filter(f => f.url && String(f.type || '').startsWith('video/mp4'))
+      .sort((a, b) => qualityRank(b) - qualityRank(a));
+    const video = videoFormats[0];
+    const audio = formats
+      .filter(f => f.url && String(f.type || '').startsWith('audio/mp4'))
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+    if (!video || !audio) throw new Error(devText('Ludus Relay returned no compatible MP4 video and audio streams', 'No playable stream was found for this video. Try another server.'));
+    return { kind: 'relay', videoUrl: video.url, audioUrl: audio.url, videoFormats, captions: data.captions || [], title: data.title || 'YouTube video' };
+  }
+
+  const raw = server.build(videoId);
+  const useRoute = document.getElementById('conduitToggle')?.classList.contains('active');
+  if (useRoute) {
+    try {
+      const sc = await _conduitReady;
+      return { kind: 'iframe', url: location.origin + sc.encodeUrl(raw) };
+    } catch (err) {
+      console.warn('[Ludus] Route encoding failed:', err);
+    }
+  }
+  return { kind: 'iframe', url: raw };
+}
+
+let _activeRelay = null;
+
+function relayTime(seconds) {
+  if (!Number.isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  return `${mins}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+}
+
+async function requestRelayFullscreen(player) {
+  try {
+    await player?.requestFullscreen?.();
+    // Browsers may reject orientation locking; fullscreen still succeeds.
+    await screen.orientation?.lock?.('landscape');
+  } catch (_) { /* keep the regular fullscreen fallback silent */ }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) screen.orientation?.unlock?.();
+});
+
+function postRelayState() {
+  if (!_activeRelay || window.parent === window) return;
+  const { video, audio, title } = _activeRelay;
+  window.parent.postMessage({
+    source: 'youtube',
+    title,
+    paused: video.paused,
+    volume: audio.volume,
+    currentTime: video.currentTime || 0,
+    duration: video.duration || 0,
+  }, '*');
+}
+
+// Parent Ludus mixer commands. The app posts its state above and accepts the
+// same transport actions as the existing Movies player.
+window.addEventListener('message', event => {
+  const data = event.data;
+  if (!data || data.target !== 'youtube' || !_activeRelay) return;
+  const { video, audio, setVolume, seekTo } = _activeRelay;
+  switch (data.action) {
+    case 'setVolume': setVolume(data.volume); break;
+    case 'togglePlay': video.paused ? video.play().catch(() => {}) : video.pause(); break;
+    case 'seekBack': seekTo(video.currentTime - 10); break;
+    case 'seekForward': seekTo(video.currentTime + 10); break;
+    case 'seekTo': seekTo((Number(data.progress) / 100) * video.duration); break;
+    case 'setPlaybackRate':
+      video.playbackRate = Number(data.rate) || 1;
+      audio.playbackRate = video.playbackRate;
+      break;
+  }
+  postRelayState();
+});
+
+function wireRelaySync(wrap, onFailure, title = 'YouTube video', videoFormats = [], captions = []) {
+  const video = wrap.querySelector('#yt-relay-video');
+  const audio = wrap.querySelector('#yt-relay-audio');
+  if (!video || !audio) return;
+  const player = wrap.querySelector('#yt-relay-player');
+  const play = wrap.querySelector('.relay-play');
+  const seek = wrap.querySelector('#yt-relay-seek');
+  const volume = wrap.querySelector('#yt-relay-volume');
+  const quality = wrap.querySelector('#yt-relay-quality');
+  const captionSelect = wrap.querySelector('#yt-relay-captions');
+  const speed = wrap.querySelector('#yt-relay-speed');
+  const time = wrap.querySelector('#yt-relay-time');
+  let failed = false;
+  const fail = () => {
+    if (failed) return;
+    failed = true;
+    onFailure?.();
+  };
+  const syncTime = () => {
+    if (Math.abs(video.currentTime - audio.currentTime) > 0.35) audio.currentTime = video.currentTime;
+  };
+  const updateControls = () => {
+    if (play) { play.textContent = video.paused ? '▶' : '❚❚'; play.setAttribute('aria-label', video.paused ? 'Play' : 'Pause'); }
+    if (seek && Number.isFinite(video.duration) && !seek.matches(':active')) seek.value = String(Math.round((video.currentTime / video.duration) * 1000) || 0);
+    if (time) time.textContent = `${relayTime(video.currentTime)} / ${relayTime(video.duration)}`;
+  };
+  const setVolume = value => {
+    const next = Math.max(0, Math.min(1, Number(value)));
+    audio.volume = next;
+    if (volume) volume.value = String(next);
+    postRelayState();
+  };
+  const seekTo = seconds => {
+    if (Number.isFinite(video.duration)) video.currentTime = Math.max(0, Math.min(video.duration, Number(seconds) || 0));
+  };
+  _activeRelay = { video, audio, title, setVolume, seekTo, videoFormats, captions };
+
+  video.addEventListener('play', () => { audio.play().catch(fail); updateControls(); postRelayState(); });
+  video.addEventListener('pause', () => { audio.pause(); updateControls(); postRelayState(); });
+  video.addEventListener('seeking', syncTime);
+  video.addEventListener('timeupdate', () => { syncTime(); updateControls(); postRelayState(); });
+  video.addEventListener('loadedmetadata', () => { updateControls(); postRelayState(); });
+  video.addEventListener('ratechange', () => { audio.playbackRate = video.playbackRate; if (speed) speed.value = String(video.playbackRate); });
+  video.addEventListener('ended', () => { audio.pause(); audio.currentTime = 0; updateControls(); postRelayState(); });
+  video.addEventListener('error', fail, { once: true });
+  audio.addEventListener('error', fail, { once: true });
+
+  wrap.addEventListener('click', event => {
+    const action = event.target.closest('[data-relay-action]')?.dataset.relayAction;
+    if (!action) return;
+    if (action === 'toggle') video.paused ? video.play().catch(fail) : video.pause();
+    if (action === 'back') seekTo(video.currentTime - 10);
+    if (action === 'forward') seekTo(video.currentTime + 10);
+    if (action === 'fullscreen') requestRelayFullscreen(player || video);
+    if (action === 'pip') video.requestPictureInPicture?.().catch(() => {});
+  });
+  seek?.addEventListener('input', () => seekTo((Number(seek.value) / 1000) * video.duration));
+  volume?.addEventListener('input', () => setVolume(volume.value));
+  speed?.addEventListener('change', () => { video.playbackRate = Number(speed.value); audio.playbackRate = video.playbackRate; });
+  quality?.addEventListener('change', () => {
+    const next = _activeRelay?.videoFormats?.[Number(quality.value)];
+    if (!next?.url || next.url === video.currentSrc) return;
+    const wasPlaying = !video.paused;
+    const position = video.currentTime || 0;
+    video.src = next.url;
+    video.load();
+    video.addEventListener('loadedmetadata', () => {
+      seekTo(position);
+      if (wasPlaying) video.play().catch(fail);
+    }, { once: true });
+  });
+  captionSelect?.addEventListener('change', () => {
+    video.querySelectorAll('track[data-ludus-caption]').forEach(track => track.remove());
+    const caption = captions[Number(captionSelect.value)];
+    if (!caption?.url) return;
+    const track = document.createElement('track');
+    track.dataset.ludusCaption = 'true';
+    track.kind = 'subtitles';
+    track.srclang = caption.language || 'en';
+    track.label = caption.label || caption.language || 'Subtitles';
+    track.src = caption.url;
+    track.default = true;
+    track.addEventListener('load', () => { track.track.mode = 'showing'; }, { once: true });
+    video.appendChild(track);
+  });
+  updateControls();
+}
+
+function loadingPlayerHTML(label = 'Connecting…') {
+  return `<div class="yt-player-loader" id="yt-player-loader">
+    <div class="yt-player-loader-spinner"></div>
+    <span class="yt-player-loader-label" id="yt-player-loader-label">${escHTML(label)}</span>
+  </div>`;
+}
+
+// Relay servers in the order to try them: fastest first (from the shared monitor), unreachable ones last.
+let _relayTried = new Set();
+function relayRanking() {
+  const snap = LudusCore.servers.monitor.snapshot();
+  const rank = url => { const s = snap.servers.find(item => item.url === url); return !s || s.state === 'down' ? 1e9 : s.state === 'up' ? s.ms : 5e8; };
+  return MAIN_SERVERS.filter(server => server.type === 'relay').sort((a, b) => rank(a.resolver) - rank(b.resolver));
+}
+async function mountResolvedPlayer(server, videoId, allowFallback = false) {
+  const wrap = document.getElementById('ludus-player-wrap');
+  if (!wrap) return;
+  if (server.type === 'relay') _relayTried.add(server.id);
+  activateServer(server);
+  wrap.innerHTML = loadingPlayerHTML(server.type === 'relay' ? 'Loading Ludus server…' : 'Trying backup player…');
+  try {
+    const resolved = await resolveStreamUrl(server, videoId);
+    const player = resolved.kind === 'relay'
+      ? buildRelayPlayer(resolved.videoUrl, resolved.audioUrl, resolved.title, resolved.videoFormats, resolved.captions)
+      : buildPlayerIframe(resolved.url);
+    wrap.innerHTML = player.html;
+    wirePlayerLoader(wrap);
+
+    if (resolved.kind === 'relay' && allowFallback) {
+      wireRelaySync(wrap, () => {
+        console.warn('[Ludus] Relay stream failed; falling back to Invidious.');
+        mountResolvedPlayer(MAIN_SERVERS[1], videoId, false);
+      }, resolved.title, resolved.videoFormats, resolved.captions);
+    } else if (resolved.kind === 'relay') {
+      wireRelaySync(wrap, undefined, resolved.title, resolved.videoFormats, resolved.captions);
+    }
+  } catch (error) {
+    if (allowFallback) {
+      const nextRelay = relayRanking().find(candidate => !_relayTried.has(candidate.id)); // next-fastest server not tried yet
+      if (nextRelay) return mountResolvedPlayer(nextRelay, videoId, true);
+      const fallback = MAIN_SERVERS.find(candidate => candidate.type !== 'relay');
+      if (fallback) return mountResolvedPlayer(fallback, videoId, false);
+    }
+    wrap.innerHTML = `<div class="yt-player-error">${escHTML(error.message || 'Unable to start playback.')}</div>`;
+  }
+}
+
+async function mountPlayer(videoId) {
+  _currentVideoId = videoId;
+  _relayTried = new Set();
+  // Start on the server the shared monitor connected to (the fastest), not always on Server 1.
+  const start = MAIN_SERVERS.find(server => server.type === 'relay' && server.resolver === LudusCore.resolver.active()) || relayRanking()[0] || MAIN_SERVERS[0];
+  await mountResolvedPlayer(start, videoId, true);
+
+}
+
+async function selectMainServer(serverId, name, el) {
+  const picked = serverId === 'ludus'
+    ? MAIN_SERVERS.find(server => server.type === 'relay' && server.resolver === LudusCore.resolver.active()) || MAIN_SERVERS[0]
+    : MAIN_SERVERS.find(s => s.id === serverId);
+  if (picked) activateServer(picked);
+  document.getElementById('serverDropdownMenu')?.classList.remove('open');
+
+  const server = picked;
+  _relayTried = new Set();
+  if (!server || !_currentVideoId) return;
+  await mountResolvedPlayer(server, _currentVideoId, server.type === 'relay');
+}
+
+// Conduit toggle (re-mounts the current server through/around Scramjet) +
+// outside-click handling — registered once via delegation.
+(function initServerControlsGlobalHandlers() {
+  initTopServerPicker();
+  document.addEventListener('click', e => {
+    const dropdownButton = e.target.closest('#serverDropdownBtn');
+    if (dropdownButton) {
+      const menu = document.getElementById('serverDropdownMenu');
+      const open = !menu?.classList.contains('open');
+      menu?.classList.toggle('open', open);
+      dropdownButton.setAttribute('aria-expanded', String(open));
+      return;
+    }
+    const serverItem = e.target.closest('.server-dropdown-item');
+    if (serverItem) {
+      selectMainServer(serverItem.dataset.server, serverItem.dataset.serverName, serverItem);
+      return;
+    }
+    const cTgl = e.target.closest('#conduitToggle');
+    if (cTgl) {
+      toggleConduit();
+      cTgl.classList.toggle('active', conduitEnabled());
+      cTgl.setAttribute('aria-pressed', String(conduitEnabled()));
+      if (_currentVideoId) {
+        const activeItem = document.querySelector('.server-dropdown-item.active');
+        const server = MAIN_SERVERS.find(s => s.id === activeItem?.dataset.server) || MAIN_SERVERS[0];
+        // The relay already proxies audio itself; Conduit only applies to
+        // the retained third-party iframe fallbacks.
+        if (server.type !== 'relay') mountResolvedPlayer(server, _currentVideoId, false);
+      }
+      return;
+    }
+    if (!e.target.closest('#serverControls')) {
+      document.getElementById('serverDropdownMenu')?.classList.remove('open');
+      document.getElementById('serverDropdownBtn')?.setAttribute('aria-expanded', 'false');
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('serverDropdownMenu')?.classList.remove('open');
+  });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOOTSTRAP
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+dispatch('/');
+
+</script>
+</body>
+</html>
