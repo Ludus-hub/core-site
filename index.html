@@ -5,8 +5,8 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>Ludus</title>
 <link href="https://cdn.jsdelivr.net/gh/Ludus-hub/Pictures@Main/Pictures/Non-edited/Math-n.webp" id="favicon" rel="icon"/>
-<link href="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Style.css" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/loading-protocol.js"></script>
+<link href="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Style-2.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/loading-protocol-2.js"></script>
 <style>
 /* Local-save and mixer additions: kept here so embedded Google Sites builds get them too. */
 .local-sync-button { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; width:100%; background:rgba(146,254,157,.10); color:#92fe9d; border:1px solid rgba(146,254,157,.30); padding:9px 14px; border-radius:10px; cursor:pointer; font-weight:600; font-size:13px; transition:.2s; }
@@ -386,25 +386,25 @@ Sync locally
 </div>
 
 <div class="app-section fullscreen-app" id="app-proxy" style="display: none;">
-<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/p/index.html" id="proxyFrame" src="about:blank" allow="autoplay; encrypted-media; fullscreen; clipboard-write; clipboard-read; picture-in-picture; microphone; camera" allowfullscreen></iframe>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/p/index-2.html" id="proxyFrame" src="about:blank" allow="autoplay; encrypted-media; fullscreen; clipboard-write; clipboard-read; picture-in-picture; microphone; camera" allowfullscreen></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-chatbot" style="display: none;">
-<embed class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/chat-1.html" id="chatFrame" src="about:blank" type="text/html"/>
+<embed class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/chat-2.html" id="chatFrame" src="about:blank" type="text/html"/>
 </div>
 <div class="app-section fullscreen-app" id="app-calculator" style="display: none;">
-<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/calc-2.html" id="calcFrame" src="about:blank"></iframe>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/calc-3.html" id="calcFrame" src="about:blank"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-music" style="display: none;">
-<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/music-7.html" id="musicFrame" src="about:blank" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/music-8.html" id="musicFrame" src="about:blank" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-movies" style="display: none;">
-<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/movie-7.html" id="moviesFrame" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/movie-8.html" id="moviesFrame" allow="autoplay; encrypted-media; picture-in-picture"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-youtube" style="display: none;">
-<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/yt-11.html" id="youtubeFrame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
+<iframe class="app-frame" src="about:blank" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/yt-12.html" id="youtubeFrame" allow="autoplay; encrypted-media; picture-in-picture; fullscreen"></iframe>
 </div>
 <div class="app-section fullscreen-app" id="app-files" style="display: none;">
-<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/file-5.html" id="filesFrame" src="about:blank"></iframe>
+<iframe class="app-frame" data-src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/Versions/Assets/Apps/file-6.html" id="filesFrame" src="about:blank"></iframe>
 </div>
 <div class="home-widget" id="mixer-dock" style="display: none; position: fixed; bottom: 80px; right: 20px; z-index: 10001; width: 340px; padding: 0; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
 <div id="mixer-header" style="background: rgba(255,255,255,0.03); padding: 12px 18px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); touch-action:none; user-select:none;">
@@ -852,7 +852,7 @@ function saveProxySettings() {
 </div>
 
 
-<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/ludus-servers.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/ludus-servers-2.js"></script>
 <script>
 const SHARED_SERVER_UI = {
   youtube: { input: 'sharedYtServers', list: 'sharedYtList', note: 'sharedYtServersNote', kind: 'https://' },
@@ -899,9 +899,9 @@ function removeSharedServer(kind, url) {
 }
 syncSharedServerSettings();
 </script>
-<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/script-21.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/credits-data.js" id="credits-src" type="text/plain"></script>
-<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/auth-4.js" type="module"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/script-22.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/credits-data-2.js" id="credits-src" type="text/plain"></script>
+<script src="https://cdn.jsdelivr.net/gh/Ludus-hub/core-site@Main/auth-5.js" type="module"></script>
 
 <script>
 // ─── Premium content gate ─────────────────────────────────────────────────
